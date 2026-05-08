@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { useUserStore } from '@/stores/userStore';
 import { listApi, type UserList, type UserListItem } from '@/lib/userApi';
 import Pagination from '@/components/Pagination';
-import MovieCard from '@/components/MovieCard';
 
 // Map contentType to route prefix
 const contentTypeRoute: Record<string, string> = {
@@ -76,6 +75,8 @@ export default function ListDetailPage() {
 
   if (!isAuthenticated) return null;
 
+  const fallbackCover = (id: number) => `https://picsum.photos/seed/${id}/120/180`;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Breadcrumb */}
@@ -104,9 +105,15 @@ export default function ListDetailPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="aspect-[2/3] rounded-xl animate-pulse" style={{ backgroundColor: 'var(--bg-card)' }} />
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex gap-4 p-3 rounded-xl animate-pulse" style={{ backgroundColor: 'var(--bg-card)' }}>
+              <div className="w-[80px] h-[110px] rounded-lg shrink-0" style={{ backgroundColor: 'var(--border-color)' }} />
+              <div className="flex-1 space-y-2 py-2">
+                <div className="h-4 w-2/3 rounded" style={{ backgroundColor: 'var(--border-color)' }} />
+                <div className="h-3 w-1/3 rounded" style={{ backgroundColor: 'var(--border-color)' }} />
+              </div>
+            </div>
           ))}
         </div>
       ) : items.length === 0 ? (
@@ -128,41 +135,81 @@ export default function ListDetailPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+          {/* Horizontal list layout (like Douban) */}
+          <div className="space-y-2">
             {items.map((item) => {
               const route = contentTypeRoute[item.contentType] || '/movie';
+              const href = `${route}/${item.movieId}`;
               return (
-                <div key={item.id} className="relative group">
-                  <MovieCard
-                    id={item.movieId}
-                    title={item.title}
-                    cover={item.cover}
-                    year={item.year}
-                    rating={item.rating}
-                    type={item.contentType}
-                    href={`${route}/${item.movieId}`}
-                  />
-                  {/* Remove button overlay */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleRemove(item);
-                    }}
-                    disabled={removing === item.id}
-                    className="absolute top-1 left-1 z-20 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{
-                      backgroundColor: 'rgba(239, 68, 68, 0.9)',
-                      color: '#fff',
-                    }}
-                    title="从片单移除"
-                  >
-                    ✕
-                  </button>
+                <div
+                  key={item.id}
+                  className="flex gap-4 p-3 rounded-xl border transition-colors hover:shadow-md group"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderColor: 'var(--border-color)',
+                  }}
+                >
+                  {/* Poster */}
+                  <Link href={href} className="shrink-0">
+                    <img
+                      src={item.cover || fallbackCover(item.movieId)}
+                      alt={item.title || ''}
+                      className="w-[80px] h-[110px] md:w-[100px] md:h-[140px] object-cover rounded-lg"
+                      loading="lazy"
+                    />
+                  </Link>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                    <div>
+                      <Link
+                        href={href}
+                        className="font-medium text-sm md:text-base hover:text-[var(--accent)] transition-colors line-clamp-2 no-underline"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        {item.title || '未知标题'}
+                      </Link>
+                      <div className="flex items-center gap-3 mt-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                        {item.year && <span>{item.year}</span>}
+                        {item.rating && (
+                          <span className="font-semibold" style={{ color: 'var(--accent)' }}>
+                            ★ {Number(item.rating).toFixed(1)}
+                          </span>
+                        )}
+                        <span className="px-1.5 py-0.5 rounded text-xs" style={{
+                          backgroundColor: 'var(--bg-primary)',
+                          color: 'var(--text-secondary)',
+                        }}>
+                          {item.contentType === 'movie' ? '电影' :
+                           item.contentType === 'drama' ? '电视剧' :
+                           item.contentType === 'variety' ? '综艺' :
+                           item.contentType === 'anime' ? '动漫' :
+                           item.contentType === 'short_drama' ? '短剧' : item.contentType}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Remove button */}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleRemove(item)}
+                        disabled={removing === item.id}
+                        className="px-3 py-1 rounded-lg text-xs font-medium border transition-colors opacity-0 group-hover:opacity-100"
+                        style={{
+                          borderColor: 'var(--border-color)',
+                          color: 'var(--text-muted)',
+                        }}
+                        title="从片单移除"
+                      >
+                        {removing === item.id ? '移除中...' : '移除'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
+
           {totalPages > 1 && (
             <Pagination
               currentPage={currentPage}

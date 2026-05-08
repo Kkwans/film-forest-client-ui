@@ -2,9 +2,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { useUserStore } from '@/stores/userStore';
+import { listApi, type UserList } from '@/lib/userApi';
 import dynamic from 'next/dynamic';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
@@ -42,8 +43,89 @@ export default function MovieCard({
 }: MovieCardProps) {
   const [navigating, setNavigating] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [isInWantList, setIsInWantList] = useState(false);
+  const [wantListId, setWantListId] = useState<number | null>(null);
+  const [togglingWant, setTogglingWant] = useState(false);
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
   const contentType = type || 'movie';
+  const clickTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch want_to_watch list status for this movie
+  useEffect(() => {
+    if (!isAuthenticated || !showCollect) return;
+    const checkStatus = async () => {
+      try {
+        const res = await listApi.getAll();
+        const lists: UserList[] = res.data.data || res.data;
+        const wantList = lists.find((l) => l.type === 'want_to_watch');
+        if (wantList) {
+          setWantListId(wantList.id);
+          // Check if this movie is in the want list
+          try {
+            const itemsRes = await listApi.getItems(wantList.id, { page: 1, size: 500 });
+            const items = itemsRes.data.data?.records || itemsRes.data.data || itemsRes.data || [];
+            const found = Array.isArray(items) && items.some((item: any) => item.movieId === id);
+            setIsInWantList(found);
+          } catch {
+            // silent
+          }
+        }
+      } catch {
+        // silent
+      }
+    };
+    checkStatus();
+  }, [isAuthenticated, id, showCollect]);
+
+  // Single click: toggle want_to_watch list
+  const handleSingleClick = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated || !wantListId || togglingWant) return;
+    setTogglingWant(true);
+    try {
+      if (isInWantList) {
+        await listApi.removeItem(wantListId, { movieId: id, contentType });
+        setIsInWantList(false);
+      } else {
+        await listApi.addItem(wantListId, { movieId: id, contentType });
+        setIsInWantList(true);
+      }
+    } catch {
+      // silent
+    } finally {
+      setTogglingWant(false);
+    }
+  }, [isAuthenticated, wantListId, togglingWant, isInWantList, id, contentType]);
+
+  // Double click: open collect modal
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+    }
+    setCollectOpen(true);
+  }, []);
+
+  // Handle click with delay to distinguish single/double
+  const handleCollectClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (clickTimer.current) {
+      // Double click detected
+      clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+      setCollectOpen(true);
+    } else {
+      // Wait to see if it's a double click
+      clickTimer.current = setTimeout(() => {
+        clickTimer.current = null;
+        handleSingleClick(e);
+      }, 250);
+    }
+  }, [handleSingleClick]);
 
   // Normalize region and genre using shared utils
   const regionArr = parseRegion(region);
@@ -115,24 +197,25 @@ export default function MovieCard({
               {rating.toFixed(1)}
             </span>
           )}
-          {/* Collect button - top left */}
+          {/* Collect button - top left. Single click: toggle want list. Double click: open modal */}
           {showCollect && (
             <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setCollectOpen(true);
-              }}
-              className="absolute top-2 left-2 z-10 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors"
+              onClick={handleCollectClick}
+              onDoubleClick={handleDoubleClick}
+              className="absolute top-1.5 left-1.5 md:top-2 md:left-2 z-10 w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors hover:scale-110"
               style={{
-                backgroundColor: 'rgba(0,0,0,0.4)',
+                backgroundColor: isInWantList ? 'rgba(239, 68, 68, 0.8)' : 'rgba(0,0,0,0.4)',
                 color: '#fff',
               }}
-              title="收藏"
+              title={isInWantList ? '已想看（单击移除，双击选择片单）' : '想看（单击加入，双击选择片单）'}
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
+              {togglingWant ? (
+                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill={isInWantList ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              )}
             </button>
           )}
           {/* Status badge - top left */}
@@ -161,37 +244,51 @@ export default function MovieCard({
 
         {/* Info - fixed min-height for uniform card size */}
         <div className="p-2 md:p-3" style={{ minHeight: '60px' }}>
-          {/* Title + Rating on same line */}
-          <div className="flex items-center gap-1.5">
-            <p
-              className="font-medium text-xs md:text-sm truncate flex-1 min-w-0 group-hover:text-[var(--accent)] transition-colors"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {cleanTitle || '\u00A0'}
-            </p>
-            {rating != null ? (
-              <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--accent)' }}>
-                {rating.toFixed(1)}
-              </span>
-            ) : (
-              <span className="text-xs shrink-0 invisible">0.0</span>
-            )}
-          </div>
-
-          {/* Year left / Region right - always rendered for consistent height */}
-          <div className="flex items-center justify-between mt-1">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {year || '\u00A0'}
-            </span>
-            <span className="text-xs truncate ml-2" style={{ color: 'var(--text-muted)' }}>
-              {regionDisplay || '\u00A0'}
-            </span>
-          </div>
-
-          {/* Genre line - always rendered for consistent height */}
-          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
-            {genreArr.length > 0 ? genreArr.slice(0, 3).join('/') : '\u00A0'}
+          {/* Title: mobile allows 2 lines, desktop truncates */}
+          <p
+            className="font-medium text-xs md:text-sm line-clamp-2 md:truncate flex-1 min-w-0 group-hover:text-[var(--accent)] transition-colors"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            {cleanTitle || '\u00A0'}
           </p>
+
+          {/* Rating + Year + Region in compact row */}
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            {rating != null ? (
+              <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+                ★{rating.toFixed(1)}
+              </span>
+            ) : null}
+            {year ? (
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {year}
+              </span>
+            ) : null}
+            {regionDisplay ? (
+              <span className="text-xs truncate max-w-[4em]" style={{ color: 'var(--text-muted)' }}>
+                {regionDisplay}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Genre tags */}
+          {genreArr.length > 0 ? (
+            <div className="flex items-center gap-1 mt-1 flex-wrap">
+              {genreArr.slice(0, 2).map((g, i) => (
+                <span
+                  key={i}
+                  className="text-[10px] md:text-xs px-1.5 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </Link>

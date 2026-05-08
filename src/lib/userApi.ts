@@ -53,7 +53,8 @@ export interface UserList {
   id: number;
   name: string;
   description?: string;
-  type: 'default' | 'custom';
+  type: string;  // want_to_watch / watching / watched / custom
+  isDefault?: number;  // 0=custom, 1=default
   icon?: string;
   itemCount: number;
 }

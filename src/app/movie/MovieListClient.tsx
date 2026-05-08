@@ -82,14 +82,14 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
     } finally {
       setLoading(false);
     }
-  }, [apiBase]);
+  }, [apiBase, sortDir]);
 
   // Always fetch on page/param changes
   useEffect(() => {
     if (initialized) {
       fetchData(page, genre, region, year, sort, yearFrom, yearTo);
     }
-  }, [page, genre, region, year, sort, initialized, fetchData, yearFrom, yearTo]);
+  }, [page, genre, region, year, sort, sortDir, initialized, fetchData, yearFrom, yearTo]);
 
   // Also fetch when page changes from initial load (pagination without filter click)
   const handlePageChange = (p: number) => {

@@ -15,6 +15,13 @@ const NAV_ITEMS = [
   { label: '短剧', href: '/short' },
 ];
 
+function AvatarFallback({ name }: { name?: string }) {
+  const char = (name || '用').charAt(0);
+  return (
+    <span className="text-xs font-bold">{char}</span>
+  );
+}
+
 export default function Header() {
   const pathname = usePathname();
   const [keyword, setKeyword] = useState('');
@@ -139,7 +146,7 @@ export default function Header() {
               {darkMode ? '☀️' : '🌙'}
             </button>
 
-            {/* Auth section */}
+            {/* Auth section - PC only show login (no register), entry point is inside login page */}
             {isAuthenticated && user ? (
               <div className="relative" ref={userMenuRef}>
                 <button
@@ -154,7 +161,7 @@ export default function Header() {
                     {user.avatar ? (
                       <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
                     ) : (
-                      '👤'
+                      <AvatarFallback name={user.nickname || user.username} />
                     )}
                   </div>
                   <span className="text-sm font-medium max-w-[80px] truncate">
@@ -204,18 +211,11 @@ export default function Header() {
                 >
                   登录
                 </Link>
-                <Link
-                  href="/register"
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-colors"
-                  style={{ backgroundColor: 'var(--accent)' }}
-                >
-                  注册
-                </Link>
               </div>
             )}
           </div>
 
-          {/* Mobile: dark toggle + user/login + hamburger */}
+          {/* Mobile: dark toggle + user avatar + hamburger (login/register hidden, bottom nav has 我的) */}
           <div className="flex md:hidden items-center gap-2">
             <button
               onClick={toggleDark}
@@ -227,23 +227,15 @@ export default function Header() {
             >
               {darkMode ? '☀️' : '🌙'}
             </button>
-            {isAuthenticated ? (
+            {isAuthenticated && user ? (
               <Link href="/profile" className="w-8 h-8 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: 'var(--accent-light, #1a2332)', color: 'var(--accent)' }}>
                 {user?.avatar ? (
                   <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
                 ) : (
-                  '👤'
+                  <AvatarFallback name={user.nickname || user.username} />
                 )}
               </Link>
-            ) : (
-              <Link
-                href="/login"
-                className="px-2 py-1 rounded text-xs font-medium"
-                style={{ color: 'var(--accent)' }}
-              >
-                登录
-              </Link>
-            )}
+            ) : null}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="w-8 h-8 flex items-center justify-center rounded-md border text-sm"

@@ -8,7 +8,7 @@ import { useUserStore } from '@/stores/userStore';
 import { listApi, type UserList } from '@/lib/userApi';
 
 const DEFAULT_LISTS = [
-  { key: 'want', label: '想看', icon: '🔖', apiName: '想看' },
+  { key: 'want_to_watch', label: '想看', icon: '🔖', apiName: '想看' },
   { key: 'watching', label: '在看', icon: '👁️', apiName: '在看' },
   { key: 'watched', label: '看过', icon: '✅', apiName: '看过' },
 ];
@@ -66,13 +66,17 @@ export default function ProfilePage() {
   };
 
   // Split lists: default first, then custom
-  const defaultLists = lists.filter((l) => l.type === 'default');
-  const customLists = lists.filter((l) => l.type === 'custom');
+  // Backend uses isDefault=1 for default lists, type stores want_to_watch/watching/watched/custom
+  const defaultLists = lists.filter((l) => l.isDefault === 1);
+  const customLists = lists.filter((l) => l.isDefault !== 1);
 
-  // Match default lists to known icons
-  const getDefaultIcon = (name: string) => {
-    const found = DEFAULT_LISTS.find((d) => d.apiName === name);
-    return found?.icon || '📋';
+  // Match default lists by type (want_to_watch, watching, watched) or name
+  const findDefaultMatch = (d: typeof DEFAULT_LISTS[number]) => {
+    // Match by type field
+    const byType = defaultLists.find((l) => l.type === d.key);
+    if (byType) return byType;
+    // Fallback: match by name
+    return defaultLists.find((l) => l.name === d.apiName);
   };
 
   if (!isAuthenticated) return null;
@@ -85,13 +89,13 @@ export default function ProfilePage() {
         style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
       >
         <div
-          className="w-16 h-16 rounded-full flex items-center justify-center text-2xl shrink-0"
-          style={{ backgroundColor: 'var(--accent-light, #1a2332)', color: 'var(--accent)' }}
+          className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold shrink-0"
+          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
         >
           {user?.avatar ? (
             <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
           ) : (
-            <span>👤</span>
+            <span>{(user?.nickname || user?.username || '用').charAt(0)}</span>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -124,7 +128,7 @@ export default function ProfilePage() {
         </h2>
         <div className="grid grid-cols-3 gap-3">
           {DEFAULT_LISTS.map((d) => {
-            const matched = defaultLists.find((l) => l.name === d.apiName);
+            const matched = findDefaultMatch(d);
             const href = matched ? `/user/lists/${matched.id}` : '#';
             return (
               <Link

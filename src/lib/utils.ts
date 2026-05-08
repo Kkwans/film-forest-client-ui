@@ -71,7 +71,8 @@ export function parseGenre(raw: unknown): string[] {
 /**
  * Clean title: remove year suffix like (2024)
  */
-export function cleanTitle(title: string): string {
+export function cleanTitle(title: string | null | undefined): string {
+  if (!title) return '';
   return title.replace(/\(\d{4}\)\s*$/, '').trim();
 }
 
