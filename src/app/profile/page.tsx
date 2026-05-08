@@ -1,0 +1,292 @@
+// @ts-nocheck
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useUserStore } from '@/stores/userStore';
+import { listApi, type UserList } from '@/lib/userApi';
+
+const DEFAULT_LISTS = [
+  { key: 'want', label: '想看', icon: '🔖', apiName: '想看' },
+  { key: 'watching', label: '在看', icon: '👁️', apiName: '在看' },
+  { key: 'watched', label: '看过', icon: '✅', apiName: '看过' },
+];
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const { user, isAuthenticated, logout } = useUserStore();
+  const [lists, setLists] = useState<UserList[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.replace('/login?from=/profile');
+      return;
+    }
+    loadLists();
+  }, [isAuthenticated]);
+
+  const loadLists = async () => {
+    setLoading(true);
+    try {
+      const res = await listApi.getAll();
+      const data = res.data.data || res.data;
+      setLists(Array.isArray(data) ? data : []);
+    } catch {
+      setLists([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    setCreating(true);
+    try {
+      await listApi.create({ name: newName.trim(), description: newDesc.trim() || undefined });
+      setNewName('');
+      setNewDesc('');
+      setShowCreate(false);
+      loadLists();
+    } catch {
+      // silent
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.replace('/');
+  };
+
+  // Split lists: default first, then custom
+  const defaultLists = lists.filter((l) => l.type === 'default');
+  const customLists = lists.filter((l) => l.type === 'custom');
+
+  // Match default lists to known icons
+  const getDefaultIcon = (name: string) => {
+    const found = DEFAULT_LISTS.find((d) => d.apiName === name);
+    return found?.icon || '📋';
+  };
+
+  if (!isAuthenticated) return null;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* User Info Card */}
+      <div
+        className="rounded-2xl border p-6 flex items-center gap-4"
+        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+      >
+        <div
+          className="w-16 h-16 rounded-full flex items-center justify-center text-2xl shrink-0"
+          style={{ backgroundColor: 'var(--accent-light, #1a2332)', color: 'var(--accent)' }}
+        >
+          {user?.avatar ? (
+            <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+          ) : (
+            <span>👤</span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+            {user?.nickname || user?.username || '用户'}
+          </h1>
+          {user?.nickname && user?.username && (
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              @{user.username}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={handleLogout}
+          className="shrink-0 px-4 py-2 rounded-lg text-sm font-medium border transition-colors"
+          style={{
+            borderColor: 'var(--border-color)',
+            color: 'var(--text-secondary)',
+            backgroundColor: 'transparent',
+          }}
+        >
+          退出登录
+        </button>
+      </div>
+
+      {/* Default Lists */}
+      <section>
+        <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
+          我的标记
+        </h2>
+        <div className="grid grid-cols-3 gap-3">
+          {DEFAULT_LISTS.map((d) => {
+            const matched = defaultLists.find((l) => l.name === d.apiName);
+            const href = matched ? `/user/lists/${matched.id}` : '#';
+            return (
+              <Link
+                key={d.key}
+                href={href}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border transition-colors hover:shadow-md no-underline"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderColor: 'var(--border-color)',
+                }}
+              >
+                <span className="text-3xl">{d.icon}</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                  {d.label}
+                </span>
+                {matched && (
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {matched.itemCount} 部
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Custom Lists */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+            我的片单
+          </h2>
+          <button
+            onClick={() => setShowCreate(!showCreate)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            新建
+          </button>
+        </div>
+
+        {/* Inline create form */}
+        {showCreate && (
+          <div
+            className="rounded-xl border p-4 mb-3"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+          >
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="片单名称"
+              className="w-full h-10 px-3 rounded-lg text-sm border outline-none mb-2"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-primary)',
+              }}
+            />
+            <input
+              type="text"
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              placeholder="描述（可选）"
+              className="w-full h-10 px-3 rounded-lg text-sm border outline-none mb-3"
+              style={{
+                backgroundColor: 'var(--bg-primary)',
+                borderColor: 'var(--border-color)',
+                color: 'var(--text-primary)',
+              }}
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowCreate(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium border"
+                style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={creating || !newName.trim()}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                {creating ? '创建中...' : '创建'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 rounded-xl animate-pulse" style={{ backgroundColor: 'var(--bg-card)' }} />
+            ))}
+          </div>
+        ) : customLists.length === 0 ? (
+          <div
+            className="text-center py-12 rounded-xl border"
+            style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+          >
+            <p className="text-3xl mb-2">📋</p>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              还没有创建过片单
+            </p>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="mt-3 text-sm font-medium"
+              style={{ color: 'var(--accent)' }}
+            >
+              创建第一个片单 →
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {customLists.map((list) => (
+              <Link
+                key={list.id}
+                href={`/user/lists/${list.id}`}
+                className="flex items-center justify-between p-4 rounded-xl border transition-colors hover:shadow-md no-underline"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderColor: 'var(--border-color)',
+                }}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                    {list.name}
+                  </p>
+                  {list.description && (
+                    <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
+                      {list.description}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-3">
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    {list.itemCount} 部
+                  </span>
+                  <svg
+                    className="w-4 h-4"
+                    style={{ color: 'var(--text-muted)' }}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

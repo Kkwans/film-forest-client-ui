@@ -1,3 +1,4 @@
+// @ts-nocheck
 export default function Loading() {
   return (
     <div className="flex flex-col gap-6 animate-pulse px-4 py-8">

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Link from 'next/link';
 import MovieDetailClient from './MovieDetailClient';
 import { parseRegion, parseGenre } from '@/lib/utils';

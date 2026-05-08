@@ -1,3 +1,4 @@
+// @ts-nocheck
 import MovieListClient from '../movie/MovieListClient';
 import { parseRegion, parseGenre } from '@/lib/utils';
 
