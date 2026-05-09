@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUserStore } from '@/stores/userStore';
@@ -17,12 +17,20 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [shaking, setShaking] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const triggerShake = () => {
+    setShaking(true);
+    setTimeout(() => setShaking(false), 500);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!username.trim() || !password) {
       setError('请输入用户名和密码');
+      triggerShake();
       return;
     }
     setLoading(true);
@@ -30,7 +38,8 @@ function LoginForm() {
       await login(username.trim(), password);
       router.replace(from);
     } catch (err: any) {
-      setError(err.response?.data?.message || '登录失败，请检查用户名和密码');
+      setError(err.message || '登录失败，请检查用户名和密码');
+      triggerShake();
     } finally {
       setLoading(false);
     }
@@ -38,11 +47,15 @@ function LoginForm() {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
-      <div
-        className="w-full max-w-[400px] mx-4 rounded-2xl border p-8"
+      <form
+        ref={formRef}
+        onSubmit={handleSubmit}
+        className={`w-full max-w-[400px] mx-4 rounded-2xl border p-8 transition-transform ${
+          shaking ? 'animate-shake' : ''
+        }`}
         style={{
           backgroundColor: 'var(--bg-card)',
-          borderColor: 'var(--border-color)',
+          borderColor: error ? '#ef4444' : 'var(--border-color)',
         }}
       >
         <div className="text-center mb-8">
@@ -55,12 +68,17 @@ function LoginForm() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           {error && (
             <div
-              className="px-4 py-3 rounded-lg text-sm"
+              className="px-4 py-3 rounded-lg text-sm flex items-center gap-2"
               style={{ backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
             >
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
               {error}
             </div>
           )}
@@ -78,7 +96,7 @@ function LoginForm() {
               className="w-full h-11 px-4 rounded-lg text-sm border outline-none transition-colors"
               style={{
                 backgroundColor: 'var(--bg-primary)',
-                borderColor: 'var(--border-color)',
+                borderColor: error ? '#ef4444' : 'var(--border-color)',
                 color: 'var(--text-primary)',
               }}
             />
@@ -97,7 +115,7 @@ function LoginForm() {
               className="w-full h-11 px-4 rounded-lg text-sm border outline-none transition-colors"
               style={{
                 backgroundColor: 'var(--bg-primary)',
-                borderColor: 'var(--border-color)',
+                borderColor: error ? '#ef4444' : 'var(--border-color)',
                 color: 'var(--text-primary)',
               }}
             />
@@ -111,7 +129,7 @@ function LoginForm() {
           >
             {loading ? '登录中...' : '登录'}
           </button>
-        </form>
+        </div>
 
         <p className="text-center text-sm mt-6" style={{ color: 'var(--text-muted)' }}>
           还没有账号？{' '}
@@ -119,7 +137,7 @@ function LoginForm() {
             注册
           </Link>
         </p>
-      </div>
+      </form>
     </div>
   );
 }

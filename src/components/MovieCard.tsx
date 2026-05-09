@@ -49,14 +49,13 @@ export default function MovieCard({
   const contentType = type || 'movie';
   const clickTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Single click: add to want_to_watch (direct POST, no status check)
+  // Single click: add to want_to_watch
   const handleSingleClick = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isAuthenticated || toggling) return;
     setToggling(true);
     try {
-      // Get all lists to find want_to_watch list id
       const res = await listApi.getAll();
       const lists = res.data.data || res.data;
       const wantList = Array.isArray(lists) ? lists.find((l: any) => l.type === 'want_to_watch') : null;
@@ -65,7 +64,6 @@ export default function MovieCard({
         setAdded(true);
       }
     } catch {
-      // silent - may already be in list
       setAdded(true);
     } finally {
       setToggling(false);
@@ -77,12 +75,10 @@ export default function MovieCard({
     e.preventDefault();
     e.stopPropagation();
     if (clickTimer.current) {
-      // Double click detected
       clearTimeout(clickTimer.current);
       clickTimer.current = null;
       setCollectOpen(true);
     } else {
-      // Wait to see if it's a double click
       clickTimer.current = setTimeout(() => {
         clickTimer.current = null;
         handleSingleClick(e);
@@ -90,7 +86,7 @@ export default function MovieCard({
     }
   }, [handleSingleClick]);
 
-  // Normalize region and genre using shared utils
+  // Normalize region and genre
   const regionArr = parseRegion(region);
   const genreArr = parseGenre(genre);
   const regionDisplay = regionArr.length > 0 ? regionArr[0] : '';
@@ -122,7 +118,7 @@ export default function MovieCard({
       }}
     >
       <div
-        className="rounded-xl overflow-hidden border card-hover relative"
+        className="rounded-xl overflow-hidden border card-hover relative flex flex-col"
         style={{
           backgroundColor: 'var(--bg-card)',
           borderColor: 'var(--border-color)',
@@ -177,7 +173,7 @@ export default function MovieCard({
               )}
             </button>
           )}
-          {/* Status badge - top left */}
+          {/* Status badge */}
           {status && (
             <span
               className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-xs font-medium text-white"
@@ -193,7 +189,7 @@ export default function MovieCard({
               {status}
             </span>
           )}
-          {/* Duration/Episode badge - bottom right, semi-transparent */}
+          {/* Duration/Episode badge */}
           {badgeText && (
             <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded text-xs font-medium text-white bg-black/60 backdrop-blur-sm">
               {badgeText}
@@ -201,42 +197,42 @@ export default function MovieCard({
           )}
         </div>
 
-        {/* Info - fixed min-height for uniform card size */}
-        <div className="p-2 md:p-3" style={{ minHeight: '60px' }}>
-          {/* Title: mobile allows 2 lines, desktop truncates */}
+        {/* Info section - fixed height for uniform cards */}
+        <div className="p-2 md:p-3 flex flex-col gap-1" style={{ minHeight: '72px' }}>
+          {/* Title: always 1 line, truncate */}
           <p
-            className="font-medium text-xs md:text-sm line-clamp-2 md:truncate flex-1 min-w-0 group-hover:text-[var(--accent)] transition-colors"
+            className="font-medium text-xs md:text-sm truncate min-w-0 group-hover:text-[var(--accent)] transition-colors"
             style={{ color: 'var(--text-primary)' }}
           >
             {cleanTitle || '\u00A0'}
           </p>
 
           {/* Rating + Year + Region in compact row */}
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap">
             {rating != null ? (
-              <span className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+              <span className="text-[10px] md:text-xs font-semibold" style={{ color: 'var(--accent)' }}>
                 ★{rating.toFixed(1)}
               </span>
             ) : null}
             {year ? (
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              <span className="text-[10px] md:text-xs" style={{ color: 'var(--text-muted)' }}>
                 {year}
               </span>
             ) : null}
             {regionDisplay ? (
-              <span className="text-xs truncate max-w-[4em]" style={{ color: 'var(--text-muted)' }}>
+              <span className="text-[10px] md:text-xs truncate max-w-[5em]" style={{ color: 'var(--text-muted)' }}>
                 {regionDisplay}
               </span>
             ) : null}
           </div>
 
-          {/* Genre tags */}
+          {/* Genre tags - show as many as fit */}
           {genreArr.length > 0 ? (
-            <div className="flex items-center gap-1 mt-1 flex-wrap">
-              {genreArr.slice(0, 2).map((g, i) => (
+            <div className="flex items-center gap-1 flex-wrap overflow-hidden" style={{ maxHeight: '22px' }}>
+              {genreArr.map((g, i) => (
                 <span
                   key={i}
-                  className="text-[10px] md:text-xs px-1.5 py-0.5 rounded-full"
+                  className="text-[9px] md:text-[10px] px-1 py-0.5 rounded shrink-0"
                   style={{
                     backgroundColor: 'var(--bg-primary)',
                     color: 'var(--text-secondary)',

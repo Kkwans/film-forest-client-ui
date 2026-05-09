@@ -103,6 +103,9 @@ export const listApi = {
 
   removeItem: (id: number, data: { movieId: number; contentType: string }) =>
     authClient.delete(`/api/user/lists/${id}/items`, { data }),
+
+  updateItem: (id: number, data: { movieId: number; contentType: string; rating?: number; note?: string }) =>
+    authClient.put(`/api/user/lists/${id}/items`, data),
 };
 
 // ---- Movie Status API ----

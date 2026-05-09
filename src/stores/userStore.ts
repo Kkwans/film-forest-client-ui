@@ -26,7 +26,15 @@ export const useUserStore = create<UserState>()(
 
       login: async (username, password) => {
         const res = await userApi.login({ username, password });
-        const { token, user } = res.data.data || res.data;
+        const body = res.data;
+        // API returns HTTP 200 even on failure, check code field
+        if (body.code && body.code !== 200) {
+          throw new Error(body.message || '登录失败');
+        }
+        const { token, user } = body.data || body;
+        if (!token) {
+          throw new Error('登录失败，未获取到token');
+        }
         localStorage.setItem('ff_token', token);
         set({ user, token, isAuthenticated: true });
       },

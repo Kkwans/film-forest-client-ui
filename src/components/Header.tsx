@@ -151,11 +151,11 @@ export default function Header() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 px-2 py-1 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-1.5 py-1 rounded-lg transition-colors"
                   style={{ color: 'var(--text-primary)' }}
                 >
                   <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs"
                     style={{ backgroundColor: 'var(--accent-light, #1a2332)', color: 'var(--accent)' }}
                   >
                     {user.avatar ? (
@@ -164,11 +164,8 @@ export default function Header() {
                       <AvatarFallback name={user.nickname || user.username} />
                     )}
                   </div>
-                  <span className="text-sm font-medium max-w-[80px] truncate">
-                    {user.nickname || user.username}
-                  </span>
                   <svg
-                    className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
+                    className={`w-3 h-3 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -215,7 +212,7 @@ export default function Header() {
             )}
           </div>
 
-          {/* Mobile: dark toggle + user avatar + hamburger (login/register hidden, bottom nav has 我的) */}
+          {/* Mobile: dark toggle + hamburger (user info handled by bottom nav "我的" tab) */}
           <div className="flex md:hidden items-center gap-2">
             <button
               onClick={toggleDark}
@@ -227,15 +224,6 @@ export default function Header() {
             >
               {darkMode ? '☀️' : '🌙'}
             </button>
-            {isAuthenticated && user ? (
-              <Link href="/profile" className="w-8 h-8 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: 'var(--accent-light, #1a2332)', color: 'var(--accent)' }}>
-                {user?.avatar ? (
-                  <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  <AvatarFallback name={user.nickname || user.username} />
-                )}
-              </Link>
-            ) : null}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="w-8 h-8 flex items-center justify-center rounded-md border text-sm"

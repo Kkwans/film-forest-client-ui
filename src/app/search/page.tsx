@@ -6,6 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { searchApi } from '@/lib/api';
 import Pagination from '@/components/Pagination';
+import CustomSelect from '@/components/CustomSelect';
+import SortDirButton from '@/components/SortDirButton';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { useUserStore } from '@/stores/userStore';
 import dynamic from 'next/dynamic';
@@ -28,6 +30,7 @@ interface SearchResult {
   region?: string;
   duration?: number;
   totalEpisode?: number;
+  updatedAt?: string;
 }
 
 const TYPE_FILTERS = [
@@ -136,6 +139,13 @@ function SearchContent() {
         }
         return sortDir === 'desc' ? -cmp : cmp;
       });
+    } else {
+      // Sort by updatedAt for "latest"
+      filtered.sort((a, b) => {
+        const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        return sortDir === 'desc' ? bTime - aTime : aTime - bTime;
+      });
     }
 
     return filtered;
@@ -177,34 +187,8 @@ function SearchContent() {
 
           {/* Sort controls */}
           <div className="flex items-center justify-end gap-2">
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value)}
-              className="h-8 px-3 rounded-lg text-sm border outline-none cursor-pointer"
-              style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
-            >
-              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <button
-              onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
-              className="h-8 w-8 flex items-center justify-center rounded-lg border cursor-pointer transition-colors"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-secondary)',
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation',
-              }}
-              title={sortDir === 'desc' ? '降序' : '升序'}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {sortDir === 'desc' ? (
-                  <><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></>
-                ) : (
-                  <><line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" /></>
-                )}
-              </svg>
-            </button>
+            <CustomSelect value={sortBy} options={SORT_OPTIONS} onChange={v => setSortBy(v)} />
+            <SortDirButton direction={sortDir} onToggle={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')} />
           </div>
         </div>
       )}
@@ -279,8 +263,6 @@ function SearchContent() {
                     {directorArr.length > 0 && <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>导演: {directorArr.join(' / ')}</p>}
                     {/* Actor - PC only */}
                     {actorArr.length > 0 && <p className="text-xs truncate hidden md:block" style={{ color: 'var(--text-muted)' }}>主演: {actorArr.slice(0,4).join(' / ')}</p>}
-                    {/* Summary - PC only */}
-                    {item.summary && <p className="text-xs line-clamp-2 mt-auto hidden md:block" style={{ color: 'var(--text-muted)' }}>{item.summary}</p>}
                   </div>
                 </Link>
               );

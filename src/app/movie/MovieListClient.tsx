@@ -4,6 +4,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import MovieCard from '@/components/MovieCard';
 import Pagination from '@/components/Pagination';
+import CustomSelect from '@/components/CustomSelect';
+import SortDirButton from '@/components/SortDirButton';
 import { parseRegion, parseGenre } from '@/lib/utils';
 
 const GENRES_MOVIE = ['全部', '剧情', '喜剧', '动作', '爱情', '科幻', '悬疑', '恐怖', '犯罪', '动画', '奇幻', '冒险'];
@@ -24,7 +26,13 @@ function getGenres(contentType: string) {
 
 const YEARS = ['全部', '2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018'];
 const REGIONS = ['全部', '大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国', '意大利', '西班牙', '加拿大', '澳大利亚'];
-const SORT_OPTIONS = [{ label: '最新更新', value: 'latest' }, { label: '上映时间', value: 'year' }, { label: '豆瓣评分', value: 'douban' }, { label: 'IMDB评分', value: 'imdb' }];
+const SORT_OPTIONS = [
+  { label: '最新更新', value: 'latest' },
+  { label: '上映时间', value: 'year' },
+  { label: '豆瓣评分', value: 'douban' },
+  { label: 'IMDB评分', value: 'imdb' },
+  { label: '烂番茄评分', value: 'rt' },
+];
 
 interface ContentItem { id: number; title: string; cover: string; year: number; region: string | string[]; rating?: number; genre?: string[]; duration?: number; episodes?: number; }
 
@@ -32,7 +40,7 @@ interface Props {
   initialItems: ContentItem[];
   initialTotal: number;
   contentType: string;
-  apiBase: string; // e.g. '/api/movies'
+  apiBase: string;
 }
 
 export default function MovieListClient({ initialItems, initialTotal, contentType, apiBase }: Props) {
@@ -84,14 +92,12 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
     }
   }, [apiBase, sortDir]);
 
-  // Always fetch on page/param changes
   useEffect(() => {
     if (initialized) {
       fetchData(page, genre, region, year, sort, yearFrom, yearTo);
     }
   }, [page, genre, region, year, sort, sortDir, initialized, fetchData, yearFrom, yearTo]);
 
-  // Also fetch when page changes from initial load (pagination without filter click)
   const handlePageChange = (p: number) => {
     if (!initialized) setInitialized(true);
     setPage(p);
@@ -149,32 +155,12 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
       <div className="flex items-center justify-between">
         <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{loading ? '加载中...' : `共 ${total} 部`}</span>
         <div className="flex items-center gap-2">
-          <select value={sort} onChange={e => updateFilter('sort', e.target.value)} className="h-8 px-3 rounded-lg text-sm border outline-none cursor-pointer" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
-            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <button
-            onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
-            className="h-8 px-2.5 flex items-center gap-1 rounded-lg text-xs font-medium border cursor-pointer transition-colors"
-            style={{
-              backgroundColor: 'var(--bg-card)',
-              borderColor: 'var(--border-color)',
-              color: 'var(--text-secondary)',
-            }}
-            title={sortDir === 'desc' ? '降序 → 点击切换升序' : '升序 → 点击切换降序'}
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {sortDir === 'desc' ? (
-                <><path d="M4 6l4 4 4-4" /></>
-              ) : (
-                <><path d="M4 10l4-4 4 4" /></>
-              )}
-            </svg>
-            <span>{sortDir === 'desc' ? '降序' : '升序'}</span>
-          </button>
+          <CustomSelect value={sort} options={SORT_OPTIONS} onChange={v => updateFilter('sort', v)} />
+          <SortDirButton direction={sortDir} onToggle={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')} />
         </div>
       </div>
 
-      {/* Loading indicator - centered overlay */}
+      {/* Loading indicator */}
       {loading ? (
         <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
           <div className="flex flex-col items-center gap-3">
@@ -184,8 +170,8 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
         </div>
       ) : (
         <>
-          {/* Grid */}
-          <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4" style={{ minHeight: '60vh' }}>
+          {/* Grid - mobile 2 columns, desktop responsive */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4" style={{ minHeight: '60vh' }}>
             {items.map((item) => (
               <MovieCard key={item.id} id={item.id} title={item.title} cover={item.cover} year={item.year} region={item.region} rating={item.rating} genre={item.genre} type={contentType} duration={item.duration} episodes={item.episodes} href={`/${contentType}/${item.id}`} />
             ))}

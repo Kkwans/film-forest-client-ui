@@ -244,7 +244,7 @@ export default function ProfilePage() {
               className="mt-3 text-sm font-medium"
               style={{ color: 'var(--accent)' }}
             >
-              创建第一个片单 →
+              <span className="inline-flex items-center gap-1">创建第一个片单 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg></span>
             </button>
           </div>
         ) : (

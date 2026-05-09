@@ -114,7 +114,9 @@ export default function CategoryPage() {
                       ? `${counts[cat.type as keyof CountData]} 部内容`
                       : '加载中...'}
                   </span>
-                  <span className="text-white/80 text-sm group-hover:translate-x-1 transition-transform">→</span>
+                  <svg className="w-4 h-4 text-white/60 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
                 </div>
               </div>
             </div>
