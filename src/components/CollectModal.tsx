@@ -86,10 +86,30 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
     try {
       if (isCurrentlyIn) {
         await listApi.removeItem(listId, { movieId, contentType });
+        setMovieStatus((prev) => ({ ...prev, [listId]: false }));
       } else {
         await listApi.addItem(listId, { movieId, contentType, note: note || undefined });
+        // Find the list type for mutual exclusion
+        const targetList = lists.find(l => l.id === listId);
+        const targetType = targetList?.type;
+
+        // Mutual exclusion for default lists:
+        // - want_to_watch: no exclusion needed
+        // - watching: remove from want_to_watch
+        // - watched: remove from want_to_watch AND watching
+        const newStatus = { ...movieStatus, [listId]: true };
+        if (targetType === 'watching' || targetType === 'watched') {
+          // Remove from want_to_watch
+          const wantList = lists.find(l => l.type === 'want_to_watch');
+          if (wantList) newStatus[wantList.id] = false;
+        }
+        if (targetType === 'watched') {
+          // Remove from watching
+          const watchingList = lists.find(l => l.type === 'watching');
+          if (watchingList) newStatus[watchingList.id] = false;
+        }
+        setMovieStatus(newStatus);
       }
-      setMovieStatus((prev) => ({ ...prev, [listId]: !isCurrentlyIn }));
       setShowNoteInput(null);
       setAddNote('');
     } catch {} finally {

@@ -58,7 +58,7 @@ export const shortDramaApi = {
 };
 
 export const searchApi = {
-  search: (keyword: string, params?: { page?: number; size?: number }) =>
+  search: (keyword: string, params?: { page?: number; size?: number; sort?: string; sortDir?: string }) =>
     client.get('/api/search', { params: { keyword, ...params } }),
 };
 

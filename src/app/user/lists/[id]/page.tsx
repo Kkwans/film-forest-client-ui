@@ -22,12 +22,30 @@ const typeLabel: Record<string, string> = {
   movie: '电影', drama: '电视剧', variety: '综艺', anime: '动漫', short_drama: '短剧',
 };
 
-const SORT_OPTIONS = [
-  { label: '最新收藏', value: 'addedAt' },
-  { label: '上映时间', value: 'year' },
-  { label: '豆瓣评分', value: 'douban' },
-  { label: '我的评分', value: 'userRating' },
-];
+// Sort options per list type
+const SORT_OPTIONS_BY_TYPE: Record<string, { label: string; value: string }[]> = {
+  want_to_watch: [
+    { label: '最新收藏', value: 'addedAt' },
+    { label: '上映时间', value: 'year' },
+    { label: '豆瓣评分', value: 'douban' },
+  ],
+  watching: [
+    { label: '最新收藏', value: 'addedAt' },
+    { label: '上映时间', value: 'year' },
+    { label: '豆瓣评分', value: 'douban' },
+  ],
+  watched: [
+    { label: '最新收藏', value: 'addedAt' },
+    { label: '上映时间', value: 'year' },
+    { label: '豆瓣评分', value: 'douban' },
+    { label: '我的评分', value: 'userRating' },
+  ],
+  custom: [
+    { label: '最新收藏', value: 'addedAt' },
+    { label: '上映时间', value: 'year' },
+    { label: '豆瓣评分', value: 'douban' },
+  ],
+};
 
 const TYPE_FILTERS = [
   { label: '全部', value: '' },
@@ -42,6 +60,33 @@ function parseJsonArr(val: string | string[] | undefined): string[] {
   if (!val) return [];
   if (Array.isArray(val)) return val;
   try { const p = JSON.parse(val); return Array.isArray(p) ? p : []; } catch { return []; }
+}
+
+// Format relative time (e.g., "3天前", "9小时前")
+function formatRelativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diff < minute) return '刚刚';
+  if (diff < hour) return `${Math.floor(diff / minute)}分钟前`;
+  if (diff < day) return `${Math.floor(diff / hour)}小时前`;
+  if (diff < 30 * day) return `${Math.floor(diff / day)}天前`;
+  // Format as date
+  const d = new Date(dateStr);
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+// Get rating style based on score
+function getRatingStyle(rating: number): React.CSSProperties {
+  if (rating >= 9) return { color: '#dc2626', fontWeight: 'bold' }; // 红色 - 神作
+  if (rating >= 8) return { color: '#ea580c', fontWeight: 'bold' }; // 橙色 - 优秀
+  if (rating >= 7) return { color: '#16a34a' }; // 绿色 - 良好
+  if (rating >= 6) return { color: '#2563eb' }; // 蓝色 - 还行
+  return { color: '#6b7280' }; // 灰色 - 一般
 }
 
 export default function ListDetailPage() {
@@ -65,10 +110,19 @@ export default function ListDetailPage() {
   const touchStartX = useRef(0);
   const touchCurrentId = useRef<number | null>(null);
 
+  const sortOptions = SORT_OPTIONS_BY_TYPE[list?.type || 'custom'] || SORT_OPTIONS_BY_TYPE.custom;
+
   useEffect(() => {
     if (!isAuthenticated) { router.replace('/login?from=/user/lists/' + listId); return; }
-    loadList();
+    loadList(1);
   }, [isAuthenticated, listId]);
+
+  // Re-load when sort/filter changes
+  useEffect(() => {
+    if (isAuthenticated && listId) {
+      loadList(1);
+    }
+  }, [sortBy, sortDir]);
 
   const loadList = async (page = 1) => {
     setLoading(true);
@@ -77,7 +131,7 @@ export default function ListDetailPage() {
       const allLists: UserList[] = allRes.data.data || allRes.data;
       const found = allLists.find((l) => l.id === listId);
       if (found) setList(found);
-      const itemsRes = await listApi.getItems(listId, { page, size: 50 });
+      const itemsRes = await listApi.getItems(listId, { page, size: 50, sort: sortBy, sortDir });
       const data = itemsRes.data.data || itemsRes.data;
       setItems(data.records || data || []);
       setCurrentPage(page);
@@ -112,21 +166,23 @@ export default function ListDetailPage() {
     touchCurrentId.current = null;
   }, []);
 
-  // Filter + Sort
+  // Client-side type filter (sorting is server-side)
   const filteredItems = typeFilter ? items.filter(i => i.contentType === typeFilter) : items;
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    let cmp = 0;
-    if (sortBy === 'addedAt') cmp = (a.addedAt ? new Date(a.addedAt).getTime() : 0) - (b.addedAt ? new Date(b.addedAt).getTime() : 0);
-    else if (sortBy === 'year') cmp = (a.year ?? 0) - (b.year ?? 0);
-    else if (sortBy === 'douban') cmp = (Number(a.rating) ?? 0) - (Number(b.rating) ?? 0);
-    else if (sortBy === 'userRating') cmp = (Number(a.userRating) ?? 0) - (Number(b.userRating) ?? 0);
-    return sortDir === 'desc' ? -cmp : cmp;
-  });
 
   if (!isAuthenticated) return null;
 
   const isWatchedList = list?.type === 'watched';
+  const isWantList = list?.type === 'want_to_watch';
+  const isWatchingList = list?.type === 'watching';
   const fallbackCover = (id: number) => `https://picsum.photos/seed/${id}/120/180`;
+
+  // Get status label for subtitle
+  const getStatusLabel = () => {
+    if (isWantList) return '想看';
+    if (isWatchingList) return '在看';
+    if (isWatchedList) return '看过';
+    return '收藏';
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -136,15 +192,15 @@ export default function ListDetailPage() {
         <span style={{ color: 'var(--text-primary)' }}>{list?.name || '片单'}</span>
       </nav>
 
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{list?.name || '片单'}</h1>
-        {list?.description && <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{list.description}</p>}
-        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>共 {list?.itemCount ?? items.length} 部</p>
-      </div>
-
-      {/* Type filter + Sort controls */}
-      {items.length > 0 && (
-        <div className="flex flex-col gap-3">
+      {/* Title row with type filter on the right */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{list?.name || '片单'}</h1>
+          {list?.description && <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{list.description}</p>}
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>共 {list?.itemCount ?? items.length} 部</p>
+        </div>
+        {/* Type filter - right side of title */}
+        {items.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {TYPE_FILTERS.map(t => (
               <button key={t.value} onClick={() => setTypeFilter(t.value)} className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
@@ -153,10 +209,14 @@ export default function ListDetailPage() {
               </button>
             ))}
           </div>
-          <div className="flex items-center justify-end gap-2">
-            <CustomSelect value={sortBy} options={SORT_OPTIONS} onChange={v => setSortBy(v)} />
-            <SortDirButton direction={sortDir} onToggle={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')} />
-          </div>
+        )}
+      </div>
+
+      {/* Sort controls */}
+      {items.length > 0 && (
+        <div className="flex items-center justify-end gap-2">
+          <CustomSelect value={sortBy} options={sortOptions} onChange={v => setSortBy(v)} />
+          <SortDirButton direction={sortDir} onToggle={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')} />
         </div>
       )}
 
@@ -171,7 +231,7 @@ export default function ListDetailPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {sortedItems.map((item) => {
+            {filteredItems.map((item) => {
               const route = contentTypeRoute[item.contentType] || '/movie';
               const href = `${route}/${item.movieId}`;
               const isSwiped = swipedId === item.id;
@@ -191,23 +251,35 @@ export default function ListDetailPage() {
                   <div className="flex gap-3 md:gap-4 p-3 md:p-4 rounded-xl border transition-all hover:shadow-md group relative"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)', transform: isSwiped ? 'translateX(-120px)' : 'translateX(0)', transition: 'transform 0.2s ease' }}>
                     <Link href={href} className="shrink-0">
-                      <div className="w-[80px] h-[110px] md:w-[110px] md:h-[150px] rounded-lg overflow-hidden">
+                      <div className="w-[80px] h-[110px] md:w-[100px] md:h-[140px] rounded-lg overflow-hidden">
                         <img src={item.cover || fallbackCover(item.movieId)} alt={item.title || ''} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                     </Link>
 
                     <div className="flex-1 min-w-0 flex flex-col gap-1">
-                      <Link href={href} className="font-bold text-sm md:text-base line-clamp-1 no-underline hover:text-[var(--accent)] transition-colors" style={{ color: 'var(--text-primary)' }}>
-                        {cleanTitleUtil(item.title) || '未知标题'}
-                      </Link>
+                      {/* Title + actions row */}
+                      <div className="flex items-start justify-between gap-2">
+                        <Link href={href} className="font-bold text-sm md:text-base line-clamp-1 no-underline hover:text-[var(--accent)] transition-colors flex-1 min-w-0" style={{ color: 'var(--text-primary)' }}>
+                          {cleanTitleUtil(item.title) || '未知标题'}
+                        </Link>
+                        {/* PC actions - inline with title */}
+                        <div className="hidden md:flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => setNoteEdit({ item, listId })} className="w-6 h-6 rounded flex items-center justify-center transition-colors" style={{ color: 'var(--text-muted)' }} title={isWatchedList ? '编辑评分和感想' : '编辑备注'}>
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          </button>
+                          <button onClick={() => setConfirmDelete(item)} className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:text-red-500" style={{ color: 'var(--text-muted)' }} title="移除">
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                          </button>
+                        </div>
+                      </div>
 
                       {/* Ratings */}
                       <div className="flex items-center gap-2 flex-wrap">
                         {item.rating && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>豆瓣 {Number(item.rating).toFixed(1)}</span>}
-                        {isWatchedList && item.userRating != null && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#fefce8', color: '#ca8a04' }}>我的 {Number(item.userRating).toFixed(1)}</span>}
+                        {isWatchedList && item.userRating != null && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#fefce8', ...getRatingStyle(Number(item.userRating)) as any }}>我的 {Number(item.userRating).toFixed(1)}</span>}
                       </div>
 
-                      {/* Meta row - type, year, region */}
+                      {/* Meta row */}
                       <div className="flex items-center gap-2 flex-wrap text-xs" style={{ color: 'var(--text-muted)' }}>
                         <span className="px-1.5 py-0.5 rounded text-[10px] md:text-xs" style={{ border: '1px solid var(--accent)', color: 'var(--accent)' }}>{typeLabel[item.contentType] || item.contentType}</span>
                         {item.year && <span>{item.year}</span>}
@@ -219,7 +291,7 @@ export default function ListDetailPage() {
                       {/* Genre tags */}
                       {genreArr.length > 0 && (
                         <div className="flex items-center gap-1 flex-wrap">
-                          {genreArr.slice(0, 4).map((g, i) => (
+                          {genreArr.slice(0, 3).map((g, i) => (
                             <span key={i} className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>{g}</span>
                           ))}
                         </div>
@@ -227,30 +299,26 @@ export default function ListDetailPage() {
 
                       {/* Director */}
                       {directorArr.length > 0 && <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}><span className="font-medium" style={{ color: 'var(--text-secondary)' }}>导演:</span> {directorArr.join(' / ')}</p>}
-                      {/* Actor */}
-                      {actorArr.length > 0 && <p className="text-xs truncate hidden md:block" style={{ color: 'var(--text-muted)' }}><span className="font-medium" style={{ color: 'var(--text-secondary)' }}>主演:</span> {actorArr.slice(0, 3).join(' / ')}</p>}
-
-                      {/* Note */}
-                      {item.note ? (
-                        <div className="mt-1 flex items-start gap-1.5 p-1.5 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
-                          <svg className="w-3 h-3 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                          <p className="text-[10px] md:text-xs italic line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.note}</p>
-                        </div>
-                      ) : null}
-
-                      {/* Bottom: time + actions */}
-                      <div className="flex items-center justify-between mt-auto pt-1">
-                        {item.addedAt && <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>收藏于 {new Date(item.addedAt).toLocaleDateString('zh-CN')}</span>}
-                        <div className="hidden md:flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => setNoteEdit({ item, listId })} className="w-6 h-6 rounded flex items-center justify-center transition-colors" style={{ color: 'var(--text-muted)' }} title={isWatchedList ? '编辑评分和感想' : '编辑备注'}>
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                          </button>
-                          <button onClick={() => setConfirmDelete(item)} className="w-6 h-6 rounded flex items-center justify-center transition-colors hover:text-red-500" style={{ color: 'var(--text-muted)' }} title="移除">
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                          </button>
-                        </div>
-                      </div>
                     </div>
+                  </div>
+
+                  {/* Bottom hook: note info (豆瓣 style) - outside the card */}
+                  <div className="px-3 md:px-4 pb-2 pt-1">
+                    {/* Line 1: time + status label */}
+                    <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      {item.addedAt && <span>{formatRelativeTime(item.addedAt)}</span>}
+                      <span style={{ color: 'var(--text-secondary)' }}>{getStatusLabel()}</span>
+                      {isWatchedList && item.userRating != null && Number(item.userRating) > 0 && (
+                        <>
+                          <span>|</span>
+                          <span style={getRatingStyle(Number(item.userRating))}>{Number(item.userRating).toFixed(1)}分</span>
+                        </>
+                      )}
+                    </div>
+                    {/* Line 2: note content */}
+                    {item.note && (
+                      <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.note}</p>
+                    )}
                   </div>
                 </div>
               );

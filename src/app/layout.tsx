@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import PageTransition from "@/components/PageTransition";
+import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
   title: "影视森林",
@@ -33,9 +34,11 @@ export default function RootLayout({
       >
         <Header />
         <PageTransition />
+        <ToastProvider>
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 pb-safe-bottom">
           {children}
         </main>
+        </ToastProvider>
         <Footer />
         <MobileBottomNav />
       </body>

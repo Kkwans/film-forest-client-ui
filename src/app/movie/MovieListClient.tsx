@@ -1,12 +1,13 @@
 // @ts-nocheck
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import MovieCard from '@/components/MovieCard';
 import Pagination from '@/components/Pagination';
 import CustomSelect from '@/components/CustomSelect';
 import SortDirButton from '@/components/SortDirButton';
 import { parseRegion, parseGenre } from '@/lib/utils';
+import { useMovieStatuses } from '@/hooks/useMovieStatuses';
 
 const GENRES_MOVIE = ['全部', '剧情', '喜剧', '动作', '爱情', '科幻', '悬疑', '恐怖', '犯罪', '动画', '奇幻', '冒险'];
 const GENRES_DRAMA = ['全部', '剧情', '喜剧', '爱情', '悬疑', '犯罪', '古装', '都市', '战争', '家庭', '历史'];
@@ -114,6 +115,10 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
     else if (key === 'sort') setSort(value);
   };
 
+  // Fetch movie statuses for collect button echo
+  const movieIds = useMemo(() => items.map(i => i.id), [items]);
+  const statusMap = useMovieStatuses(movieIds, contentType);
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
@@ -174,7 +179,7 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
           {/* Grid - mobile 2 columns, desktop responsive */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4" style={{ minHeight: '60vh' }}>
             {items.map((item) => (
-              <MovieCard key={item.id} id={item.id} title={item.title} cover={item.cover} year={item.year} region={item.region} rating={item.rating} genre={item.genre} type={contentType} duration={item.duration} episodes={item.episodes} href={`/${contentType}/${item.id}`} />
+              <MovieCard key={item.id} id={item.id} title={item.title} cover={item.cover} year={item.year} region={item.region} rating={item.rating} genre={item.genre} type={contentType} duration={item.duration} episodes={item.episodes} href={`/${contentType}/${item.id}`} movieStatus={statusMap[item.id] || null} />
             ))}
           </div>
 

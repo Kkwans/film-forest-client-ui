@@ -1,11 +1,12 @@
 // @ts-nocheck
 'use client';
 
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { cleanTitle as cleanTitleUtil, cleanStoryline } from '@/lib/utils';
 import { useUserStore } from '@/stores/userStore';
-import { listApi } from '@/lib/userApi';
+import { listApi, statusApi } from '@/lib/userApi';
+import { useToast } from '@/components/Toast';
 import dynamic from 'next/dynamic';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
@@ -14,10 +15,18 @@ const WatchedModal = dynamic(() => import('@/components/WatchedModal'), { ssr: f
 interface MovieDetail {
   id: number; title: string; cover: string; year: number; region: string;
   rating?: number; ratingImdb?: number; ratingRT?: number;
-  summary: string; genre: string[]; director: string[]; actor: string[];
+  summary: string; genre: string[]; director: string[]; writer: string[]; actor: string[];
   language: string[]; duration?: number; releaseDate?: string; aka: string[];
+  updatedAt?: string;
 }
 interface Resource { id: number; title?: string; magnetUrl?: string; shareUrl?: string; resolution?: string; hasSubtitle?: boolean; storageName?: string; }
+
+interface MovieStatus {
+  want_to_watch?: boolean;
+  watching?: boolean;
+  watched?: boolean;
+  watchedRating?: number;
+}
 
 export default function MovieDetailClient({ movie, magnetResources, cloudResources }: {
   movie: MovieDetail; magnetResources: Resource[]; cloudResources: Resource[];
@@ -28,49 +37,81 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [collectOpen, setCollectOpen] = useState(false);
   const [watchedOpen, setWatchedOpen] = useState(false);
-  const [collectAdded, setCollectAdded] = useState(false);
-  const [collectToggling, setCollectToggling] = useState(false);
-  const clickTimer = useRef<NodeJS.Timeout | null>(null);
+  const [movieStatus, setMovieStatus] = useState<MovieStatus>({});
+  const [statusLoading, setStatusLoading] = useState(false);
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
+  const { showToast } = useToast();
 
-  // Collect button: single click → want_to_watch, double click → open modal
-  const handleCollectSingle = useCallback(async () => {
-    if (!isAuthenticated || collectToggling) return;
-    setCollectToggling(true);
+  // Fetch movie status on mount
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setStatusLoading(true);
+    statusApi.get(movie.id, 'movie').then(res => {
+      const data = res.data.data || res.data;
+      const status: MovieStatus = {};
+      if (Array.isArray(data)) {
+        data.forEach((item: any) => {
+          if (item.added) {
+            if (item.type === 'want_to_watch') status.want_to_watch = true;
+            if (item.type === 'watching') status.watching = true;
+            if (item.type === 'watched') {
+              status.watched = true;
+              // Try to get rating from the item
+              // Note: we'd need to fetch items to get rating, but for now just mark as watched
+            }
+          }
+        });
+      }
+      setMovieStatus(status);
+    }).catch(() => {}).finally(() => setStatusLoading(false));
+  }, [isAuthenticated, movie.id]);
+
+  // Handle want_to_watch single click
+  const handleWantClick = useCallback(async () => {
+    if (!isAuthenticated) return;
+    if (movieStatus.want_to_watch) {
+      showToast('该影片已在想看片单中', 'warning');
+      return;
+    }
+    if (movieStatus.watching) {
+      showToast('该影片已被标记为在看', 'warning');
+      return;
+    }
+    if (movieStatus.watched) {
+      showToast('该影片已被标记为看过', 'warning');
+      return;
+    }
     try {
       const res = await listApi.getAll();
       const lists = res.data.data || res.data;
       const wantList = Array.isArray(lists) ? lists.find((l: any) => l.type === 'want_to_watch') : null;
       if (wantList) {
         await listApi.addItem(wantList.id, { movieId: movie.id, contentType: 'movie' });
-        setCollectAdded(true);
+        setMovieStatus(prev => ({ ...prev, want_to_watch: true }));
+        showToast('已加入想看', 'success');
       }
-    } catch { setCollectAdded(true); } finally { setCollectToggling(false); }
-  }, [isAuthenticated, collectToggling, movie.id]);
+    } catch {}
+  }, [isAuthenticated, movieStatus, movie.id, showToast]);
 
-  const handleCollectClick = useCallback(() => {
-    if (clickTimer.current) {
-      clearTimeout(clickTimer.current);
-      clickTimer.current = null;
-      setCollectOpen(true);
-    } else {
-      clickTimer.current = setTimeout(() => {
-        clickTimer.current = null;
-        handleCollectSingle();
-      }, 250);
-    }
-  }, [handleCollectSingle]);
+  // Determine which button to show
+  const getStatusDisplay = () => {
+    if (movieStatus.watched) return { label: '看过', color: '#22c55e', icon: '✓' };
+    if (movieStatus.watching) return { label: '在看', color: '#3b82f6', icon: '👁' };
+    if (movieStatus.want_to_watch) return { label: '已想看', color: '#f59e0b', icon: '🔖' };
+    return null;
+  };
 
-  // Deduplicate magnets: remove "磁力下载" duplicates that share the same magnetUrl as real entries
+  const statusDisplay = getStatusDisplay();
+
+  // Deduplicate magnets
   const realMagnets = useMemo(() => {
     const real = magnetResources.filter(r => r.title !== '磁力下载');
     const realUrls = new Set(real.map(r => r.magnetUrl));
-    // Also keep entries with "磁力下载" only if their URL isn't already in real entries
     const dl = magnetResources.filter(r => r.title === '磁力下载' && !realUrls.has(r.magnetUrl));
     return [...real, ...dl];
   }, [magnetResources]);
 
-  // Deduplicate cloud: remove "网盘下载" duplicates
+  // Deduplicate cloud
   const realClouds = useMemo(() => {
     const real = cloudResources.filter(r => r.title !== '网盘下载');
     const realUrls = new Set(real.map(r => r.shareUrl));
@@ -79,7 +120,6 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
   }, [cloudResources]);
 
   const copyLink = (url: string, resId: number) => {
-    // HTTP-compatible copy (navigator.clipboard only works on HTTPS)
     if (navigator.clipboard && window.isSecureContext) {
       navigator.clipboard.writeText(url).then(() => { setCopiedId(resId); setTimeout(() => setCopiedId(null), 2000); });
     } else {
@@ -112,6 +152,14 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
     return false;
   });
 
+  // Format info rows
+  const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div className="flex gap-2 text-sm leading-relaxed">
+      <span className="shrink-0 font-medium" style={{ color: 'var(--text-muted)', minWidth: '3.5em' }}>{label}</span>
+      <div style={{ color: 'var(--text-secondary)' }}>{children}</div>
+    </div>
+  );
+
   return (
     <>
     <div className="flex flex-col gap-6">
@@ -123,65 +171,132 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
         <span style={{ color: 'var(--text-primary)' }}>{movie.title}</span>
       </nav>
 
+      {/* Header: poster + info */}
       <div className="flex flex-col sm:flex-row gap-6">
+        {/* Poster */}
         <div className="w-full sm:w-48 md:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px]">
           <img src={movie.cover || `https://picsum.photos/seed/m${movie.id}/400/600`} alt={movie.title} className="w-full aspect-[2/3] object-cover rounded-xl" />
         </div>
+
+        {/* Info panel */}
         <div className="flex-1 flex flex-col gap-3 min-w-0">
+          {/* Title */}
           <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            {cleanTitleUtil(movie.title)} {movie.year > 0 && <span className="text-lg font-normal" style={{ color: 'var(--text-muted)' }}>({movie.year})</span>}
+            {cleanTitleUtil(movie.title)}
+            {movie.year > 0 && <span className="text-lg font-normal ml-2" style={{ color: 'var(--text-muted)' }}>({movie.year})</span>}
           </h1>
-          {/* Action buttons: Collect + Watched */}
+
+          {/* Action buttons */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleCollectClick}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
-              style={{
-                borderColor: collectAdded ? 'var(--accent)' : 'var(--border-color)',
-                color: collectAdded ? 'var(--accent)' : 'var(--text-secondary)',
-                backgroundColor: collectAdded ? 'var(--accent-light)' : 'transparent',
-              }}
-              title="单击加入想看，双击选择片单"
-            >
-              {collectToggling ? (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill={collectAdded ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {statusDisplay ? (
+              <button
+                onClick={() => showToast(`该影片已被标记为${statusDisplay.label}`, 'warning')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
+                style={{ borderColor: statusDisplay.color, color: statusDisplay.color, backgroundColor: `${statusDisplay.color}15` }}
+              >
+                <span>{statusDisplay.icon}</span>
+                <span>{statusDisplay.label}</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleWantClick}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
+                style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
-              )}
-              <span>{collectAdded ? '已想看' : '想看'}</span>
+                <span>想看</span>
+              </button>
+            )}
+            <button
+              onClick={() => setCollectOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
+              style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+              title="选择片单"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+              </svg>
+              <span>收藏</span>
             </button>
             <button
               onClick={() => setWatchedOpen(true)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-              style={{ backgroundColor: 'var(--accent)' }}
+              style={{ backgroundColor: movieStatus.watched ? '#22c55e' : 'var(--accent)' }}
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
-              <span>看过</span>
+              <span>{movieStatus.watched ? '已看过' : '看过'}</span>
             </button>
           </div>
+
+          {/* Ratings */}
           <div className="flex flex-wrap items-center gap-3">
-            {movie.rating != null && <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>豆瓣 {movie.rating.toFixed(1)}</span>}
-            {movie.ratingImdb != null && <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium" style={{ backgroundColor: '#fefce8', color: '#ca8a04' }}>IMDB {movie.ratingImdb.toFixed(1)}</span>}
-            {movie.ratingRT != null && <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>烂番茄 {movie.ratingRT}%</span>}
+            {movie.rating != null && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>
+                豆瓣 {movie.rating.toFixed(1)}
+              </span>
+            )}
+            {movie.ratingImdb != null && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: '#fefce8', color: '#ca8a04' }}>
+                IMDB {movie.ratingImdb.toFixed(1)}
+              </span>
+            )}
+            {movie.ratingRT != null && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
+                烂番茄 {movie.ratingRT}%
+              </span>
+            )}
           </div>
-          {movie.genre.length > 0 && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{movie.genre.join(' / ')}</p>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 mt-2">
-            {movie.director.length > 0 && <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>导演：</span><span style={{ color: 'var(--text-secondary)' }}>{movie.director.join(' / ')}</span></div>}
-            {movie.language.length > 0 && <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>语言：</span><span style={{ color: 'var(--text-secondary)' }}>{movie.language.join(' / ')}</span></div>}
-            {movie.actor.length > 0 && <div className="text-sm sm:col-span-2"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>主演：</span><span style={{ color: 'var(--text-secondary)' }}>{movie.actor.join(' / ')}</span></div>}
-            {movie.duration && <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>片长：</span><span style={{ color: 'var(--text-secondary)' }}>约{movie.duration}分钟</span></div>}
-            {movie.releaseDate && <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>上映日期：</span><span style={{ color: 'var(--text-secondary)' }}>{movie.releaseDate}</span></div>}
-            {movie.region && <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>地区：</span><span style={{ color: 'var(--text-secondary)' }}>{movie.region}</span></div>}
+
+          {/* Info grid - reference pkmp4.xyz layout */}
+          <div className="mt-2 space-y-2">
+            {movie.aka.length > 0 && (
+              <InfoRow label="又名">{movie.aka.join(' / ')}</InfoRow>
+            )}
+            {movie.director.length > 0 && (
+              <InfoRow label="导演">
+                <span className="hover:underline cursor-pointer" style={{ color: 'var(--accent)' }}>{movie.director.join(' / ')}</span>
+              </InfoRow>
+            )}
+            {movie.writer && movie.writer.length > 0 && (
+              <InfoRow label="编剧">
+                <span>{movie.writer.join(' / ')}</span>
+              </InfoRow>
+            )}
+            {movie.actor.length > 0 && (
+              <InfoRow label="主演">
+                <span className="hover:underline cursor-pointer" style={{ color: 'var(--accent)' }}>{movie.actor.join(' / ')}</span>
+              </InfoRow>
+            )}
+            {movie.genre.length > 0 && (
+              <InfoRow label="类型">{movie.genre.join(' / ')}</InfoRow>
+            )}
+            {movie.region && (
+              <InfoRow label="地区">{movie.region}</InfoRow>
+            )}
+            {movie.language.length > 0 && (
+              <InfoRow label="语言">{movie.language.join(' / ')}</InfoRow>
+            )}
+            {movie.releaseDate && (
+              <InfoRow label="上映">{movie.releaseDate}</InfoRow>
+            )}
+            {movie.duration && (
+              <InfoRow label="片长">{movie.duration}分钟</InfoRow>
+            )}
+            {movie.updatedAt && (
+              <InfoRow label="更新">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(movie.updatedAt).toLocaleString('zh-CN')}</span>
+              </InfoRow>
+            )}
           </div>
-          {movie.aka.length > 0 && <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>又名：</span><span style={{ color: 'var(--text-muted)' }}>{movie.aka.join(' / ')}</span></div>}
         </div>
       </div>
 
+      {/* Synopsis */}
       {movie.summary && (
         <section className="rounded-xl p-5 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
           <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>简介</h2>
@@ -195,6 +310,7 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
         </section>
       )}
 
+      {/* Download resources */}
       <section className="rounded-xl p-5 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
         <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>下载资源</h2>
         <div className="flex gap-6 border-b mb-4" style={{ borderColor: 'var(--border-color)' }}>

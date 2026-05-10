@@ -12,14 +12,16 @@ async function fetchMovie(id: number) {
     return {
       id: m.id, title: m.title, cover: m.posterUrl || '', year: m.year || 0,
       region: parseRegion(m.region).join(' / '),
-      rating: m.scoreDouban, ratingImdb: m.scoreImdb, ratingRT: m.scoreRT,
+      rating: m.scoreDouban, ratingImdb: m.scoreImdb, ratingRT: m.scoreRt,
       summary: m.storyline || '',
       genre: parseGenre(m.genre),
       director: Array.isArray(m.director) ? m.director : (m.director ? JSON.parse(m.director) : []),
+      writer: Array.isArray(m.writer) ? m.writer : (m.writer ? JSON.parse(m.writer) : []),
       actor: Array.isArray(m.actor) ? m.actor : (m.actor ? JSON.parse(m.actor) : []),
       language: Array.isArray(m.language) ? m.language : (m.language ? [m.language] : []),
       duration: m.duration, releaseDate: m.releaseDate,
-      aka: Array.isArray(m.aka) ? m.aka : [],
+      aka: Array.isArray(m.alias) ? m.alias : (m.alias ? JSON.parse(m.alias) : []),
+      updatedAt: m.updatedAt,
     };
   } catch { return null; }
 }

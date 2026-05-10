@@ -1,7 +1,7 @@
 // @ts-nocheck
 'use client';
 
-import { Suspense, useEffect, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { searchApi } from '@/lib/api';
@@ -10,6 +10,9 @@ import CustomSelect from '@/components/CustomSelect';
 import SortDirButton from '@/components/SortDirButton';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { useUserStore } from '@/stores/userStore';
+import { useMovieStatuses } from '@/hooks/useMovieStatuses';
+import { useToast } from '@/components/Toast';
+import { listApi } from '@/lib/userApi';
 import dynamic from 'next/dynamic';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
@@ -70,6 +73,14 @@ function parseJsonArr(val: string | string[] | undefined): string[] {
   }
 }
 
+// Status icon config
+const STATUS_ICONS: Record<string, { icon: string; label: string; color: string; fill: boolean }> = {
+  watched: { icon: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z', label: '看过', color: '#22c55e', fill: true },
+  watching: { icon: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z', label: '在看', color: '#3b82f6', fill: false },
+  want_to_watch: { icon: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z', label: '想看', color: '#f59e0b', fill: true },
+  custom: { icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', label: '已收藏', color: '#8b5cf6', fill: true },
+};
+
 function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
@@ -87,14 +98,30 @@ function SearchContent() {
   const [collectType, setCollectType] = useState('');
   const [collectTitle, setCollectTitle] = useState('');
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
+  const { showToast } = useToast();
 
-  const doSearch = async (kw: string, page: number = 1) => {
+  // Get all displayed movie IDs for status check
+  const displayedMovieIds = useMemo(() => {
+    const filtered = typeFilter ? results.filter(r => r.type === typeFilter) : results;
+    return filtered.map(r => r.id);
+  }, [results, typeFilter]);
+
+  // Use a single contentType for status check (we'll use the first type found, or 'movie')
+  const statusContentType = useMemo(() => {
+    const filtered = typeFilter ? results.filter(r => r.type === typeFilter) : results;
+    if (filtered.length > 0) return filtered[0].type === 'short_drama' ? 'short_drama' : filtered[0].type;
+    return 'movie';
+  }, [results, typeFilter]);
+
+  const statusMap = useMovieStatuses(displayedMovieIds, statusContentType);
+
+  const doSearch = async (kw: string, page: number = 1, sort: string = sortBy, dir: string = sortDir) => {
     if (!kw.trim()) return;
     setLoading(true);
     setSearched(true);
     setCurrentPage(page);
     try {
-      const res = await searchApi.search(kw, { page, size: 20 }) as any;
+      const res = await searchApi.search(kw, { page, size: 20, sort, sortDir: dir }) as any;
       const data = res.data?.data || {};
       setResults(data.records || []);
       setTotal(data.total || 0);
@@ -114,6 +141,13 @@ function SearchContent() {
     else { setSearched(false); setResults([]); }
   }, [searchParams]);
 
+  // Re-search when sort changes
+  useEffect(() => {
+    if (searched && keyword.trim()) {
+      doSearch(keyword.trim(), 1, sortBy, sortDir);
+    }
+  }, [sortBy, sortDir]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (keyword.trim()) {
@@ -122,22 +156,43 @@ function SearchContent() {
     }
   };
 
+  // Client-side type filter only (sorting is server-side)
   const filteredResults = useMemo(() => {
-    let filtered = typeFilter ? results.filter(r => r.type === typeFilter) : [...results];
+    return typeFilter ? results.filter(r => r.type === typeFilter) : results;
+  }, [results, typeFilter]);
 
-    if (sortBy !== 'latest') {
-      filtered.sort((a, b) => {
-        let cmp = 0;
-        if (sortBy === 'douban') cmp = (a.rating ?? 0) - (b.rating ?? 0);
-        else if (sortBy === 'imdb') cmp = (a.ratingImdb ?? 0) - (b.ratingImdb ?? 0);
-        else if (sortBy === 'rt') cmp = (a.ratingRT ?? 0) - (b.ratingRT ?? 0);
-        else if (sortBy === 'year') cmp = (a.year ?? 0) - (b.year ?? 0);
-        return sortDir === 'desc' ? -cmp : cmp;
-      });
+  // Handle collect button click on search results
+  const handleCollectClick = useCallback((e: React.MouseEvent, item: SearchResult) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) return;
+
+    // Check if in default list
+    const status = statusMap[item.id];
+    if (status && (status.listType === 'want_to_watch' || status.listType === 'watching' || status.listType === 'watched')) {
+      showToast(`该影片已被标记为${status.listName}`, 'warning');
+      return;
     }
 
-    return filtered;
-  }, [results, typeFilter, sortBy, sortDir]);
+    // Add to want_to_watch
+    listApi.getAll().then(res => {
+      const lists = res.data.data || res.data;
+      const wantList = Array.isArray(lists) ? lists.find((l: any) => l.type === 'want_to_watch') : null;
+      if (wantList) {
+        listApi.addItem(wantList.id, { movieId: item.id, contentType: item.type === 'short_drama' ? 'short_drama' : item.type });
+        showToast('已加入想看', 'success');
+        window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: item.id } }));
+      }
+    });
+  }, [isAuthenticated, statusMap, showToast]);
+
+  const handleCollectDoubleClick = useCallback((e: React.MouseEvent, item: SearchResult) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCollectMovieId(item.id);
+    setCollectType(item.type === 'short_drama' ? 'short_drama' : item.type);
+    setCollectTitle(item.title);
+  }, []);
 
   return (
     <>
@@ -194,24 +249,38 @@ function SearchContent() {
               const regionStr = regionArr.join('/');
               const durationOrEp = item.type === 'movie' ? (item.duration ? `${item.duration}分钟` : '') : (item.totalEpisode ? `${item.totalEpisode}集` : '');
 
+              // Get status for this item
+              const movieStatus = statusMap[item.id];
+              const statusConfig = movieStatus ? STATUS_ICONS[movieStatus.listType] || STATUS_ICONS.custom : null;
+
               return (
                 <Link key={`${item.type}-${item.id}`} href={href} prefetch={true} className="flex gap-3 md:gap-4 p-3 md:p-4 rounded-xl border transition-colors hover:shadow-md relative" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
-                  {/* Collect button */}
+                  {/* Collect button - with status echo */}
                   <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setCollectMovieId(item.id);
-                      setCollectType(item.type === 'short_drama' ? 'short_drama' : item.type);
-                      setCollectTitle(item.title);
-                    }}
+                    onClick={(e) => handleCollectClick(e, item)}
+                    onDoubleClick={(e) => handleCollectDoubleClick(e, item)}
                     className="absolute top-2 right-2 z-10 w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center backdrop-blur-sm transition-colors"
-                    style={{ backgroundColor: 'rgba(0,0,0,0.4)', color: '#fff' }}
-                    title="收藏"
+                    style={{
+                      backgroundColor: statusConfig ? `${statusConfig.color}cc` : 'rgba(0,0,0,0.4)',
+                      color: '#fff',
+                    }}
+                    title={statusConfig ? `${statusConfig.label}（单击提示，双击选择片单）` : '收藏'}
                   >
-                    <svg className="w-3.5 h-3.5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
+                    {statusConfig ? (
+                      statusConfig.fill ? (
+                        <svg className="w-3.5 h-3.5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
+                          <path d={statusConfig.icon} />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d={statusConfig.icon} />
+                        </svg>
+                      )
+                    ) : (
+                      <svg className="w-3.5 h-3.5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    )}
                   </button>
                   {/* Poster */}
                   <div className="shrink-0 w-[80px] md:w-[110px] aspect-[2/3] rounded-lg overflow-hidden">
@@ -239,7 +308,7 @@ function SearchContent() {
                       {regionStr && <span>{regionStr}</span>}
                       {durationOrEp && <span>{durationOrEp}</span>}
                     </div>
-                    {/* Genre tags - rounded to match MovieCard */}
+                    {/* Genre tags */}
                     {genreArr.length > 0 && (
                       <div className="flex items-center gap-1 flex-wrap">
                         {genreArr.slice(0, 4).map((g, i) => (

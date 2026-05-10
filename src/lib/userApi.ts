@@ -95,7 +95,7 @@ export const listApi = {
 
   remove: (id: number) => authClient.delete(`/api/user/lists/${id}`),
 
-  getItems: (id: number, params?: { page?: number; size?: number }) =>
+  getItems: (id: number, params?: { page?: number; size?: number; sort?: string; sortDir?: string }) =>
     authClient.get(`/api/user/lists/${id}/items`, { params }),
 
   addItem: (id: number, data: { movieId: number; contentType: string; rating?: number; note?: string }) =>
@@ -112,6 +112,9 @@ export const listApi = {
 export const statusApi = {
   get: (movieId: number, contentType: string) =>
     authClient.get('/api/user/movie-status', { params: { movieId, contentType } }),
+
+  batch: (movieIds: number[], contentType: string) =>
+    authClient.get('/api/user/movie-status-batch', { params: { movieIds: movieIds.join(','), contentType } }),
 };
 
 export default authClient;
