@@ -447,7 +447,7 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
     </div>
     <CollectModal
       open={collectOpen}
-      onClose={() => setCollectOpen(false)}
+      onClose={() => { setCollectOpen(false); fetchStatus(); }}
       movieId={movie.id}
       contentType="movie"
       movieTitle={movie.title}

@@ -181,7 +181,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
           ) : (
             <>
               {/* Default lists - one row, 3 columns */}
-              <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="grid grid-cols-3 gap-2 mb-1">
                 {defaultLists.map(d => {
                   const isIn = movieStatus[d.id];
                   const isTogglingThis = toggling === d.id;
@@ -191,11 +191,8 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                       key={d.label}
                       onClick={() => {
                         if (disabled) return;
-                        if (showNoteInput === d.id) {
-                          handleToggle(d.id, addNote);
-                        } else {
-                          handleToggle(d.id);
-                        }
+                        if (isIn) { handleToggle(d.id); return; }
+                        setShowNoteInput(d.id);
                       }}
                       disabled={disabled}
                       className="flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-colors"
@@ -217,6 +214,25 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                   );
                 })}
               </div>
+              {/* Note input for default lists */}
+              {showNoteInput && defaultLists.find(d => d.id === showNoteInput) && (
+                <div className="mb-3 px-1">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={addNote}
+                      onChange={(e) => setAddNote(e.target.value)}
+                      placeholder="添加备注（可选）"
+                      className="flex-1 h-8 px-3 rounded-lg text-xs border outline-none"
+                      style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { handleToggle(showNoteInput, addNote); setShowNoteInput(null); setAddNote(''); } if (e.key === 'Escape') { setShowNoteInput(null); setAddNote(''); } }}
+                      autoFocus
+                    />
+                    <button onClick={() => { handleToggle(showNoteInput, addNote); setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>添加</button>
+                    <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: '#ef4444' }}>取消</button>
+                  </div>
+                </div>
+              )}
 
               {/* Divider */}
               {customLists.length > 0 && (
@@ -280,7 +296,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                               autoFocus
                             />
                             <button onClick={() => handleToggle(list.id, addNote)} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>添加</button>
-                            <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-2 rounded-lg text-xs" style={{ color: 'var(--text-muted)' }}>✕</button>
+                            <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: '#ef4444' }}>取消</button>
                           </div>
                         </div>
                       )}

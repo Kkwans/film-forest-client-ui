@@ -315,26 +315,25 @@ export default function ListDetailPage() {
                     </div>
                   </div>
 
-                  {/* Note hook card - card-like component */}
+                  {/* Note hook card - attached below the main card */}
                   {(hasNote || hasRating) && (
-                    <div className="mx-3 md:mx-4 mt-1.5 mb-1 rounded-xl border text-xs relative overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
-                      {/* Edit button - top right corner */}
-                      <button onClick={() => setNoteEdit({ item, listId })} className="absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center transition-all hover:scale-105" style={{ color: 'var(--text-muted)', backgroundColor: 'var(--bg-primary)' }} title={isWatchedList ? '编辑评分和感想' : '编辑备注'}>
+                    <div className="mx-0 -mt-px px-3 py-2 text-xs relative" style={{ backgroundColor: 'var(--bg-primary)', borderRadius: '0 0 12px 12px', border: '1px solid var(--border-color)', borderTop: 'none' }}>
+                      {/* Edit button */}
+                      <button onClick={() => setNoteEdit({ item, listId })} className="absolute top-2 right-2 w-5 h-5 rounded flex items-center justify-center transition-colors hover:opacity-70" style={{ color: 'var(--text-muted)' }} title={isWatchedList ? '编辑评分和感想' : '编辑备注'}>
                         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                       </button>
-                      {/* Content with left accent border */}
-                      <div className="pl-3 pr-8 py-2.5" style={{ borderLeft: '3px solid var(--accent)' }}>
+                      <div className="pr-6">
                         {/* Line 1: time + rating */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>{formatTimeWithLabel(item.addedAt || '', listType)}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>{formatTimeWithLabel(item.addedAt || '', listType)}</span>
                           {hasRating && (
-                            <span className="text-[11px] px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: `${getRatingStyle(Number(item.userRating)).color}15`, ...getRatingStyle(Number(item.userRating)) }}>
-                              {getRatingLabel(Number(item.userRating))} {Number(item.userRating).toFixed(1)}分
+                            <span className="font-semibold" style={{ color: getRatingStyle(Number(item.userRating)).color }}>
+                              {Number(item.userRating).toFixed(1)}分
                             </span>
                           )}
                         </div>
                         {/* Line 2: note content */}
-                        {hasNote && <p className="mt-1 line-clamp-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{item.note}</p>}
+                        {hasNote && <p className="mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{item.note}</p>}
                       </div>
                     </div>
                   )}

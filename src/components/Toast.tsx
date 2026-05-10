@@ -55,7 +55,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       {/* Toast container - top center, use flexbox centering instead of translate */}
-      <div className="fixed top-4 left-0 right-0 z-[200] flex flex-col items-center gap-2 pointer-events-none">
+      <div className="fixed top-8 left-0 right-0 z-[200] flex flex-col items-center gap-2 pointer-events-none">
         {toasts.map(toast => {
           const config = TOAST_CONFIG[toast.type || 'info'];
           return (

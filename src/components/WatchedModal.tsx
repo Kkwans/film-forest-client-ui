@@ -66,13 +66,20 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
     }
   };
 
-  // Calculate rating from X position relative to stars container
+  // Calculate rating from X position relative to stars
+  // Each star is 28px wide, gap-0.5 = 2px, so 10 stars = 10*28 + 9*2 = 298px
+  const STAR_W = 28;
+  const STAR_GAP = 2;
+  const STAR_COUNT = 10;
+  const TOTAL_STAR_W = STAR_COUNT * STAR_W + (STAR_COUNT - 1) * STAR_GAP;
+
   const calcRatingFromX = (clientX: number) => {
     if (!starsRef.current) return 0;
     const rect = starsRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const ratio = Math.max(0, Math.min(1, x / rect.width));
-    // Map 0-1 to 0.5-10.0 (10 steps of 0.5)
+    // Stars are centered in the container
+    const starsStart = rect.left + (rect.width - TOTAL_STAR_W) / 2;
+    const x = clientX - starsStart;
+    const ratio = Math.max(0, Math.min(1, x / TOTAL_STAR_W));
     const raw = ratio * 10;
     return Math.round(raw * 2) / 2; // Snap to 0.5 increments
   };
@@ -154,7 +161,7 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: 'var(--border-color)' }}>
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{isReadOnly ? '看过评价' : initialRating ? '编辑评价' : '标记看过'}</h3>
+            <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{isReadOnly ? '评价详情' : initialRating ? '编辑评价' : '标记看过'}</h3>
             {movieTitle && <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{movieTitle}</p>}
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full shrink-0" style={{ color: 'var(--text-muted)' }}>✕</button>
@@ -176,7 +183,7 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
                 </span>
               )}
             </div>
-            <p className="text-center text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>点击星星或左右滑动选择（支持半星，满分10.0）</p>
+            {!isReadOnly && <p className="text-center text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>点击星星或左右滑动选择（支持半星，满分10.0）</p>}
           </div>
 
           {/* Note */}
