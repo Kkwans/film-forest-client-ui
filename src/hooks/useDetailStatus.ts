@@ -64,7 +64,7 @@ export function useDetailStatus(contentId: number, contentType: string) {
       if (status.want_to_watch) {
         await listApi.removeItem(wantList.id, { movieId: contentId, contentType });
         setStatus(prev => ({ ...prev, want_to_watch: false }));
-        showToast('已从想看移除', 'success');
+        showToast('已从想看移除', 'error');
       } else {
         await listApi.addItem(wantList.id, { movieId: contentId, contentType });
         setStatus(prev => ({ ...prev, want_to_watch: true }));

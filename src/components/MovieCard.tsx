@@ -111,7 +111,7 @@ export default function MovieCard({
       if (movieStatus?.listType === 'want_to_watch') {
         // Already in want_to_watch → remove
         await listApi.removeItem(wantList.id, { movieId: id, contentType });
-        showToast('已从想看移除', 'success');
+        showToast('已从想看移除', 'error');
       } else {
         // Not in any default list → add to want_to_watch
         await listApi.addItem(wantList.id, { movieId: id, contentType });
