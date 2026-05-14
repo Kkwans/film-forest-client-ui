@@ -8,6 +8,7 @@ import { searchApi } from '@/lib/api';
 import Pagination from '@/components/Pagination';
 import CustomSelect from '@/components/CustomSelect';
 import SortDirButton from '@/components/SortDirButton';
+import FilterChip from '@/components/FilterChip';
 import { cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { useUserStore } from '@/stores/userStore';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
@@ -213,14 +214,7 @@ function SearchContent() {
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>找到 <span className="font-medium" style={{ color: 'var(--text-primary)' }}>{total}</span> 个结果</p>
             <div className="flex flex-wrap gap-1.5">
               {TYPE_FILTERS.map(t => (
-                <button key={t.value} onClick={() => setTypeFilter(t.value)} className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-                  style={{
-                    backgroundColor: typeFilter === t.value ? 'var(--accent)' : 'var(--bg-card)',
-                    color: typeFilter === t.value ? '#fff' : 'var(--text-secondary)',
-                    border: typeFilter === t.value ? 'none' : '1px solid var(--border-color)',
-                  }}>
-                  {t.label}
-                </button>
+                <FilterChip key={t.value} label={t.label} active={typeFilter === t.value} onClick={() => setTypeFilter(t.value)} size="sm" />
               ))}
             </div>
           </div>

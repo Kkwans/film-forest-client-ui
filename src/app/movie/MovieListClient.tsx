@@ -6,6 +6,7 @@ import MovieCard from '@/components/MovieCard';
 import Pagination from '@/components/Pagination';
 import CustomSelect from '@/components/CustomSelect';
 import SortDirButton from '@/components/SortDirButton';
+import FilterChip from '@/components/FilterChip';
 import { parseRegion, parseGenre } from '@/lib/utils';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
 
@@ -128,29 +129,17 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         {getGenres(contentType).map(g => (
-          <button key={g} onClick={() => updateFilter('genre', g)}
-            className="px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer transition-colors"
-            style={genre === g ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
-            {g}
-          </button>
+          <FilterChip key={g} label={g} active={genre === g} onClick={() => updateFilter('genre', g)} />
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
         {REGIONS.map(r => (
-          <button key={r} onClick={() => updateFilter('region', r)}
-            className="px-3 py-1.5 rounded-full text-sm cursor-pointer transition-colors"
-            style={region === r ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
-            {r}
-          </button>
+          <FilterChip key={r} label={r} active={region === r} onClick={() => updateFilter('region', r)} />
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {YEARS.map(y => (
-          <button key={y} onClick={() => { setYear(y); setYearFrom(''); setYearTo(''); }}
-            className="px-3 py-1.5 rounded-full text-sm cursor-pointer transition-colors"
-            style={year === y ? { background: 'var(--accent)', color: '#fff' } : { background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
-            {y}
-          </button>
+          <FilterChip key={y} label={y} active={year === y} onClick={() => { setYear(y); setYearFrom(''); setYearTo(''); }} />
         ))}
         <div className="flex items-center gap-1">
           <input type="number" placeholder="起始年" value={yearFrom} onChange={e => { setYearFrom(e.target.value); setYear('自定义'); }} className="w-20 h-8 px-2 rounded-lg text-sm border outline-none" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }} />
