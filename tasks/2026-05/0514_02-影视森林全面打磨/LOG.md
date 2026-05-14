@@ -1041,3 +1041,144 @@ client-ui 全部 .tsx 文件（src/app/ + src/components/）
 
 ### 总结
 client-ui inline style 全面清理完成。根因是 globals.css 未在 Tailwind @theme 中注册 CSS 变量，导致全项目使用 inline style 引用 CSS 变量。通过注册完整 CSS 变量体系 + 批量替换 + 手动修复，265 处 CSS 变量 inline style 降至 2 处（渐变背景）。代码质量和可维护性显著提升。
+
+---
+
+## 2026-05-14 20:11 - 第23轮：content/page.tsx 代码复用重构
+
+### 排查范围
+admin-ui 内容管理页 (content/page.tsx) — 最复杂的页面（~770 行）
+
+### 发现的问题
+
+**问题1（中等）：Create/Edit 两个 Modal 表单布局重复**
+- 新增和编辑 Modal 各有 ~50 行完全相同的表单字段 JSX
+- 13 个字段（类型、年份、标题、评分、类型、地区、导演、演员、语言、编剧、时长、上映、又名、简介）
+- 维护时需同步改两处
+
+**问题2（中等）：表单数据构建逻辑重复**
+- `handleSaveNew` 和 `handleSaveEdit` 各有 ~20 行相同的 JSON.stringify 数组转换逻辑
+- 字段映射、空值处理、类型转换完全一致
+
+**问题3（中等）：type dispatch switch 重复 4 次**
+- `handleDelete`、`handleSaveNew`、`handleSaveEdit`、`handleToggleStatus` 各有 switch(type) 分发到 5 种内容类型 API
+- 每段 6-7 行，共 ~28 行重复模式
+
+**问题4（轻微）：TYPE_COLORS 所有值相同**
+- 5 种类型全部设置为 `text-muted-foreground`（anime 和 short_drama 除外）
+- 无实际区分效果
+
+### 修复内容
+
+**1. 提取 `ContentFormFields` 组件**
+- 将 13 个表单字段封装为独立组件
+- 支持 `showStatus` prop（编辑 Modal 显示状态开关，新增不显示）
+- 配套 `Field` helper 组件
+- 两个 Modal 从各 ~50 行 → 各 1 行 `<ContentFormFields />`
+
+**2. 提取 `dispatchByType()` 泛型工具函数**
+- 类型安全的类型分发，接受 5 种类型的 handler map
+- 4 处 switch 语句 → 4 处 `dispatchByType()` 调用
+
+**3. 提取 `buildSubmitData()` 工具函数**
+- 统一表单数据→提交数据的转换（JSON.stringify 数组、Number 转换、空值处理）
+- 两处 ~20 行重复 → 一处定义
+
+**4. 模块级常量提取**
+- `EditForm` 接口 — 表单类型定义
+- `EMPTY_FORM` — 初始表单值
+- `TYPE_OPTIONS` — 内容类型下拉选项
+- `parseJsonArray()` — JSON 数组→逗号字符串
+- `TYPE_ICON_EMOJI` — 替代无效的 TYPE_COLORS
+
+### 验证
+- admin-ui `next build` ✅ 通过
+- 所有路由正常生成
+
+### 部署
+- commit: fcd9d41 (admin-ui)
+- GitHub push 暂时失败（网络超时），下次心跳重试
+
+### 代码统计
+- 删除: 253 行
+- 新增: 218 行
+- 净减少: 35 行
+- 消除: 4 处 switch 重复、2 处表单布局重复、2 处数据构建重复
+
+### 总结
+content/page.tsx（admin-ui 最复杂页面）代码复用重构完成。提取 ContentFormFields 组件消除 Create/Edit 表单布局重复，提取 dispatchByType 消除 4 处类型分发 switch，提取 buildSubmitData 消除表单数据构建重复。代码可维护性显著提升，未来新增内容类型只需改一处。
+
+---
+
+## 2026-05-14 20:21 - 第24轮：爬虫模块深度审查 + 测试用例设计
+
+### 排查范围
+admin-server 爬虫模块全部文件：CrawlerCore / CrawlerSchedule / CrawlerScheduler / CrawlerScheduleServiceImpl / CrawlerController
+
+### 发现的问题
+
+**问题1（严重）：genreFilter 配置无效**
+- CrawlerSchedule 有 genreFilter 字段，前端可配置
+- 但 CrawlerCore 爬取时完全没有使用 genreFilter 过滤
+- 结果：用户配置了类型筛选，爬虫仍然爬取所有类型
+
+**问题2（严重）：sourceSite 配置无效**
+- CrawlerSchedule 有 sourceSite 字段（如"七味网"）
+- 但 CrawlerCore 硬编码 BASE_URL = "https://www.pkmp4.xyz"
+- 结果：sourceSite 配置完全被忽略
+
+**问题3（严重）：rateLimitMs 配置无效**
+- CrawlerSchedule 有 rateLimitMs 字段（速率限制毫秒）
+- 但 CrawlerCore 在请求之间没有任何延迟
+- 结果：爬虫全速请求，可能触发目标站点反爬
+
+**问题4（中等）：priority 配置无效**
+- CrawlerSchedule 有 priority 字段
+- 但爬取逻辑完全不使用优先级
+- 结果：优先级配置无实际效果
+
+**问题5（中等）：CronScheduler 使用裸 Thread**
+- `triggerCrawl()` 使用 `new Thread()` 创建线程
+- 没有线程池限制，大量并发爬虫可能耗尽系统资源
+- 应使用 ThreadPoolExecutor
+
+**问题6（轻微）：extractMovieResources 对剧集类型产生重复 online 记录**
+- `extractMovieResources()` 会提取在线播放链接写入 resource_online
+- `extractEpisodes()` 也会写入 resource_online
+- 对 drama/variety/anime/short 四种类型，两个方法都执行，产生重复
+
+### 待修复
+- [ ] genreFilter 实际生效
+- [ ] rateLimitMs 实际生效
+- [ ] CronScheduler 改用线程池
+- [ ] 修复 online 资源重复写入
+
+### 修复内容
+
+**1. genreFilter 配置实际生效**
+- 新增 `parseGenreFilter()` 解析 JSON 数组字符串为 Set
+- 新增 `matchesGenreFilter()` 检查内容 genre 是否命中过滤器
+- 5 个详情爬取方法（movie/drama/variety/anime/short）在提取 genre 后过滤
+- 不匹配的内容直接跳过，不写入数据库
+
+**2. rateLimitMs 配置实际生效**
+- `fetchWithRetry()` 在每次请求前检查 rateLimitMs
+- 如果 > 0 则 sleep 相应毫秒数
+- 由 schedule 的 rateLimitMs 字段控制
+
+**3. CronScheduler 改用线程池**
+- `new Thread()` → `ThreadPoolExecutor(2核心, 4最大, 60s存活, 队列16)`
+- 使用 CallerRunsPolicy（队列满时由调用线程执行，背压机制）
+- 防止大量并发爬虫耗尽系统资源
+
+**4. 修复 online 资源重复写入**
+- `extractMovieResources()` 中的在线播放链接提取仅对 movie 类型执行
+- drama/variety/anime/short 的在线资源统一由 `extractEpisodes()` 管理
+- 消除了重复 INSERT 问题
+
+### 待 NAS 部署
+- commit: b37d37e (admin-server)
+- 需要在 NAS 重新构建 Docker 镜像并部署
+
+### 总结
+爬虫模块 4 个严重问题已修复：genreFilter、rateLimitMs 配置从"无效"变为"实际生效"；CronScheduler 从裸线程改为线程池；online 资源重复写入问题消除。

@@ -107,6 +107,12 @@ Skills 定义工具怎么用，这个文件记录你的具体环境信息。
 - **用途**: 自建镜像的云端版本管理（类似 GitHub）
 - **规范**: 见 guides/DOCKER_RULES.md 第四章
 
+### v0.9 镜像（2026-05-14）
+- `film-forest-client-ui:v0.9` (136MB)
+- `film-forest-admin-ui:v0.9` (170MB)
+- `film-forest-client-server:v0.9` (300MB)
+- `film-forest-admin-server:v0.9` (435MB)
+
 ---
 
 _环境有变化就更新。这是你的速查手册。_

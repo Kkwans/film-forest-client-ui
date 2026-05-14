@@ -218,3 +218,167 @@
 - admin-ui: `next build` 成功，`/_not-found` 路由已生成
 - client-ui: `next build` 成功，`/_not-found` 路由已生成
 - 已 commit + push 到 GitHub（admin: b8dd47e, client: 0456037）
+
+## 2026-05-15 03:38 - client-ui 片单页面批量操作功能
+
+### 排查发现
+1. **片单详情页完全没有批量操作** — 只能逐个移除，片单内容多时操作极其繁琐
+2. **后端缺少批量删除接口** — 只有单条 removeItem，无 batch endpoint
+3. **前端 API 客户端缺少批量方法** — listApi 没有 batchRemoveItems
+
+### 修复内容
+
+**后端（client-server）**
+1. **UserMovieListService 新增 `batchRemoveItems` 方法**
+   - 校验片单归属权
+   - 遍历 items 列表逐条删除
+   - @Transactional 保证原子性
+2. **UserMovieListController 新增 `DELETE /lists/{id}/items/batch` 端点**
+   - 接收 `{items: [{movieId, contentType}, ...]}` 请求体
+   - 参数校验 + 异常处理
+
+**前端（client-ui）**
+3. **userApi 新增 `batchRemoveItems` 方法**
+   - `DELETE /api/user/lists/{id}/items/batch`
+4. **片单详情页多选模式**
+   - 新增「批量管理」按钮（排序栏右侧）
+   - 进入批量模式后显示全选/取消全选按钮
+   - 每个卡片左上角显示复选框
+   - 选中状态高亮（accent 色 ring + border）
+   - 点击卡片区域切换选中状态（不触发页面跳转）
+5. **底部浮动操作栏**
+   - 显示「已选 X 项」
+   - 「批量移除」按钮（destructive 样式）
+6. **批量删除二次确认**
+   - Dialog 确认：「确定要将选中的 X 部影视从片单中移除吗？此操作不可撤销。」
+   - 删除后自动更新列表数据和计数
+   - 退出批量模式
+
+### 涉及文件
+- `client-server/.../controller/UserMovieListController.java` — 新增 batch 端点
+- `client-server/.../service/UserMovieListService.java` — 接口新增方法
+- `client-server/.../service/impl/UserMovieListServiceImpl.java` — 实现
+- `client-ui/src/lib/userApi.ts` — 新增 batchRemoveItems（+3 行）
+- `client-ui/src/app/user/lists/[id]/page.tsx` — 批量选择 UI（+96 行 -5 行）
+
+### 验证
+- client-ui: `next build` 成功，全部 18 个路由正常生成
+- 已 commit（client-server: ba435f0, client-ui: 8bf08ac）
+- ⚠️ push 超时（网络问题），待后续重试
+
+### 影响范围
+- 片单详情页（`/user/lists/[id]`）
+- 后端新增 REST API 端点，不影响现有接口
+- 批量模式为可选功能，不影响正常使用流程
+
+## 2026-05-15 04:08 - 两个前端: 页面 meta 标签（SEO）
+
+### 排查发现
+1. **两个前端都没有 per-page 的 meta 标签** -- 只有 root layout 的静态 metadata，所有页面共享同一个 title/description
+2. **client-ui 详情页全是 client components** -- drama/variety/anime/short 详情页标记了 `'use client'`，无法使用 `generateMetadata`
+3. **Next.js App Router 限制** -- `'use client'` 页面不能导出 `metadata` 或 `generateMetadata`，必须是 server component
+4. **admin-ui 所有页面都是 client components** -- 但已有 PageTitle 组件动态更新浏览器标签，SEO 需求低（后台系统）
+
+### 修复内容
+
+**client-ui 静态 metadata（6个页面）**
+1. `page.tsx` 首页 -- title: "影视森林 - 影视资源聚合平台"，含 OG 标签
+2. `movie/page.tsx` -- title: "电影 - 影视森林"
+3. `drama/page.tsx` -- title: "电视剧 - 影视森林"
+4. `variety/page.tsx` -- title: "综艺 - 影视森林"
+5. `anime/page.tsx` -- title: "动漫 - 影视森林"
+6. `short/page.tsx` -- title: "短剧 - 影视森林"
+
+**client-ui 动态 generateMetadata（5个详情页）**
+1. `movie/[id]/page.tsx` -- 已有 server component，直接添加 `generateMetadata`，从 API 获取影片标题/简介/封面生成 title + OG 标签
+2. `drama/[id]/page.tsx` -- 重构为 server+client 模式，新建 `DramaDetailClient.tsx`
+3. `variety/[id]/page.tsx` -- 同上，新建 `VarietyDetailClient.tsx`
+4. `anime/[id]/page.tsx` -- 同上，新建 `AnimeDetailClient.tsx`
+5. `short/[id]/page.tsx` -- 同上，新建 `ShortDramaDetailClient.tsx`
+
+**重构模式（server+client）:**
+- `page.tsx` 改为 server component，导出 `generateMetadata` + 渲染 client 组件
+- `*DetailClient.tsx` 保留原有客户端逻辑（数据获取、交互、渲染）
+- metadata 包含: 动态 title（"影片名 - 类型 - 影视森林"）、description（截取 storyline 前 160 字）、OG 标签（title/description/type/cover）
+
+### admin-ui 处理
+- 所有页面都是 `'use client'`，无法添加 server-side metadata
+- 已有 PageTitle 组件动态更新浏览器标签（第 1 轮实现）
+- 作为后台系统，SEO 需求低，暂不处理
+- 若需要，后续可采用 server+client 重构模式
+
+### 未处理的 client-ui 页面（均为 `'use client'`）
+- search/page.tsx -- 搜索页，root layout fallback
+- login/page.tsx -- 登录页，root layout fallback
+- register/page.tsx -- 注册页，root layout fallback
+- profile/page.tsx -- 个人中心，root layout fallback
+- category/page.tsx -- 分类页，root layout fallback
+- user/lists/[id]/page.tsx -- 片单详情，root layout fallback
+- 这些页面 SEO 影响较小（搜索页需用户交互、其他需登录），后续可按需重构
+
+### 涉及文件
+- `client-ui/src/app/page.tsx` -- 修改（+9 行）
+- `client-ui/src/app/movie/page.tsx` -- 修改（+6 行）
+- `client-ui/src/app/movie/[id]/page.tsx` -- 修改（+17 行 generateMetadata）
+- `client-ui/src/app/drama/page.tsx` -- 修改（+6 行）
+- `client-ui/src/app/drama/[id]/page.tsx` -- 重写为 server component（27 行）
+- `client-ui/src/app/drama/[id]/DramaDetailClient.tsx` -- 新建（52 行）
+- `client-ui/src/app/variety/page.tsx` -- 修改（+6 行）
+- `client-ui/src/app/variety/[id]/page.tsx` -- 重写为 server component（27 行）
+- `client-ui/src/app/variety/[id]/VarietyDetailClient.tsx` -- 新建（47 行）
+- `client-ui/src/app/anime/page.tsx` -- 修改（+6 行）
+- `client-ui/src/app/anime/[id]/page.tsx` -- 重写为 server component（27 行）
+- `client-ui/src/app/anime/[id]/AnimeDetailClient.tsx` -- 新建（52 行）
+- `client-ui/src/app/short/page.tsx` -- 修改（+6 行）
+- `client-ui/src/app/short/[id]/page.tsx` -- 重写为 server component（27 行）
+- `client-ui/src/app/short/[id]/ShortDramaDetailClient.tsx` -- 新建（47 行）
+
+### 验证
+- `next build` 成功，全部 18 个路由正常生成
+- 已 commit + push 到 GitHub（8369a23）
+
+### SEO 效果预期
+- 搜索引擎爬取首页 → 获取完整的平台描述和 OG 标签
+- 爬取列表页 → 获取各类型页面的专属描述
+- 爬取详情页 → 获取动态的影片名称、简介、封面图（利于社交分享）
+- 浏览器标签页 → 所有已处理页面显示 "页面名 - 影视森林" 格式的标题
+
+## 2026-05-15 04:38 - 两个前端: 图片 lazy loading 检查
+
+### 排查发现
+
+**client-ui（5处 <img>）**
+1. `MovieCard.tsx` -- 列表卡片海报，已有 `loading="lazy"` ✅
+2. `search/page.tsx` -- 搜索结果海报，已有 `loading="lazy"` ✅
+3. `user/lists/[id]/page.tsx` -- 片单海报，已有 `loading="lazy"` ✅
+4. `MobileBottomNav.tsx` -- 用户头像（20x20），首屏可见，不需要 lazy
+5. `Header.tsx` -- 用户头像，首屏可见，不需要 lazy
+6. `DetailComponents.tsx` DetailCover -- 详情页主封面，首屏可见且影响 LCP，不应 lazy
+7. `profile/page.tsx` -- 用户头像，首屏可见，不需要 lazy
+
+**admin-ui（3处 <img>，均缺 lazy）**
+1. `content/page.tsx` 第579行 -- 桌面端表格海报，列表多图场景，缺少 `loading="lazy"` ❌
+2. `content/page.tsx` 第661行 -- 移动端卡片海报，列表多图场景，缺少 `loading="lazy"` ❌
+3. `content/page.tsx` 第723行 -- 详情弹窗海报，弹窗内图片，缺少 `loading="lazy"` ❌
+
+**admin-ui 其他页面**
+- crawler/resources/stats/settings -- 无 `<img>` 标签，不需要处理
+- 使用 shadcn Avatar 组件的头像 -- 由组件内部控制
+
+### 修复内容
+- `admin-ui/src/app/content/page.tsx` -- 3处 `<img>` 添加 `loading="lazy"`
+  - 桌面端表格海报
+  - 移动端卡片海报
+  - 详情弹窗海报
+
+### 涉及文件
+- `admin-ui/src/app/content/page.tsx` — 修改（+3 行 loading="lazy"）
+
+### 验证
+- `next build` 成功，全部 8 个路由正常生成
+- 已 commit + push 到 GitHub（74ea05f）
+
+### 结论
+- client-ui 图片 lazy loading 已全覆盖，无需修改
+- admin-ui 内容管理页 3 处海报图片已补上 lazy loading
+- 首屏可见的头像/封面等小图不加 lazy loading（避免影响 LCP 和用户体验）

@@ -8,6 +8,7 @@ import com.filmforest.content.entity.*;
 import com.filmforest.content.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -60,13 +61,13 @@ public class ContentController {
     }
 
     @PostMapping("/movies")
-    public Result<Movie> createMovie(@RequestBody Movie movie) {
+    public Result<Movie> createMovie(@Valid @RequestBody Movie movie) {
         movieService.save(movie);
         return Result.ok(movie);
     }
 
     @PutMapping("/movies/{id}")
-    public Result<Movie> updateMovie(@PathVariable Long id, @RequestBody Movie movie) {
+    public Result<Movie> updateMovie(@PathVariable Long id, @Valid @RequestBody Movie movie) {
         movie.setId(id);
         movieService.updateById(movie);
         return Result.ok(movie);
@@ -96,13 +97,13 @@ public class ContentController {
     }
 
     @PostMapping("/dramas")
-    public Result<Drama> createDrama(@RequestBody Drama drama) {
+    public Result<Drama> createDrama(@Valid @RequestBody Drama drama) {
         dramaService.save(drama);
         return Result.ok(drama);
     }
 
     @PutMapping("/dramas/{id}")
-    public Result<Drama> updateDrama(@PathVariable Long id, @RequestBody Drama drama) {
+    public Result<Drama> updateDrama(@PathVariable Long id, @Valid @RequestBody Drama drama) {
         drama.setId(id);
         dramaService.updateById(drama);
         return Result.ok(drama);
@@ -132,13 +133,13 @@ public class ContentController {
     }
 
     @PostMapping("/varieties")
-    public Result<Variety> createVariety(@RequestBody Variety variety) {
+    public Result<Variety> createVariety(@Valid @RequestBody Variety variety) {
         varietyService.save(variety);
         return Result.ok(variety);
     }
 
     @PutMapping("/varieties/{id}")
-    public Result<Variety> updateVariety(@PathVariable Long id, @RequestBody Variety variety) {
+    public Result<Variety> updateVariety(@PathVariable Long id, @Valid @RequestBody Variety variety) {
         variety.setId(id);
         varietyService.updateById(variety);
         return Result.ok(variety);
@@ -168,13 +169,13 @@ public class ContentController {
     }
 
     @PostMapping("/animes")
-    public Result<Anime> createAnime(@RequestBody Anime anime) {
+    public Result<Anime> createAnime(@Valid @RequestBody Anime anime) {
         animeService.save(anime);
         return Result.ok(anime);
     }
 
     @PutMapping("/animes/{id}")
-    public Result<Anime> updateAnime(@PathVariable Long id, @RequestBody Anime anime) {
+    public Result<Anime> updateAnime(@PathVariable Long id, @Valid @RequestBody Anime anime) {
         anime.setId(id);
         animeService.updateById(anime);
         return Result.ok(anime);
@@ -204,13 +205,13 @@ public class ContentController {
     }
 
     @PostMapping("/short-dramas")
-    public Result<ShortDrama> createShortDrama(@RequestBody ShortDrama shortDrama) {
+    public Result<ShortDrama> createShortDrama(@Valid @RequestBody ShortDrama shortDrama) {
         shortDramaService.save(shortDrama);
         return Result.ok(shortDrama);
     }
 
     @PutMapping("/short-dramas/{id}")
-    public Result<ShortDrama> updateShortDrama(@PathVariable Long id, @RequestBody ShortDrama shortDrama) {
+    public Result<ShortDrama> updateShortDrama(@PathVariable Long id, @Valid @RequestBody ShortDrama shortDrama) {
         shortDrama.setId(id);
         shortDramaService.updateById(shortDrama);
         return Result.ok(shortDrama);
@@ -290,35 +291,40 @@ public class ContentController {
             IPage<Movie> p = movieService.pageList(page, size, null, null, null);
             for (Movie m : p.getRecords()) {
                 results.add(toSummaryMap(m.getId(), "movie", m.getTitle(),
-                        m.getPosterUrl(), m.getYear(), m.getScoreDouban(), m.getStatus(), m.getCreatedAt()));
+                        m.getPosterUrl(), m.getYear(), m.getScoreDouban(), 
+                        m.getStatus() != null ? String.valueOf(m.getStatus()) : null, m.getCreatedAt()));
             }
         }
         if (type == null || "drama".equals(type)) {
             IPage<Drama> p = dramaService.pageList(page, size, null, null, null);
             for (Drama d : p.getRecords()) {
                 results.add(toSummaryMap(d.getId(), "drama", d.getTitle(),
-                        d.getPosterUrl(), d.getYear(), d.getScoreDouban(), d.getStatus(), d.getCreatedAt()));
+                        d.getPosterUrl(), d.getYear(), d.getScoreDouban(), 
+                        d.getStatus() != null ? String.valueOf(d.getStatus()) : null, d.getCreatedAt()));
             }
         }
         if (type == null || "variety".equals(type)) {
             IPage<Variety> p = varietyService.pageList(page, size, null, null, null);
             for (Variety v : p.getRecords()) {
                 results.add(toSummaryMap(v.getId(), "variety", v.getTitle(),
-                        v.getPosterUrl(), v.getYear(), v.getScoreDouban(), v.getStatus(), v.getCreatedAt()));
+                        v.getPosterUrl(), v.getYear(), v.getScoreDouban(), 
+                        v.getStatus() != null ? String.valueOf(v.getStatus()) : null, v.getCreatedAt()));
             }
         }
         if (type == null || "anime".equals(type)) {
             IPage<Anime> p = animeService.pageList(page, size, null, null, null);
             for (Anime a : p.getRecords()) {
                 results.add(toSummaryMap(a.getId(), "anime", a.getTitle(),
-                        a.getPosterUrl(), a.getYear(), a.getScoreDouban(), a.getStatus(), a.getCreatedAt()));
+                        a.getPosterUrl(), a.getYear(), a.getScoreDouban(), 
+                        a.getStatus() != null ? String.valueOf(a.getStatus()) : null, a.getCreatedAt()));
             }
         }
         if (type == null || "short_drama".equals(type) || "short".equals(type)) {
             IPage<ShortDrama> p = shortDramaService.pageList(page, size, null, null, null);
             for (ShortDrama s : p.getRecords()) {
                 results.add(toSummaryMap(s.getId(), "short_drama", s.getTitle(),
-                        s.getPosterUrl(), s.getYear(), null, s.getStatus(), s.getCreatedAt()));
+                        s.getPosterUrl(), s.getYear(), null, 
+                        s.getStatus() != null ? String.valueOf(s.getStatus()) : null, s.getCreatedAt()));
             }
         }
 
