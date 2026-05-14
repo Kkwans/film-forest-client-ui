@@ -73,12 +73,12 @@ export default function AnimeDetailPage() {
         </div>
         <div className="flex-1 flex flex-col gap-3 min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{cleanTitleUtil(item.title)}{item.year > 0 && <span className="text-lg font-normal ml-2" style={{ color: 'var(--text-muted)' }}>({item.year})</span>}</h1>
-          {item.rating != null && <span className="inline-flex items-center px-2 py-1 rounded text-sm font-medium w-fit" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>豆瓣 {item.rating.toFixed(1)}</span>}
+          {item.rating != null && <span className="inline-flex items-center px-2 py-1 rounded text-sm font-medium w-fit" style={{ backgroundColor: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' }}>豆瓣 {item.rating.toFixed(1)}</span>}
           {item.genre && item.genre.length > 0 && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.genre.join(' / ')}</p>}
           {item.director && item.director.length > 0 && <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>导演：</span><span style={{ color: 'var(--text-secondary)' }}>{item.director.join(' / ')}</span></div>}
           <div className="flex flex-wrap gap-4 text-sm mt-2">
             <span style={{ color: 'var(--text-secondary)' }}>{item.totalEpisode || '-'}集</span>
-            <span style={{ color: item.status === '连载中' ? '#ef4444' : 'var(--text-secondary)' }}>{item.status}</span>
+            <span style={{ color: item.status === '连载中' ? 'var(--status-airing)' : 'var(--text-secondary)' }}>{item.status}</span>
           </div>
         </div>
       </div>

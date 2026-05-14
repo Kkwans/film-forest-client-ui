@@ -92,9 +92,9 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
             onWatchedEdit={ds.handleWatchedEdit} onCollectOpen={() => ds.setCollectOpen(true)} />
 
           <div className="flex flex-wrap items-center gap-3">
-            {movie.rating != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>豆瓣 {movie.rating.toFixed(1)}</span>}
-            {movie.ratingImdb != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: '#fefce8', color: '#ca8a04' }}>IMDB {movie.ratingImdb.toFixed(1)}</span>}
-            {movie.ratingRT != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>烂番茄 {movie.ratingRT}%</span>}
+            {movie.rating != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' }}>豆瓣 {movie.rating.toFixed(1)}</span>}
+            {movie.ratingImdb != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)' }}>IMDB {movie.ratingImdb.toFixed(1)}</span>}
+            {movie.ratingRT != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)' }}>烂番茄 {movie.ratingRT}%</span>}
           </div>
 
           <div className="mt-2 space-y-2">
@@ -139,7 +139,7 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
             <div className="space-y-2">{filteredMagnets.map(r => (
               <div key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-lg border" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}>
                 <div className="flex items-center gap-3 min-w-0 flex-1"><span className="text-lg shrink-0">🧲</span><div className="min-w-0 flex-1"><p className="text-sm font-medium break-all sm:truncate" style={{ color: 'var(--text-primary)' }}>{r.resolution && <span className="inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-2" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>{r.resolution}</span>}{r.title || '磁力链接'}</p></div></div>
-                <button onClick={() => copyLink(r.magnetUrl || '', r.id)} className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: copiedId === r.id ? '#6b7280' : 'var(--accent)' }}>{copiedId === r.id ? '已复制 ✓' : '复制链接'}</button>
+                <button onClick={() => copyLink(r.magnetUrl || '', r.id)} className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: copiedId === r.id ? 'var(--copied-bg)' : 'var(--accent)' }}>{copiedId === r.id ? '已复制 ✓' : '复制链接'}</button>
               </div>
             ))}</div>
           )
@@ -148,7 +148,7 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
             <div className="space-y-2">{realClouds.map(r => (
               <div key={r.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}>
                 <div className="flex items-center gap-3 min-w-0 flex-1"><span className="text-lg shrink-0">☁️</span><div className="min-w-0 flex-1"><p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{r.title || '网盘资源'}</p>{r.storageName && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{r.storageName}</p>}</div></div>
-                <button onClick={() => copyLink(r.shareUrl || '', r.id)} className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: copiedId === r.id ? '#6b7280' : 'var(--accent)' }}>{copiedId === r.id ? '已复制 ✓' : '复制链接'}</button>
+                <button onClick={() => copyLink(r.shareUrl || '', r.id)} className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: copiedId === r.id ? 'var(--copied-bg)' : 'var(--accent)' }}>{copiedId === r.id ? '已复制 ✓' : '复制链接'}</button>
               </div>
             ))}</div>
           )

@@ -229,7 +229,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                       autoFocus
                     />
                     <button onClick={() => { handleToggle(showNoteInput, addNote); setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>添加</button>
-                    <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: '#ef4444' }}>取消</button>
+                    <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: 'var(--danger)' }}>取消</button>
                   </div>
                 </div>
               )}
@@ -296,7 +296,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                               autoFocus
                             />
                             <button onClick={() => handleToggle(list.id, addNote)} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>添加</button>
-                            <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: '#ef4444' }}>取消</button>
+                            <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: 'var(--danger)' }}>取消</button>
                           </div>
                         </div>
                       )}

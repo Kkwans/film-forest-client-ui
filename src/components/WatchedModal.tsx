@@ -17,16 +17,16 @@ interface WatchedModalProps {
 }
 
 const RATING_LEVELS = [
-  { value: 1, label: '很差', color: '#6b7280' },
-  { value: 2, label: '很差', color: '#6b7280' },
-  { value: 3, label: '较差', color: '#6b7280' },
-  { value: 4, label: '一般', color: '#3b82f6' },
-  { value: 5, label: '还行', color: '#3b82f6' },
-  { value: 6, label: '中等', color: '#2563eb' },
-  { value: 7, label: '较好', color: '#16a34a' },
-  { value: 8, label: '良好', color: '#16a34a' },
-  { value: 9, label: '优秀', color: '#ea580c' },
-  { value: 10, label: '神作', color: '#dc2626' },
+  { value: 1, label: '很差', color: 'var(--rating-low)' },
+  { value: 2, label: '很差', color: 'var(--rating-low)' },
+  { value: 3, label: '较差', color: 'var(--rating-low)' },
+  { value: 4, label: '一般', color: 'var(--rating-6)' },
+  { value: 5, label: '还行', color: 'var(--rating-6)' },
+  { value: 6, label: '中等', color: 'var(--rating-6)' },
+  { value: 7, label: '较好', color: 'var(--rating-7)' },
+  { value: 8, label: '良好', color: 'var(--rating-7)' },
+  { value: 9, label: '优秀', color: 'var(--rating-8)' },
+  { value: 10, label: '神作', color: 'var(--rating-9)' },
 ];
 
 export default function WatchedModal({ open, onClose, movieId, contentType, movieTitle, initialRating, initialNote, isReadOnly, onEdit }: WatchedModalProps) {

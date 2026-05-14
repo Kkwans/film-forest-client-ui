@@ -51,7 +51,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
             className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
             style={{
               backgroundColor: page === currentPage ? 'var(--accent)' : 'var(--bg-card)',
-              color: page === currentPage ? '#ffffff' : 'var(--text-secondary)',
+              color: page === currentPage ? 'white' : 'var(--text-secondary)',
               border: page === currentPage ? 'none' : '1px solid var(--border-color)',
             }}
           >

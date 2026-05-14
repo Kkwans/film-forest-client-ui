@@ -73,11 +73,11 @@ export default function VarietyDetailPage() {
         </div>
         <div className="flex-1 flex flex-col gap-3 min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{cleanTitleUtil(item.title)}{item.year > 0 && <span className="text-lg font-normal ml-2" style={{ color: 'var(--text-muted)' }}>({item.year})</span>}</h1>
-          {item.rating != null && <span className="inline-flex items-center px-2 py-1 rounded text-sm font-medium w-fit" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>豆瓣 {item.rating.toFixed(1)}</span>}
+          {item.rating != null && <span className="inline-flex items-center px-2 py-1 rounded text-sm font-medium w-fit" style={{ backgroundColor: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' }}>豆瓣 {item.rating.toFixed(1)}</span>}
           {item.genre && item.genre.length > 0 && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.genre.join(' / ')}</p>}
           <div className="flex flex-wrap gap-4 text-sm mt-2">
             <span style={{ color: 'var(--text-secondary)' }}>{item.totalEpisode || '-'}期</span>
-            <span style={{ color: item.status === '更新中' ? '#f59e0b' : 'var(--text-secondary)' }}>{item.status}</span>
+            <span style={{ color: item.status === '更新中' ? 'var(--status-updating)' : 'var(--text-secondary)' }}>{item.status}</span>
           </div>
         </div>
       </div>

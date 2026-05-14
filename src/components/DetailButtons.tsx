@@ -67,7 +67,7 @@ export default function DetailButtons({
           <button
             onClick={onWatchedClick}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
-            style={{ borderColor: '#22c55e', color: '#22c55e', backgroundColor: 'rgba(34,197,94,0.06)' }}
+            style={{ borderColor: 'var(--status-watched)', color: 'var(--status-watched)', backgroundColor: 'var(--accent-light)' }}
             title="点击查看评价"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -98,7 +98,7 @@ export default function DetailButtons({
           <button
             onClick={() => onCollectOpen()}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
-            style={{ borderColor: '#3b82f6', color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)' }}
+            style={{ borderColor: 'var(--status-watching)', color: 'var(--status-watching)', backgroundColor: 'var(--accent-light)' }}
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -125,7 +125,7 @@ export default function DetailButtons({
       <>
         <div className="flex items-center gap-2">
           <button onClick={onWantButtonClick} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
-            style={{ borderColor: '#ef4444', color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.06)' }}
+            style={{ borderColor: 'var(--status-want)', color: 'var(--status-want)', backgroundColor: 'var(--accent-light)' }}
             title="单击取消想看，双击选择片单">
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />

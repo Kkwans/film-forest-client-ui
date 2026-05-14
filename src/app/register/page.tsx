@@ -69,7 +69,7 @@ export default function RegisterPage() {
           {error && (
             <div
               className="px-4 py-3 rounded-lg text-sm"
-              style={{ backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
+              style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}
             >
               {error}
             </div>

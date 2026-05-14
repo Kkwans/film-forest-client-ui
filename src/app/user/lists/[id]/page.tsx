@@ -105,11 +105,11 @@ function formatTimeWithLabel(dateStr: string, listType: string): string {
 
 // 评分等级样式
 function getRatingStyle(rating: number): React.CSSProperties {
-  if (rating >= 9) return { color: '#dc2626', fontWeight: 'bold' };
-  if (rating >= 8) return { color: '#ea580c', fontWeight: 'bold' };
-  if (rating >= 7) return { color: '#16a34a' };
-  if (rating >= 6) return { color: '#2563eb' };
-  return { color: '#6b7280' };
+  if (rating >= 9) return { color: 'var(--rating-9)', fontWeight: 'bold' };
+  if (rating >= 8) return { color: 'var(--rating-8)', fontWeight: 'bold' };
+  if (rating >= 7) return { color: 'var(--rating-7)' };
+  if (rating >= 6) return { color: 'var(--rating-6)' };
+  return { color: 'var(--rating-low)' };
 }
 
 // 评分等级标签
@@ -269,7 +269,7 @@ export default function ListDetailPage() {
                   {/* Mobile swipe action buttons - behind the card */}
                   <div className="md:hidden absolute right-0 top-0 bottom-0 flex items-center gap-1 pr-2 z-0" style={{ opacity: isSwiped ? 1 : 0, transition: 'opacity 0.2s' }}>
                     <button onClick={() => setNoteEdit({ item, listId })} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>{isWatchedList ? '编辑' : '备注'}</button>
-                    <button onClick={() => setConfirmDelete(item)} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: '#ef4444' }}>移除</button>
+                    <button onClick={() => setConfirmDelete(item)} className="h-8 px-3 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: 'var(--danger)' }}>移除</button>
                   </div>
                   {/* Card wrapper that slides */}
                   <div className="flex flex-col" style={{ transform: isSwiped ? 'translateX(-120px)' : 'translateX(0)', transition: 'transform 0.2s ease', position: 'relative', zIndex: 1 }}>
@@ -323,7 +323,7 @@ export default function ListDetailPage() {
 
                   {/* Note hook card - attached below */}
                   {(hasNote || hasRating) && (
-                    <div className="mx-0 -mt-px px-3 py-2.5 text-xs relative" style={{ backgroundColor: '#f8f9fa', borderRadius: '0 0 12px 12px', border: '1px solid var(--border-color)', borderTop: '1px solid var(--border-color)' }}>
+                    <div className="mx-0 -mt-px px-3 py-2.5 text-xs relative" style={{ backgroundColor: 'var(--notes-bg)', borderRadius: '0 0 12px 12px', border: '1px solid var(--border-color)', borderTop: '1px solid var(--border-color)' }}>
                       <button onClick={() => setNoteEdit({ item, listId })} className="absolute top-2 right-2 w-5 h-5 rounded flex items-center justify-center transition-colors hover:opacity-70" style={{ color: 'var(--text-muted)' }} title={isWatchedList ? '编辑评分和感想' : '编辑备注'}>
                         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                       </button>

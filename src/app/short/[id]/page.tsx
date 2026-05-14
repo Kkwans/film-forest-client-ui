@@ -77,7 +77,7 @@ export default function ShortDramaDetailPage() {
           <div className="flex flex-wrap gap-4 text-sm mt-2">
             <span style={{ color: 'var(--text-secondary)' }}>{item.totalEpisode || '-'}集</span>
             {item.duration && <span style={{ color: 'var(--text-secondary)' }}>{item.duration}分钟/集</span>}
-            <span style={{ color: item.status === '更新中' ? '#f59e0b' : 'var(--text-secondary)' }}>{item.status}</span>
+            <span style={{ color: item.status === '更新中' ? 'var(--status-updating)' : 'var(--text-secondary)' }}>{item.status}</span>
           </div>
         </div>
       </div>

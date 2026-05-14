@@ -58,7 +58,7 @@ function LoginForm() {
         }`}
         style={{
           backgroundColor: 'var(--bg-card)',
-          borderColor: error ? '#ef4444' : 'var(--border-color)',
+          borderColor: error ? 'var(--danger)' : 'var(--border-color)',
         }}
       >
         <div className="text-center mb-8">
@@ -75,7 +75,7 @@ function LoginForm() {
           {error && (
             <div
               className="px-4 py-3 rounded-lg text-sm flex items-center gap-2"
-              style={{ backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
+              style={{ backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}
             >
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
@@ -99,7 +99,7 @@ function LoginForm() {
               className="w-full h-11 px-4 rounded-lg text-sm border outline-none transition-colors"
               style={{
                 backgroundColor: 'var(--bg-primary)',
-                borderColor: error ? '#ef4444' : 'var(--border-color)',
+                borderColor: error ? 'var(--danger)' : 'var(--border-color)',
                 color: 'var(--text-primary)',
               }}
             />
@@ -118,7 +118,7 @@ function LoginForm() {
               className="w-full h-11 px-4 rounded-lg text-sm border outline-none transition-colors"
               style={{
                 backgroundColor: 'var(--bg-primary)',
-                borderColor: error ? '#ef4444' : 'var(--border-color)',
+                borderColor: error ? 'var(--danger)' : 'var(--border-color)',
                 color: 'var(--text-primary)',
               }}
             />

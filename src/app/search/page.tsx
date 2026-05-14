@@ -75,10 +75,10 @@ function parseJsonArr(val: string | string[] | undefined): string[] {
 
 // Status icon config
 const STATUS_ICONS: Record<string, { icon: string; label: string; color: string; fill: boolean }> = {
-  watched: { icon: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z', label: '看过', color: '#22c55e', fill: true },
-  watching: { icon: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z', label: '在看', color: '#3b82f6', fill: false },
-  want_to_watch: { icon: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z', label: '想看', color: '#f59e0b', fill: true },
-  custom: { icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', label: '已收藏', color: '#8b5cf6', fill: true },
+  watched: { icon: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z', label: '看过', color: 'var(--status-watched)', fill: true },
+  watching: { icon: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z', label: '在看', color: 'var(--status-watching)', fill: false },
+  want_to_watch: { icon: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z', label: '想看', color: 'var(--status-want)', fill: true },
+  custom: { icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', label: '已收藏', color: 'var(--status-custom)', fill: true },
 };
 
 function SearchContent() {
@@ -297,9 +297,9 @@ function SearchContent() {
                     )}
                     {/* Ratings */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      {item.rating != null && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>豆瓣 {item.rating.toFixed(1)}</span>}
-                      {item.ratingImdb != null && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#fefce8', color: '#ca8a04' }}>IMDB {item.ratingImdb.toFixed(1)}</span>}
-                      {item.ratingRT != null && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>烂番茄 {item.ratingRT}%</span>}
+                      {item.rating != null && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' }}>豆瓣 {item.rating.toFixed(1)}</span>}
+                      {item.ratingImdb != null && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)' }}>IMDB {item.ratingImdb.toFixed(1)}</span>}
+                      {item.ratingRT != null && <span className="text-[10px] md:text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)' }}>烂番茄 {item.ratingRT}%</span>}
                     </div>
                     {/* Meta row */}
                     <div className="flex items-center gap-2 flex-wrap text-xs" style={{ color: 'var(--text-muted)' }}>

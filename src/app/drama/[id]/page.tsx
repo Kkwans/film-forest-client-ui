@@ -118,7 +118,7 @@ export default function DramaDetailPage() {
             onCollectClose={ds.handleCollectClose} onWatchedClose={ds.handleWatchedClose}
             onWatchedEdit={ds.handleWatchedEdit} onCollectOpen={() => ds.setCollectOpen(true)} />
           {item.rating != null && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium w-fit" style={{ backgroundColor: '#fef2f2', color: '#dc2626' }}>豆瓣 {item.rating.toFixed(1)}</span>
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-medium w-fit" style={{ backgroundColor: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' }}>豆瓣 {item.rating.toFixed(1)}</span>
           )}
           {item.genre && item.genre.length > 0 && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.genre.join(' / ')}</p>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 mt-2">
@@ -126,7 +126,7 @@ export default function DramaDetailPage() {
             {item.actor && item.actor.length > 0 && <div className="text-sm sm:col-span-2"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>主演：</span><span style={{ color: 'var(--text-secondary)' }}>{item.actor.join(' / ')}</span></div>}
             {item.language && item.language.length > 0 && <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>语言：</span><span style={{ color: 'var(--text-secondary)' }}>{item.language.join(' / ')}</span></div>}
             <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>集数：</span><span style={{ color: 'var(--text-secondary)' }}>{item.totalEpisode || '-'}集</span></div>
-            <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>状态：</span><span style={{ color: item.status === '更新中' ? '#f59e0b' : 'var(--text-secondary)' }}>{item.status}</span></div>
+            <div className="text-sm"><span className="font-medium" style={{ color: 'var(--text-primary)' }}>状态：</span><span style={{ color: item.status === '更新中' ? 'var(--status-updating)' : 'var(--text-secondary)' }}>{item.status}</span></div>
           </div>
         </div>
       </div>

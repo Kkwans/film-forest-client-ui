@@ -25,12 +25,12 @@ function getRatingLabel(r: number): string {
 }
 
 function getRatingColor(r: number): string {
-  if (r >= 9) return '#dc2626';
-  if (r >= 8) return '#ea580c';
-  if (r >= 7) return '#16a34a';
-  if (r >= 6) return '#2563eb';
-  if (r >= 4) return '#6b7280';
-  return '#9ca3af';
+  if (r >= 9) return 'var(--rating-9)';
+  if (r >= 8) return 'var(--rating-8)';
+  if (r >= 7) return 'var(--rating-7)';
+  if (r >= 6) return 'var(--rating-6)';
+  if (r >= 4) return 'var(--rating-low)';
+  return 'var(--rating-none)';
 }
 
 export default function NoteEditModal({ open, onClose, onSave, initialNote = '', initialRating, isWatchedList = false, movieTitle }: NoteEditModalProps) {

@@ -17,16 +17,16 @@ interface DialogProps {
 
 const VARIANT_STYLES = {
   danger: {
-    confirmBg: '#ef4444',
+    confirmBg: 'var(--danger)',
     icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
-    iconColor: '#ef4444',
-    iconBg: 'rgba(239,68,68,0.1)',
+    iconColor: 'var(--danger)',
+    iconBg: 'var(--danger-bg)',
   },
   warning: {
-    confirmBg: '#f59e0b',
+    confirmBg: 'var(--status-want)',
     icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
-    iconColor: '#f59e0b',
-    iconBg: 'rgba(245,158,11,0.1)',
+    iconColor: 'var(--status-want)',
+    iconBg: 'var(--accent-light)',
   },
   info: {
     confirmBg: 'var(--accent)',
