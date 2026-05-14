@@ -1,0 +1,427 @@
+// @ts-nocheck
+'use client';
+
+import Link from 'next/link';
+
+/**
+ * 详情页通用组件库
+ * 提取自 movie/drama/variety/anime/short 五个详情页的共用 UI 片段
+ */
+
+/* ============================================================
+ * 1. 面包屑导航
+ * ============================================================ */
+
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
+  return (
+    <nav className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+      {items.map((item, i) => (
+        <span key={i} className="flex items-center gap-2">
+          {i > 0 && <span>›</span>}
+          {item.href ? (
+            <Link href={item.href} style={{ color: 'var(--text-secondary)' }}>{item.label}</Link>
+          ) : (
+            <span style={{ color: 'var(--text-primary)' }}>{item.label}</span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+/* ============================================================
+ * 2. 封面海报
+ * ============================================================ */
+
+export function DetailCover({ src, alt, seed }: { src?: string; alt: string; seed: string }) {
+  return (
+    <div className="w-full sm:w-48 md:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px]">
+      <img
+        src={src || `https://picsum.photos/seed/${seed}/400/600`}
+        alt={alt}
+        className="w-full aspect-[2/3] object-cover rounded-xl"
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+ * 3. 标题 + 年份
+ * ============================================================ */
+
+export function DetailTitle({ title, year }: { title: string; year?: number }) {
+  return (
+    <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
+      {title}
+      {year != null && year > 0 && (
+        <span className="text-lg font-normal ml-2" style={{ color: 'var(--text-muted)' }}>
+          ({year})
+        </span>
+      )}
+    </h1>
+  );
+}
+
+/* ============================================================
+ * 4. 评分徽章组
+ * ============================================================ */
+
+interface RatingBadgesProps {
+  douban?: number | null;
+  imdb?: number | null;
+  rt?: number | null;
+}
+
+export function RatingBadges({ douban, imdb, rt }: RatingBadgesProps) {
+  const badges = [
+    douban != null && { label: '豆瓣', value: douban.toFixed(1), bg: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' },
+    imdb != null && { label: 'IMDB', value: imdb.toFixed(1), bg: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)' },
+    rt != null && { label: '烂番茄', value: `${rt}%`, bg: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)' },
+  ].filter(Boolean);
+
+  if (badges.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      {badges.map((b, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold"
+          style={{ backgroundColor: b.bg, color: b.color }}
+        >
+          {b.label} {b.value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+ * 5. 信息行
+ * ============================================================ */
+
+export function InfoRow({ label, children, accent }: {
+  label: string;
+  children: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex gap-2 text-sm leading-relaxed">
+      <span className="shrink-0 font-medium" style={{ color: 'var(--text-muted)', minWidth: '3.5em' }}>
+        {label}
+      </span>
+      <div style={{ color: accent ? 'var(--accent)' : 'var(--text-secondary)' }}>{children}</div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 6. 简介区域（可展开/收起）
+ * ============================================================ */
+
+export function SynopsisSection({ text, expanded, onToggle }: {
+  text: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  if (!text) return null;
+
+  return (
+    <section
+      className="rounded-xl p-5 border"
+      style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+    >
+      <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>简介</h2>
+      <p
+        className={`text-sm leading-relaxed ${expanded ? '' : 'line-clamp-3'}`}
+        style={{ color: 'var(--text-secondary)' }}
+      >
+        {text}
+      </p>
+      {text.length > 200 && (
+        <button
+          onClick={onToggle}
+          className="mt-3 text-sm font-medium active:opacity-70 transition-opacity flex items-center gap-1"
+          style={{ color: 'var(--accent)' }}
+        >
+          {expanded ? '收起' : '展开全部'}
+          <svg
+            className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+      )}
+    </section>
+  );
+}
+
+/* ============================================================
+ * 7. Tab 切换栏
+ * ============================================================ */
+
+interface TabItem<T extends string> {
+  key: T;
+  label: string;
+  count?: number;
+}
+
+export function DetailTabBar<T extends string>({ tabs, active, onChange }: {
+  tabs: TabItem<T>[];
+  active: T;
+  onChange: (key: T) => void;
+}) {
+  return (
+    <div className="flex gap-6 border-b" style={{ borderColor: 'var(--border-color)' }}>
+      {tabs.map(tab => (
+        <button
+          key={tab.key}
+          onClick={() => onChange(tab.key)}
+          className="pb-3 text-sm font-medium border-b-2 transition-colors"
+          style={{
+            color: active === tab.key ? 'var(--accent)' : 'var(--text-secondary)',
+            borderColor: active === tab.key ? 'var(--accent)' : 'transparent',
+          }}
+        >
+          {tab.label}{tab.count != null ? ` (${tab.count})` : ''}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+ * 8. 选集/分期网格
+ * ============================================================ */
+
+export function EpisodeGrid({ total, selected, onSelect, label = '集', gridCols = 'grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10' }: {
+  total: number;
+  selected: number | null;
+  onSelect: (ep: number | null) => void;
+  label?: string;
+  gridCols?: string;
+}) {
+  if (total <= 0) return null;
+
+  const episodes = Array.from({ length: total }, (_, i) => i + 1);
+
+  return (
+    <div>
+      <h3 className="font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+        全部{label} ({total}{label})
+      </h3>
+      <div className={`grid ${gridCols} gap-2`}>
+        {episodes.map(ep => (
+          <button
+            key={ep}
+            onClick={() => onSelect(selected === ep ? null : ep)}
+            className="px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{
+              backgroundColor: selected === ep ? 'var(--accent)' : 'var(--bg-card)',
+              color: selected === ep ? '#fff' : 'var(--text-primary)',
+              border: selected === ep ? 'none' : '1px solid var(--border-color)',
+            }}
+          >
+            {ep}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 9. 在线播放资源网格
+ * ============================================================ */
+
+interface OnlineResource {
+  id: number;
+  sourceName?: string;
+  sourceUrl?: string;
+}
+
+export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在线播放资源', selectedEpisode, episodeLabel = '集' }: {
+  resources: OnlineResource[];
+  loading: boolean;
+  emptyText?: string;
+  selectedEpisode?: number | null;
+  episodeLabel?: string;
+}) {
+  const title = selectedEpisode ? `第${selectedEpisode}${episodeLabel} 播放源` : '在线播放';
+
+  return (
+    <section
+      className="rounded-xl p-5 border"
+      style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+    >
+      <h3 className="font-bold mb-4" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2].map(i => (
+            <div key={i} className="h-12 rounded-lg animate-pulse" style={{ backgroundColor: 'var(--bg-primary)' }} />
+          ))}
+        </div>
+      ) : resources.length === 0 ? (
+        <p className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+          {selectedEpisode ? `该${episodeLabel}暂无资源` : emptyText}
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {resources.map(r => (
+            <a
+              key={r.id}
+              href={r.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-4 py-3 rounded-lg border transition-colors hover:opacity-80"
+              style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}
+            >
+              <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                {r.sourceName}
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
+                播放
+              </span>
+            </a>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ============================================================
+ * 10. 可复制资源列表（磁力/网盘）
+ * ============================================================ */
+
+interface CopyableResource {
+  id: number;
+  title?: string;
+  url?: string;
+  resolution?: string;
+  storageName?: string;
+}
+
+export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyText }: {
+  resources: CopyableResource[];
+  copiedId: number | null;
+  onCopy: (url: string, id: number) => void;
+  icon: string;
+  emptyText: string;
+}) {
+  if (resources.length === 0) {
+    return <p className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>{emptyText}</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {resources.map(r => (
+        <div
+          key={r.id}
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-lg border"
+          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="text-lg shrink-0">{icon}</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium break-all sm:truncate" style={{ color: 'var(--text-primary)' }}>
+                {r.resolution && (
+                  <span
+                    className="inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-2"
+                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                  >
+                    {r.resolution}
+                  </span>
+                )}
+                {r.title || '资源链接'}
+              </p>
+              {r.storageName && (
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{r.storageName}</p>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => onCopy(r.url || '', r.id)}
+            className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white"
+            style={{ backgroundColor: copiedId === r.id ? 'var(--copied-bg)' : 'var(--accent)' }}
+          >
+            {copiedId === r.id ? '已复制 ✓' : '复制链接'}
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+ * 11. 资源 Tab 容器（磁力 + 网盘）
+ * ============================================================ */
+
+export function ResourceTabs({ tabs, activeTab, onTabChange, children }: {
+  tabs: { key: string; label: string; count: number }[];
+  activeTab: string;
+  onTabChange: (key: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className="rounded-xl p-5 border"
+      style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}
+    >
+      <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>下载资源</h2>
+      <DetailTabBar
+        tabs={tabs}
+        active={activeTab}
+        onChange={onTabChange}
+      />
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+/* ============================================================
+ * 12. 加载骨架屏
+ * ============================================================ */
+
+export function DetailPageSkeleton() {
+  return (
+    <div className="flex flex-col gap-6 animate-pulse">
+      <div className="flex flex-col sm:flex-row gap-6">
+        <div
+          className="w-full sm:w-48 md:w-64 aspect-[2/3] rounded-xl max-w-[256px] mx-auto sm:mx-0"
+          style={{ backgroundColor: 'var(--bg-card)' }}
+        />
+        <div className="flex-1 space-y-4">
+          <div className="h-8 w-48 rounded" style={{ backgroundColor: 'var(--bg-card)' }} />
+          <div className="h-4 w-32 rounded" style={{ backgroundColor: 'var(--bg-card)' }} />
+          <div className="h-4 w-64 rounded" style={{ backgroundColor: 'var(--bg-card)' }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * 13. 404 状态
+ * ============================================================ */
+
+export function DetailNotFound({ message = '内容不存在', backHref = '/', backLabel = '返回列表' }: {
+  message?: string;
+  backHref?: string;
+  backLabel?: string;
+}) {
+  return (
+    <div className="text-center py-16">
+      <p style={{ color: 'var(--text-secondary)' }}>{message}</p>
+      <Link href={backHref} className="text-sm mt-4 inline-block" style={{ color: 'var(--accent)' }}>
+        ← {backLabel}
+      </Link>
+    </div>
+  );
+}

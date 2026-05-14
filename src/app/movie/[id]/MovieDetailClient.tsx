@@ -2,10 +2,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
 import { cleanTitle as cleanTitleUtil, cleanStoryline } from '@/lib/utils';
 import { useDetailStatus } from '@/hooks/useDetailStatus';
 import DetailButtons from '@/components/DetailButtons';
+import {
+  DetailBreadcrumb, DetailCover, DetailTitle, RatingBadges,
+  InfoRow, SynopsisSection, ResourceTabs, CopyableResourceList,
+  DetailPageSkeleton, DetailNotFound,
+} from '@/components/detail/DetailComponents';
 
 interface MovieDetail {
   id: number; title: string; cover: string; year: number; region: string;
@@ -60,30 +64,18 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
     return false;
   });
 
-  const InfoRow = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div className="flex gap-2 text-sm leading-relaxed">
-      <span className="shrink-0 font-medium" style={{ color: 'var(--text-muted)', minWidth: '3.5em' }}>{label}</span>
-      <div style={{ color: 'var(--text-secondary)' }}>{children}</div>
-    </div>
-  );
-
   return (
-    <>
     <div className="flex flex-col gap-6">
-      <nav className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-        <Link href="/" style={{ color: 'var(--text-secondary)' }}>首页</Link><span>›</span>
-        <Link href="/movie" style={{ color: 'var(--text-secondary)' }}>电影</Link><span>›</span>
-        <span style={{ color: 'var(--text-primary)' }}>{movie.title}</span>
-      </nav>
+      <DetailBreadcrumb items={[
+        { label: '首页', href: '/' },
+        { label: '电影', href: '/movie' },
+        { label: movie.title },
+      ]} />
 
       <div className="flex flex-col sm:flex-row gap-6">
-        <div className="w-full sm:w-48 md:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px]">
-          <img src={movie.cover || `https://picsum.photos/seed/m${movie.id}/400/600`} alt={movie.title} className="w-full aspect-[2/3] object-cover rounded-xl" />
-        </div>
+        <DetailCover src={movie.cover} alt={movie.title} seed={`m${movie.id}`} />
         <div className="flex-1 flex flex-col gap-3 min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            {cleanTitleUtil(movie.title)}{movie.year > 0 && <span className="text-lg font-normal ml-2" style={{ color: 'var(--text-muted)' }}>({movie.year})</span>}
-          </h1>
+          <DetailTitle title={cleanTitleUtil(movie.title)} year={movie.year} />
 
           <DetailButtons contentId={movie.id} contentType="movie" contentTitle={movie.title}
             status={ds.status} collectOpen={ds.collectOpen} watchedOpen={ds.watchedOpen} watchedReadOnly={ds.watchedReadOnly}
@@ -91,70 +83,61 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
             onCollectClose={ds.handleCollectClose} onWatchedClose={ds.handleWatchedClose}
             onWatchedEdit={ds.handleWatchedEdit} onCollectOpen={() => ds.setCollectOpen(true)} />
 
-          <div className="flex flex-wrap items-center gap-3">
-            {movie.rating != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' }}>豆瓣 {movie.rating.toFixed(1)}</span>}
-            {movie.ratingImdb != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)' }}>IMDB {movie.ratingImdb.toFixed(1)}</span>}
-            {movie.ratingRT != null && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold" style={{ backgroundColor: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)' }}>烂番茄 {movie.ratingRT}%</span>}
-          </div>
+          <RatingBadges douban={movie.rating} imdb={movie.ratingImdb} rt={movie.ratingRT} />
 
           <div className="mt-2 space-y-2">
             {movie.aka.length > 0 && <InfoRow label="又名">{movie.aka.join(' / ')}</InfoRow>}
-            {movie.director.length > 0 && <InfoRow label="导演"><span style={{ color: 'var(--accent)' }}>{movie.director.join(' / ')}</span></InfoRow>}
+            {movie.director.length > 0 && <InfoRow label="导演" accent>{movie.director.join(' / ')}</InfoRow>}
             {movie.writer && movie.writer.length > 0 && <InfoRow label="编剧">{movie.writer.join(' / ')}</InfoRow>}
-            {movie.actor.length > 0 && <InfoRow label="主演"><span style={{ color: 'var(--accent)' }}>{movie.actor.join(' / ')}</span></InfoRow>}
+            {movie.actor.length > 0 && <InfoRow label="主演" accent>{movie.actor.join(' / ')}</InfoRow>}
             {movie.genre.length > 0 && <InfoRow label="类型">{movie.genre.join(' / ')}</InfoRow>}
             {movie.region && <InfoRow label="地区">{movie.region}</InfoRow>}
             {movie.language.length > 0 && <InfoRow label="语言">{movie.language.join(' / ')}</InfoRow>}
             {movie.releaseDate && <InfoRow label="上映">{movie.releaseDate}</InfoRow>}
             {movie.duration && <InfoRow label="片长">{movie.duration}分钟</InfoRow>}
-            {movie.updatedAt && <InfoRow label="更新"><span className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(movie.updatedAt).toLocaleString('zh-CN')}</span></InfoRow>}
+            {movie.updatedAt && (
+              <InfoRow label="更新">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {new Date(movie.updatedAt).toLocaleString('zh-CN')}
+                </span>
+              </InfoRow>
+            )}
           </div>
         </div>
       </div>
 
-      {movie.summary && (
-        <section className="rounded-xl p-5 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
-          <h2 className="text-lg font-bold mb-3" style={{ color: 'var(--text-primary)' }}>简介</h2>
-          <p className={`text-sm leading-relaxed ${synopsisExpanded ? '' : 'line-clamp-3'}`} style={{ color: 'var(--text-secondary)' }}>{cleanStoryline(movie.summary)}</p>
-          {cleanStoryline(movie.summary).length > 200 && (
-            <button onClick={() => setSynopsisExpanded(!synopsisExpanded)} className="mt-3 text-sm font-medium flex items-center gap-1" style={{ color: 'var(--accent)' }}>
-              {synopsisExpanded ? '收起' : '展开全部'}
-              <svg className={`w-4 h-4 transition-transform ${synopsisExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-            </button>
-          )}
-        </section>
-      )}
+      <SynopsisSection
+        text={cleanStoryline(movie.summary)}
+        expanded={synopsisExpanded}
+        onToggle={() => setSynopsisExpanded(!synopsisExpanded)}
+      />
 
-      <section className="rounded-xl p-5 border" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-color)' }}>
-        <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>下载资源</h2>
-        <div className="flex gap-6 border-b mb-4" style={{ borderColor: 'var(--border-color)' }}>
-          {[{ key: 'magnet' as const, label: '磁力链接', count: realMagnets.length }, { key: 'cloud' as const, label: '网盘资源', count: realClouds.length }].map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="pb-3 text-sm font-medium border-b-2" style={{ color: activeTab === tab.key ? 'var(--accent)' : 'var(--text-secondary)', borderColor: activeTab === tab.key ? 'var(--accent)' : 'transparent' }}>
-              {tab.label} ({tab.count})
-            </button>
-          ))}
-        </div>
+      <ResourceTabs
+        tabs={[
+          { key: 'magnet', label: '磁力链接', count: realMagnets.length },
+          { key: 'cloud', label: '网盘资源', count: realClouds.length },
+        ]}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      >
         {activeTab === 'magnet' ? (
-          filteredMagnets.length === 0 ? <p className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>暂无磁力链接</p> : (
-            <div className="space-y-2">{filteredMagnets.map(r => (
-              <div key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-lg border" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}>
-                <div className="flex items-center gap-3 min-w-0 flex-1"><span className="text-lg shrink-0">🧲</span><div className="min-w-0 flex-1"><p className="text-sm font-medium break-all sm:truncate" style={{ color: 'var(--text-primary)' }}>{r.resolution && <span className="inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-2" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>{r.resolution}</span>}{r.title || '磁力链接'}</p></div></div>
-                <button onClick={() => copyLink(r.magnetUrl || '', r.id)} className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: copiedId === r.id ? 'var(--copied-bg)' : 'var(--accent)' }}>{copiedId === r.id ? '已复制 ✓' : '复制链接'}</button>
-              </div>
-            ))}</div>
-          )
+          <CopyableResourceList
+            resources={filteredMagnets.map(r => ({ id: r.id, title: r.title, url: r.magnetUrl, resolution: r.resolution }))}
+            copiedId={copiedId}
+            onCopy={copyLink}
+            icon="🧲"
+            emptyText="暂无磁力链接"
+          />
         ) : (
-          realClouds.length === 0 ? <p className="text-center py-8 text-sm" style={{ color: 'var(--text-muted)' }}>暂无网盘资源</p> : (
-            <div className="space-y-2">{realClouds.map(r => (
-              <div key={r.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border-color)' }}>
-                <div className="flex items-center gap-3 min-w-0 flex-1"><span className="text-lg shrink-0">☁️</span><div className="min-w-0 flex-1"><p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{r.title || '网盘资源'}</p>{r.storageName && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{r.storageName}</p>}</div></div>
-                <button onClick={() => copyLink(r.shareUrl || '', r.id)} className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white" style={{ backgroundColor: copiedId === r.id ? 'var(--copied-bg)' : 'var(--accent)' }}>{copiedId === r.id ? '已复制 ✓' : '复制链接'}</button>
-              </div>
-            ))}</div>
-          )
+          <CopyableResourceList
+            resources={realClouds.map(r => ({ id: r.id, title: r.title, url: r.shareUrl, storageName: r.storageName }))}
+            copiedId={copiedId}
+            onCopy={copyLink}
+            icon="☁️"
+            emptyText="暂无网盘资源"
+          />
         )}
-      </section>
+      </ResourceTabs>
     </div>
-    </>
   );
 }
