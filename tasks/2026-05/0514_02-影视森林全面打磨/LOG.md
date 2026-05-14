@@ -985,3 +985,59 @@ admin-server + client-server 全部 Java 文件（Entity/Service/ServiceImpl/Con
 
 ### 总结
 注释完整性和配置合理性两个维度全部完成。修复了 admin-server 端口配置错误（严重 bug）和生产环境日志级别问题，56 个 Java 文件全面补全 Javadoc 注释。PLAN.md 所有排查项已全部打勾 ✅
+
+---
+
+## 2026-05-14 19:41 - 第22轮：inline style 全面清理（CSS 变量 → Tailwind class）
+
+### 排查范围
+client-ui 全部 .tsx 文件（src/app/ + src/components/）
+
+### 发现的问题
+
+**系统性质量问题：265 处 inline style 使用 CSS 变量**
+- `style={{ backgroundColor: 'var(--bg-card)' }}` 等写法遍布全项目
+- 根因：globals.css 未在 `@theme` 中注册 CSS 变量，Tailwind 无法生成工具类
+- 导致开发者只能用 inline style 引用 CSS 变量
+
+### 修复内容
+
+**1. globals.css 重构（根因修复）**
+- 新增 `@custom-variant dark (&:is(.dark *))` 支持深色模式
+- 新增 `@theme inline` 注册完整 CSS 变量体系：
+  - `--color-background` / `--color-foreground` / `--color-card`
+  - `--color-secondary` / `--color-muted` / `--color-muted-foreground`
+  - `--color-border` / `--color-accent` / `--color-accent-hover` / `--color-accent-light`
+  - `--color-destructive` / `--color-accent-foreground`
+  - `--color-status-watched/watching/want/custom` / `--color-copied`
+
+**2. 批量替换（326 处）**
+- Python 脚本处理 34 个文件
+- 单属性 style → Tailwind class（bg-card、text-foreground、border-border 等）
+
+**3. 复杂情况手动修复（37 处）**
+- 多属性 style 拆分（bg + border → className 中两个 class）
+- 三元表达式 → 条件 className
+- 状态色（watched/watching/want）→ 注册 Tailwind 颜色 + 使用 class
+- 渐变背景保留 inline style（CSS gradient 无法用 Tailwind 表达）
+
+**4. 构建错误修复**
+- 5 个 loading.tsx 模板 literal 闭合修复
+- 2 个组件 style 语法修复（缺少双大括号）
+
+### 涉及文件（34个）
+- globals.css、10 个 loading.tsx、7 个页面、8 个组件、5 个详情页、3 个模态框
+
+### 部署
+- commit: bf75143 (client-ui) → GitHub push ✅
+- 构建验证 ✅
+
+### 最终统计
+| 指标 | 清理前 | 清理后 |
+|------|--------|--------|
+| CSS 变量 inline style | 265 处 | 2 处（渐变背景） |
+| 总 inline style | ~350 处 | 82 处（动态值+渐变） |
+| @theme 注册颜色 | 2 个 | 17 个 |
+
+### 总结
+client-ui inline style 全面清理完成。根因是 globals.css 未在 Tailwind @theme 中注册 CSS 变量，导致全项目使用 inline style 引用 CSS 变量。通过注册完整 CSS 变量体系 + 批量替换 + 手动修复，265 处 CSS 变量 inline style 降至 2 处（渐变背景）。代码质量和可维护性显著提升。

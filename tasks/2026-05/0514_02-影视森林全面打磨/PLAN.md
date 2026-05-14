@@ -91,3 +91,4 @@
 - [x] admin-server + client-server: 后端代码规范统一（2026-05-14，ContentController/SearchController重构+GlobalExceptionHandler 5层异常处理+BusinessException）
 - [x] 后端代码规范统一（2026-05-14，第19轮：ContentController重构+SearchController重构+GlobalExceptionHandler升级+BusinessException）
 - [x] 后端性能优化（N+1查询、索引）
+- [x] client-ui: inline style 全面清理（2026-05-14，265处CSS变量inline style→Tailwind class，@theme注册17个颜色变量）
