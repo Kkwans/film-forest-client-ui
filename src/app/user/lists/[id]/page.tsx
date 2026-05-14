@@ -226,8 +226,7 @@ export default function ListDetailPage() {
         {items.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {TYPE_FILTERS.map(t => (
-              <button key={t.value} onClick={() => setTypeFilter(t.value)} className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-                style={{ backgroundColor: typeFilter === t.value ? 'var(--accent)' : 'var(--bg-card)', color: typeFilter === t.value ? '#fff' : 'var(--text-secondary)', border: typeFilter === t.value ? 'none' : '1px solid var(--border-color)' }}>
+              <button key={t.value} onClick={() => setTypeFilter(t.value)} className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${typeFilter === t.value ? 'bg-accent text-white' : 'bg-card text-secondary-foreground border border-border'}`}>
                 {t.label}
               </button>
             ))}

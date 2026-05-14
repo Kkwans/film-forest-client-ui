@@ -161,7 +161,7 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border flex flex-col"
-        style={maxHeight: '75vh'}>
+        style={{maxHeight: '75vh'}}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0 border-border" >
@@ -179,7 +179,7 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
             <label className="block text-sm font-medium mb-3 text-secondary-foreground" >评分</label>
             {renderStarBar()}
             <div className="flex items-center justify-center gap-2 mt-2">
-              <span className="text-2xl font-bold tabular-nums" style={{ color: displayRating > 0 ? level.color : 'var(--text-muted)', minWidth: '2.5rem', textAlign: 'center' }}>
+              <span className="text-2xl font-bold tabular-nums text-muted-foreground" style={{ color: displayRating > 0 ? level.color : undefined, minWidth: '2.5rem', textAlign: 'center' }}>
                 {displayRating > 0 ? displayRating.toFixed(1) : '-'}
               </span>
               {displayRating > 0 && (
@@ -201,8 +201,8 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
               rows={4}
               maxLength={500}
               readOnly={isReadOnly}
-              className="w-full px-4 py-3 rounded-lg text-sm border outline-none resize-none"
-              style={{ backgroundColor: isReadOnly ? 'var(--bg-secondary)' : 'var(--bg-primary)', borderColor: 'var(--border-color)', color: 'var(--text-primary)', opacity: isReadOnly ? 0.7 : 1 }}
+              className={`w-full px-4 py-3 rounded-lg text-sm border outline-none resize-none border-border text-foreground ${isReadOnly ? 'bg-secondary' : 'bg-background'}`}
+              style={{ opacity: isReadOnly ? 0.7 : 1 }}
             />
             <div className="flex justify-end mt-1">
               <span className="text-[10px] text-muted-foreground" >{note.length}/500</span>

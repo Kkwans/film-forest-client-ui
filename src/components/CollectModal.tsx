@@ -204,7 +204,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                       }}
                     >
                       <span className="text-xl">{d.icon}</span>
-                      <span className="text-xs font-medium" style={{ color: isIn ? 'var(--accent)' : 'var(--text-primary)' }}>{d.label}</span>
+                      <span className={`text-xs font-medium ${isIn ? 'text-accent' : 'text-foreground'}`}>{d.label}</span>
                       {d.loaded && <span className="text-[10px] text-muted-foreground" >{d.itemCount}部</span>}
                       {isTogglingThis && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin bg-accent"  />}
                       {isIn && !isTogglingThis && (

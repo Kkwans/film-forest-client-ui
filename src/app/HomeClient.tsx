@@ -69,7 +69,7 @@ export default function HomeClient({ initialMovies, initialDramas, initialVariet
   return (
     <div className="flex flex-col gap-10">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-2xl" style={{ background: 'linear-gradient(135deg, var(--bg-secondary), var(--bg-card))', border: '1px solid var(--border-color)' }}>
+      <section className="relative overflow-hidden rounded-2xl border border-border" style={{ background: 'linear-gradient(135deg, var(--bg-secondary), var(--bg-card))' }}>
         <div className="relative px-6 py-6 md:px-16 md:py-14">
           <div className="max-w-2xl">
             <div className="inline-block px-3 py-1 rounded-full text-xs font-medium mb-4 bg-accent-light text-accent" >影视资源聚合平台</div>
@@ -78,7 +78,7 @@ export default function HomeClient({ initialMovies, initialDramas, initialVariet
             </h1>
             <p className="text-base md:text-lg mb-6 md:mb-8 text-secondary-foreground" >聚合全网优质影视资源，电影、剧集、综艺、动漫一网打尽</p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/movie" className="inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-colors text-sm text-white" style={{ background: 'var(--accent)' }}>探索电影</Link>
+              <Link href="/movie" className="inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-colors text-sm text-white bg-accent">探索电影</Link>
               <Link href="/search" className="inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-colors text-sm border border-border text-secondary-foreground" >搜索影视</Link>
             </div>
           </div>

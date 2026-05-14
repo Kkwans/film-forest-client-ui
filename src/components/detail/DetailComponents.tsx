@@ -112,10 +112,10 @@ export function InfoRow({ label, children, accent }: {
 }) {
   return (
     <div className="flex gap-2 text-sm leading-relaxed">
-      <span className="shrink-0 font-medium" style={{ color: 'var(--text-muted)', minWidth: '3.5em' }}>
+      <span className="shrink-0 font-medium text-muted-foreground" style={{ minWidth: '3.5em' }}>
         {label}
       </span>
-      <div style={{ color: accent ? 'var(--accent)' : 'var(--text-secondary)' }}>{children}</div>
+      <div className={accent ? "text-accent" : "text-secondary-foreground"}>{children}</div>
     </div>
   );
 }
@@ -348,8 +348,7 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
           </div>
           <button
             onClick={() => onCopy(r.url || '', r.id)}
-            className="shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white"
-            style={{ backgroundColor: copiedId === r.id ? 'var(--copied-bg)' : 'var(--accent)' }}
+            className={`shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white ${copiedId === r.id ? 'bg-copied' : 'bg-accent'}`}
           >
             {copiedId === r.id ? '已复制 ✓' : '复制链接'}
           </button>

@@ -105,7 +105,7 @@ export default function NoteEditModal({ open, onClose, onSave, initialNote = '',
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border flex flex-col"
-        style={maxHeight: '75vh'}>
+        style={{maxHeight: '75vh'}}>
 
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0 border-border" >
           <div className="min-w-0 flex-1">
@@ -149,7 +149,7 @@ export default function NoteEditModal({ open, onClose, onSave, initialNote = '',
                 })}
               </div>
               <div className="flex items-center justify-center gap-2 mt-2">
-                <span className="text-2xl font-bold tabular-nums" style={{ color: displayRating > 0 ? levelColor : 'var(--text-muted)', minWidth: '2.5rem', textAlign: 'center' }}>
+                <span className="text-2xl font-bold tabular-nums text-muted-foreground" style={{ color: displayRating > 0 ? levelColor : undefined, minWidth: '2.5rem', textAlign: 'center' }}>
                   {displayRating > 0 ? displayRating.toFixed(1) : '-'}
                 </span>
                 {displayRating >= 0.5 && (

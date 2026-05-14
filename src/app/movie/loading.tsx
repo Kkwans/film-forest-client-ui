@@ -8,7 +8,7 @@ export default function Loading() {
       {/* Filter skeletons */}
       <div className="flex flex-wrap gap-2">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-8 rounded-full animate-pulse bg-card" style={ width: `${48 + (i % 3) * 16}px` } />
+          <div key={i} className="h-8 rounded-full animate-pulse bg-card" style={{ width: `${48 + (i % 3) * 16}px` }} />
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
