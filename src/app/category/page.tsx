@@ -112,7 +112,10 @@ export default function CategoryPage() {
                   <span className="text-xs text-white/60">
                     {counts[cat.type as keyof CountData] > 0
                       ? `${counts[cat.type as keyof CountData]} 部内容`
-                      : '加载中...'}
+                      : <span className="inline-flex items-center gap-1">
+                          <span className="w-3 h-3 border-2 border-white/40 border-t-white/80 rounded-full animate-spin" />
+                          加载中
+                        </span>}
                   </span>
                   <svg className="w-4 h-4 text-white/60 group-hover:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6" />

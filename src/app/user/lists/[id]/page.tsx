@@ -364,6 +364,13 @@ export default function ListDetailPage() {
               );
             })}
           </div>
+          {filteredItems.length === 0 && items.length > 0 && (
+            <div className="text-center py-12">
+              <p className="text-3xl mb-2">🔍</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>该类型下暂无内容</p>
+              <button onClick={() => setTypeFilter('')} className="mt-2 text-sm font-medium" style={{ color: 'var(--accent)' }}>查看全部</button>
+            </div>
+          )}
           {totalPages > 1 && <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={(p) => loadList(p)} />}
         </>
       )}

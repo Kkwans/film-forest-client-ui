@@ -1,10 +1,30 @@
 // @ts-nocheck
 export default function Loading() {
   return (
-    <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-3 border-current border-t-transparent rounded-full animate-spin" style={{ color: 'var(--accent)' }} />
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>加载中...</span>
+    <div className="flex flex-col gap-6">
+      <div className="h-8 w-16 rounded animate-pulse" style={{ backgroundColor: 'var(--bg-card)' }} />
+      <div className="flex flex-wrap gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-8 rounded-full animate-pulse" style={{ backgroundColor: 'var(--bg-card)', width: `${48 + (i % 3) * 16}px` }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-8 w-16 rounded-full animate-pulse" style={{ backgroundColor: 'var(--bg-card)' }} />
+        ))}
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="h-5 w-20 rounded animate-pulse" style={{ backgroundColor: 'var(--bg-card)' }} />
+        <div className="h-8 w-28 rounded-lg animate-pulse" style={{ backgroundColor: 'var(--bg-card)' }} />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4" style={{ minHeight: '60vh' }}>
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="flex flex-col gap-2 animate-pulse">
+            <div className="aspect-[2/3] rounded-xl" style={{ backgroundColor: 'var(--bg-card)' }} />
+            <div className="h-4 w-3/4 rounded" style={{ backgroundColor: 'var(--bg-card)' }} />
+            <div className="h-3 w-1/2 rounded" style={{ backgroundColor: 'var(--bg-card)' }} />
+          </div>
+        ))}
       </div>
     </div>
   );
