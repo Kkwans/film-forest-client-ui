@@ -1,4 +1,5 @@
 // @ts-nocheck
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import MovieDetailClient from './MovieDetailClient';
 import { parseRegion, parseGenre } from '@/lib/utils';
@@ -24,6 +25,23 @@ async function fetchMovie(id: number) {
       updatedAt: m.updatedAt,
     };
   } catch { return null; }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const movie = await fetchMovie(Number(id));
+  if (!movie) return { title: '电影未找到 - 影视森林' };
+  const desc = movie.summary ? movie.summary.slice(0, 160) : `${movie.title}(${movie.year}) 豆瓣评分等信息，提供磁力链接和网盘资源下载。`;
+  return {
+    title: `${movie.title} - 电影 - 影视森林`,
+    description: desc,
+    openGraph: {
+      title: `${movie.title} (${movie.year})`,
+      description: desc,
+      ...(movie.cover ? { images: [{ url: movie.cover }] } : {}),
+      type: 'video.movie',
+    },
+  };
 }
 
 async function fetchResources(type: string, contentId: number) {

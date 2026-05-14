@@ -1,55 +1,33 @@
 // @ts-nocheck
-'use client';
+import type { Metadata } from 'next';
+import DramaDetailClient from './DramaDetailClient';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { dramaApi } from '@/lib/api';
-import { parseRegion, parseGenre, cleanStoryline } from '@/lib/utils';
-import DetailPageLayout, { DetailPageLoading, DetailPageNotFound, type DetailItem } from '@/components/DetailPageLayout';
+async function fetchDrama(id: number) {
+  try {
+    const res = await fetch(`http://localhost:8080/api/dramas/${id}`, { cache: 'no-store' });
+    const data = await res.json();
+    const d = data?.data;
+    if (!d || !d.id) return null;
+    return { id: d.id, title: d.title, year: d.year, storyline: d.storyline || '' };
+  } catch { return null; }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const drama = await fetchDrama(Number(id));
+  if (!drama) return { title: '剧集未找到 - 影视森林' };
+  const desc = drama.storyline ? drama.storyline.slice(0, 160) : `${drama.title}(${drama.year}) 评分、磁力链接、网盘资源下载。`;
+  return {
+    title: `${drama.title} - 电视剧 - 影视森林`,
+    description: desc,
+    openGraph: {
+      title: `${drama.title} (${drama.year})`,
+      description: desc,
+      type: 'video.tv_show',
+    },
+  };
+}
 
 export default function DramaDetailPage() {
-  const params = useParams();
-  const id = Number(params.id);
-  const [item, setItem] = useState<DetailItem | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { if (id) fetchDetail(); }, [id]);
-
-  const fetchDetail = async () => {
-    setLoading(true);
-    try {
-      const res = await dramaApi.detail(id) as any;
-      const d = res.data?.data || res.data;
-      if (d && d.id) {
-        setItem({
-          id: d.id, title: d.title, cover: d.posterUrl, year: d.year,
-          region: parseRegion(d.region).join(' / '),
-          rating: d.scoreDouban, summary: cleanStoryline(d.storyline),
-          status: d.status === 1 ? '更新中' : '已完结',
-          totalEpisode: d.totalEpisode, currentEpisode: d.currentEpisode,
-          genre: parseGenre(d.genre),
-          director: Array.isArray(d.director) ? d.director : (d.director ? JSON.parse(d.director) : []),
-          actor: Array.isArray(d.actor) ? d.actor : (d.actor ? JSON.parse(d.actor) : []),
-          language: Array.isArray(d.language) ? d.language : (d.language ? [d.language] : []),
-        });
-      }
-    } catch { setItem(null); } finally { setLoading(false); }
-  };
-
-  if (loading) return <DetailPageLoading />;
-  if (!item) return <DetailPageNotFound listPath="/drama" listLabel="电视剧" typeName="剧集" />;
-
-  return (
-    <DetailPageLayout
-      item={item}
-      config={{
-        contentType: 'drama',
-        listPath: '/drama',
-        listLabel: '电视剧',
-        episodeLabel: '集',
-        hasEpisodes: true,
-        updatingText: '更新中',
-      }}
-    />
-  );
+  return <DramaDetailClient />;
 }

@@ -1,52 +1,33 @@
 // @ts-nocheck
-'use client';
+import type { Metadata } from 'next';
+import ShortDramaDetailClient from './ShortDramaDetailClient';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { shortDramaApi } from '@/lib/api';
-import { parseRegion, parseGenre, cleanStoryline } from '@/lib/utils';
-import DetailPageLayout, { DetailPageLoading, DetailPageNotFound, type DetailItem } from '@/components/DetailPageLayout';
+async function fetchShortDrama(id: number) {
+  try {
+    const res = await fetch(`http://localhost:8080/api/short-dramas/${id}`, { cache: 'no-store' });
+    const data = await res.json();
+    const d = data?.data;
+    if (!d || !d.id) return null;
+    return { id: d.id, title: d.title, year: d.year, storyline: d.storyline || '' };
+  } catch { return null; }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const item = await fetchShortDrama(Number(id));
+  if (!item) return { title: '短剧未找到 - 影视森林' };
+  const desc = item.storyline ? item.storyline.slice(0, 160) : `${item.title}(${item.year}) 评分、磁力链接、网盘资源下载。`;
+  return {
+    title: `${item.title} - 短剧 - 影视森林`,
+    description: desc,
+    openGraph: {
+      title: `${item.title} (${item.year})`,
+      description: desc,
+      type: 'video.tv_show',
+    },
+  };
+}
 
 export default function ShortDramaDetailPage() {
-  const params = useParams();
-  const id = Number(params.id);
-  const [item, setItem] = useState<DetailItem | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { if (id) fetchDetail(); }, [id]);
-
-  const fetchDetail = async () => {
-    setLoading(true);
-    try {
-      const res = await shortDramaApi.detail(id) as any;
-      const d = res.data?.data || res.data;
-      if (d && d.id) {
-        setItem({
-          id: d.id, title: d.title, cover: d.posterUrl, year: d.year,
-          region: parseRegion(d.region).join(' / '),
-          summary: cleanStoryline(d.storyline),
-          status: d.status === 1 ? '更新中' : '已完结',
-          totalEpisode: d.totalEpisode, duration: d.duration,
-          genre: parseGenre(d.genre),
-        });
-      }
-    } catch { setItem(null); } finally { setLoading(false); }
-  };
-
-  if (loading) return <DetailPageLoading />;
-  if (!item) return <DetailPageNotFound listPath="/short" listLabel="短剧" typeName="短剧" />;
-
-  return (
-    <DetailPageLayout
-      item={item}
-      config={{
-        contentType: 'short_drama',
-        listPath: '/short',
-        listLabel: '短剧',
-        episodeLabel: '集',
-        hasEpisodes: true,
-        updatingText: '更新中',
-      }}
-    />
-  );
+  return <ShortDramaDetailClient />;
 }

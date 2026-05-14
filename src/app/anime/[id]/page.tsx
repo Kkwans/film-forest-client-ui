@@ -1,53 +1,33 @@
 // @ts-nocheck
-'use client';
+import type { Metadata } from 'next';
+import AnimeDetailClient from './AnimeDetailClient';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { animeApi } from '@/lib/api';
-import { parseRegion, parseGenre, cleanStoryline } from '@/lib/utils';
-import DetailPageLayout, { DetailPageLoading, DetailPageNotFound, type DetailItem } from '@/components/DetailPageLayout';
+async function fetchAnime(id: number) {
+  try {
+    const res = await fetch(`http://localhost:8080/api/animes/${id}`, { cache: 'no-store' });
+    const data = await res.json();
+    const d = data?.data;
+    if (!d || !d.id) return null;
+    return { id: d.id, title: d.title, year: d.year, storyline: d.storyline || '' };
+  } catch { return null; }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const item = await fetchAnime(Number(id));
+  if (!item) return { title: '动漫未找到 - 影视森林' };
+  const desc = item.storyline ? item.storyline.slice(0, 160) : `${item.title}(${item.year}) 评分、磁力链接、网盘资源下载。`;
+  return {
+    title: `${item.title} - 动漫 - 影视森林`,
+    description: desc,
+    openGraph: {
+      title: `${item.title} (${item.year})`,
+      description: desc,
+      type: 'video.tv_show',
+    },
+  };
+}
 
 export default function AnimeDetailPage() {
-  const params = useParams();
-  const id = Number(params.id);
-  const [item, setItem] = useState<DetailItem | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { if (id) fetchDetail(); }, [id]);
-
-  const fetchDetail = async () => {
-    setLoading(true);
-    try {
-      const res = await animeApi.detail(id) as any;
-      const d = res.data?.data || res.data;
-      if (d && d.id) {
-        setItem({
-          id: d.id, title: d.title, cover: d.posterUrl, year: d.year,
-          region: parseRegion(d.region).join(' / '),
-          rating: d.scoreDouban, summary: cleanStoryline(d.storyline),
-          status: d.status === 1 ? '连载中' : '已完结',
-          totalEpisode: d.totalEpisode,
-          genre: parseGenre(d.genre),
-          director: Array.isArray(d.director) ? d.director : (d.director ? JSON.parse(d.director) : []),
-        });
-      }
-    } catch { setItem(null); } finally { setLoading(false); }
-  };
-
-  if (loading) return <DetailPageLoading />;
-  if (!item) return <DetailPageNotFound listPath="/anime" listLabel="动漫" typeName="动漫" />;
-
-  return (
-    <DetailPageLayout
-      item={item}
-      config={{
-        contentType: 'anime',
-        listPath: '/anime',
-        listLabel: '动漫',
-        episodeLabel: '集',
-        hasEpisodes: true,
-        updatingText: '连载中',
-      }}
-    />
-  );
+  return <AnimeDetailClient />;
 }
