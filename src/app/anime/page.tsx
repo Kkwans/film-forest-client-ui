@@ -1,4 +1,3 @@
-// @ts-nocheck
 import MovieListClient from '../movie/MovieListClient';
 import { fetchContentList } from '@/lib/serverFetch';
 import { getListMetadata } from '@/lib/metadata';

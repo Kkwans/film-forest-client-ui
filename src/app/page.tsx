@@ -1,4 +1,3 @@
-// @ts-nocheck
 import HomeClient from './HomeClient';
 import { parseRegion, parseGenre } from '@/lib/utils';
 import { getListMetadata } from '@/lib/metadata';
