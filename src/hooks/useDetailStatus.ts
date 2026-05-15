@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { listApi, statusApi } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
@@ -41,10 +40,11 @@ export function useDetailStatus(contentId: number, contentType: string) {
   const { showToast } = useToast();
   const wantClickTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchStatus = useCallback(() => {
+  const fetchStatus = useCallback(async () => {
     if (!isAuthenticated) return;
     setStatusLoading(true);
-    statusApi.get(contentId, contentType).then(res => {
+    try {
+      const res = await statusApi.get(contentId, contentType);
       const data = res.data.data || res.data;
       const s: DetailStatus = {};
       if (Array.isArray(data)) {
@@ -61,7 +61,11 @@ export function useDetailStatus(contentId: number, contentType: string) {
         });
       }
       setStatus(s);
-    }).catch(() => {}).finally(() => setStatusLoading(false));
+    } catch {
+      // ignore errors
+    } finally {
+      setStatusLoading(false);
+    }
   }, [isAuthenticated, contentId, contentType]);
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);

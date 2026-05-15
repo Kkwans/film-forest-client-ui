@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { userApi, type User } from '@/lib/userApi';
@@ -26,23 +25,26 @@ export const useUserStore = create<UserState>()(
 
       login: async (username, password) => {
         const res = await userApi.login({ username, password });
-        const body = res.data;
+        const body = (res.data as unknown) as { code?: number; message?: string; data?: { token: string; user: User } };
         if (body.code && body.code !== 200) {
           throw new Error(body.message || '登录失败');
         }
-        const { token, user } = body.data || body;
+        const token = body.data?.token;
+        const user = body.data?.user;
         if (!token) {
           throw new Error('登录失败，未获取到token');
         }
         localStorage.setItem('ff_token', token);
-        set({ user, token, isAuthenticated: true });
+        set({ user: user ?? null, token, isAuthenticated: true });
       },
 
       register: async (username, password, email?) => {
         const res = await userApi.register({ username, password, email });
-        const { token, user } = res.data.data || res.data;
+        const body = (res.data as unknown) as { token?: string; user?: User };
+        const token = body.token ?? '';
+        const user = body.user;
         localStorage.setItem('ff_token', token);
-        set({ user, token, isAuthenticated: true });
+        set({ user: user ?? null, token, isAuthenticated: true });
       },
 
       logout: () => {
@@ -56,8 +58,8 @@ export const useUserStore = create<UserState>()(
         set({ isLoading: true });
         try {
           const res = await userApi.me();
-          const user = res.data.data || res.data;
-          set({ user, isAuthenticated: true, isLoading: false });
+          const user = (res.data as unknown) as User | null;
+          set({ user: user ?? null, isAuthenticated: true, isLoading: false });
         } catch {
           localStorage.removeItem('ff_token');
           set({ user: null, token: null, isAuthenticated: false, isLoading: false });

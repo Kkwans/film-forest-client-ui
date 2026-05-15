@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * 内容展示共享常量和工具函数
  * 从 MovieCard / SearchPage / ListDetailPage 等多处提取的重复代码

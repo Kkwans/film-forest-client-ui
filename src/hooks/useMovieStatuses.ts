@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useUserStore } from '@/stores/userStore';
 import { statusApi } from '@/lib/userApi';
@@ -33,7 +32,8 @@ export function useMovieStatuses(movieIds: number[], contentType: string) {
 
     try {
       const res = await statusApi.batch(movieIds, contentType);
-      const data = res.data.data || res.data;
+      const rawData = res.data.data || res.data;
+      const data = (rawData || {}) as Record<number, StatusListEntry[]>;
 
       const result: Record<number, MovieStatusInfo | null> = {};
       // Priority: watched > watching > want_to_watch > custom
