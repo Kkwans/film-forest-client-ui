@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -66,14 +65,16 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
     setLoading(true);
     try {
       const listsRes = await listApi.getAll();
-      const allLists: UserList[] = listsRes.data.data || listsRes.data;
+      const allListsRaw = listsRes.data as { data?: UserList[] } | UserList[] | undefined;
+      const allLists: UserList[] = Array.isArray(allListsRaw) ? allListsRaw : (allListsRaw?.data || []);
       setLists(allLists);
 
       const statusMap: Record<number, boolean> = {};
       for (const list of allLists) {
         try {
           const itemsRes = await listApi.getItems(list.id, { page: 1, size: 500 });
-          const items = itemsRes.data.data?.records || itemsRes.data.data || itemsRes.data || [];
+          const rawItems = itemsRes.data as { data?: { records?: UserListItem[] } | UserListItem[] } | undefined;
+          const items = Array.isArray(rawItems) ? rawItems : (rawItems?.data && typeof rawItems.data === 'object' ? (rawItems.data as { records?: UserListItem[] }).records || (rawItems.data as UserListItem[]) : []);
           statusMap[list.id] = Array.isArray(items) && items.some((item: UserListItem) => item.movieId === movieId);
         } catch {
           statusMap[list.id] = false;
@@ -142,12 +143,13 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
     setCreating(true);
     try {
       const res = await listApi.create({ name: newName.trim() });
-      const newList = res.data.data || res.data;
-      setLists((prev) => [...prev, newList]);
-      setMovieStatus((prev) => ({ ...prev, [newList.id]: false }));
+      const newList = res.data as { data?: UserList } | UserList | undefined;
+      const finalList: UserList = (newList && 'data' in newList) ? (newList.data as UserList) : (newList as UserList);
+      setLists((prev) => [...prev, finalList]);
+      setMovieStatus((prev) => ({ ...prev, [finalList.id]: false }));
       setNewName('');
       setShowCreate(false);
-      await handleToggle(newList.id);
+      await handleToggle(finalList.id);
     } catch {} finally {
       setCreating(false);
     }

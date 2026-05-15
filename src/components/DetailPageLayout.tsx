@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -131,9 +130,9 @@ export default function DetailPageLayout({
     const ep = selectedEpisode ?? undefined;
 
     Promise.all([
-      resourceApi.online(contentType, item.id, ep).then((res) => setOnlineResources(res.data?.data || [])),
-      resourceApi.magnet(contentType, item.id, ep).then((res) => setMagnetResources(res.data?.data || [])),
-      resourceApi.cloud(contentType, item.id, ep).then((res) => setCloudResources(res.data?.data || [])),
+      resourceApi.online(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: OnlineResourceItem[] } | undefined)?.data; setOnlineResources(Array.isArray(d) ? d : []); return d; }),
+      resourceApi.magnet(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: MagnetResourceItem[] } | undefined)?.data; setMagnetResources(Array.isArray(d) ? d : []); return d; }),
+      resourceApi.cloud(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: CloudResourceItem[] } | undefined)?.data; setCloudResources(Array.isArray(d) ? d : []); return d; }),
     ])
       .catch(() => {
         setOnlineResources([]);
@@ -249,9 +248,9 @@ export default function DetailPageLayout({
                     setLoadingResources(true);
                     setResourceError(false);
                     Promise.all([
-                      resourceApi.online(contentType, item.id, ep).then((res) => setOnlineResources(res.data?.data || [])),
-                      resourceApi.magnet(contentType, item.id, ep).then((res) => setMagnetResources(res.data?.data || [])),
-                      resourceApi.cloud(contentType, item.id, ep).then((res) => setCloudResources(res.data?.data || [])),
+                      resourceApi.online(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: OnlineResourceItem[] } | undefined)?.data; setOnlineResources(Array.isArray(d) ? d : []); return d; }),
+                      resourceApi.magnet(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: MagnetResourceItem[] } | undefined)?.data; setMagnetResources(Array.isArray(d) ? d : []); return d; }),
+                      resourceApi.cloud(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: CloudResourceItem[] } | undefined)?.data; setCloudResources(Array.isArray(d) ? d : []); return d; }),
                     ]).catch(() => setResourceError(true)).finally(() => setLoadingResources(false));
                   }}
                   className="mt-3 text-sm font-medium text-accent active:opacity-70"

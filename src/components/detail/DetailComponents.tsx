@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import Link from 'next/link';
@@ -78,11 +77,11 @@ interface RatingBadgesProps {
 }
 
 export function RatingBadges({ douban, imdb, rt }: RatingBadgesProps) {
-  const badges = [
-    douban != null && { label: '豆瓣', value: douban.toFixed(1), bg: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' },
-    imdb != null && { label: 'IMDB', value: imdb.toFixed(1), bg: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)' },
-    rt != null && { label: '烂番茄', value: `${rt}%`, bg: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)' },
-  ].filter(Boolean);
+  const badges: { label: string; value: string; bg: string; color: string; }[] = [
+    douban != null ? { label: '豆瓣', value: douban.toFixed(1), bg: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' } : null,
+    imdb != null ? { label: 'IMDB', value: imdb.toFixed(1), bg: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)' } : null,
+    rt != null ? { label: '烂番茄', value: `${rt}%`, bg: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)' } : null,
+  ].filter((b): b is NonNullable<typeof b> => b !== null);
 
   if (badges.length === 0) return null;
 
