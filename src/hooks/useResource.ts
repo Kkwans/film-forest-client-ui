@@ -1,7 +1,11 @@
-// @ts-nocheck
 import { useState, useEffect } from 'react';
 import { resourceApi } from '@/lib/api';
-import type { AxiosResponse } from 'axios';
+
+// Raw response shape from Promise.allSettled
+interface SettledResponse {
+  data?: unknown;
+  status?: number;
+}
 
 export interface OnlineResource {
   id: number;
@@ -28,6 +32,11 @@ export interface CloudResource {
   storageName?: string;
 }
 
+function extractData(res: SettledResponse): unknown[] {
+  const data = (res as { data: { data?: unknown[] } })?.data?.data || (res as { data: unknown[] })?.data || [];
+  return Array.isArray(data) ? data : [];
+}
+
 export function useResource(contentType: string, contentId: number, episodeId?: number) {
   const [onlineResources, setOnlineResources] = useState<OnlineResource[]>([]);
   const [magnetResources, setMagnetResources] = useState<MagnetResource[]>([]);
@@ -45,19 +54,13 @@ export function useResource(contentType: string, contentId: number, episodeId?: 
       ]);
 
       if (onlineRes.status === 'fulfilled') {
-        const res: AxiosResponse = onlineRes.value;
-        const data = res?.data?.data || res?.data || [];
-        setOnlineResources(Array.isArray(data) ? data : []);
+        setOnlineResources(extractData(onlineRes.value as SettledResponse) as OnlineResource[]);
       }
       if (magnetRes.status === 'fulfilled') {
-        const res: AxiosResponse = magnetRes.value;
-        const data = res?.data?.data || res?.data || [];
-        setMagnetResources(Array.isArray(data) ? data : []);
+        setMagnetResources(extractData(magnetRes.value as SettledResponse) as MagnetResource[]);
       }
       if (cloudRes.status === 'fulfilled') {
-        const res: AxiosResponse = cloudRes.value;
-        const data = res?.data?.data || res?.data || [];
-        setCloudResources(Array.isArray(data) ? data : []);
+        setCloudResources(extractData(cloudRes.value as SettledResponse) as CloudResource[]);
       }
     } catch (e) {
       console.error('[useResource] fetch failed', e);
