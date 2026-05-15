@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -118,7 +117,7 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
           { key: 'cloud', label: '网盘资源', count: realClouds.length },
         ]}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={(key) => setActiveTab(key as 'magnet' | 'cloud')}
       >
         {activeTab === 'magnet' ? (
           <CopyableResourceList

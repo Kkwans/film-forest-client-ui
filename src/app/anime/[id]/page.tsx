@@ -1,4 +1,3 @@
-// @ts-nocheck
 import AnimeDetailClient from './AnimeDetailClient';
 import { getDetailMetadata } from '@/lib/metadata';
 

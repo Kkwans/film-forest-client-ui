@@ -1,4 +1,3 @@
-// @ts-nocheck
 import VarietyDetailClient from './VarietyDetailClient';
 import { getDetailMetadata } from '@/lib/metadata';
 

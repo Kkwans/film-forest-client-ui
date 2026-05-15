@@ -1,4 +1,3 @@
-// @ts-nocheck
 import ShortDramaDetailClient from './ShortDramaDetailClient';
 import { getDetailMetadata } from '@/lib/metadata';
 

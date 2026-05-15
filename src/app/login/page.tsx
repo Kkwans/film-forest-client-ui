@@ -1,5 +1,3 @@
-// @ts-nocheck
-'use client';
 
 import { useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';

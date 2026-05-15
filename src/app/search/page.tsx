@@ -1,5 +1,3 @@
-// @ts-nocheck
-'use client';
 
 import { Suspense, useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
