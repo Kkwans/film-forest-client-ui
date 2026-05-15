@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { listApi, type UserList } from '@/lib/userApi';
+import { listApi, type UserList, type UserListItem } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
 import { useRouter } from 'next/navigation';
 
@@ -74,7 +74,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
         try {
           const itemsRes = await listApi.getItems(list.id, { page: 1, size: 500 });
           const items = itemsRes.data.data?.records || itemsRes.data.data || itemsRes.data || [];
-          statusMap[list.id] = Array.isArray(items) && items.some((item: any) => item.movieId === movieId);
+          statusMap[list.id] = Array.isArray(items) && items.some((item: UserListItem) => item.movieId === movieId);
         } catch {
           statusMap[list.id] = false;
         }

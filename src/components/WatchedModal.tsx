@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { listApi } from '@/lib/userApi';
+import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 
 interface WatchedModalProps {
@@ -46,7 +46,7 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
       setNote(initialNote || '');
       listApi.getAll().then(res => {
         const lists = res.data.data || res.data;
-        const watched = Array.isArray(lists) ? lists.find((l: any) => l.type === 'watched') : null;
+        const watched = Array.isArray(lists) ? lists.find((l: UserList) => l.type === 'watched') : null;
         if (watched) setWatchedListId(watched.id);
       }).catch(() => {});
     }

@@ -12,6 +12,21 @@ export interface DetailStatus {
   watchedNote?: string;
 }
 
+/** API 返回的片单状态条目 */
+interface StatusItem {
+  added: boolean;
+  type: string;
+  userRating?: number;
+  note?: string;
+}
+
+/** API 返回的用户片单 */
+interface UserListSummary {
+  id: number;
+  type: string;
+  name?: string;
+}
+
 /**
  * Shared hook for all detail pages - manages movie status, button handlers, modals.
  * Ensures consistent behavior across movie/drama/variety/anime/short.
@@ -33,7 +48,7 @@ export function useDetailStatus(contentId: number, contentType: string) {
       const data = res.data.data || res.data;
       const s: DetailStatus = {};
       if (Array.isArray(data)) {
-        data.forEach((item: any) => {
+        data.forEach((item: StatusItem) => {
           if (item.added) {
             if (item.type === 'want_to_watch') s.want_to_watch = true;
             if (item.type === 'watching') s.watching = true;
@@ -59,7 +74,7 @@ export function useDetailStatus(contentId: number, contentType: string) {
     try {
       const res = await listApi.getAll();
       const lists = res.data.data || res.data;
-      const wantList = Array.isArray(lists) ? lists.find((l: any) => l.type === 'want_to_watch') : null;
+      const wantList = Array.isArray(lists) ? lists.find((l: UserListSummary) => l.type === 'want_to_watch') : null;
       if (!wantList) return;
       if (status.want_to_watch) {
         await listApi.removeItem(wantList.id, { movieId: contentId, contentType });

@@ -7,7 +7,7 @@ import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/uti
 import { getStatusConfig } from '@/lib/contentConstants';
 import { StatusIconButton, GenreTags } from '@/components/ContentShared';
 import { useUserStore } from '@/stores/userStore';
-import { listApi } from '@/lib/userApi';
+import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import dynamic from 'next/dynamic';
 
@@ -75,7 +75,7 @@ export default function MovieCard({
     try {
       const res = await listApi.getAll();
       const lists = res.data.data || res.data;
-      const wantList = Array.isArray(lists) ? lists.find((l: any) => l.type === 'want_to_watch') : null;
+      const wantList = Array.isArray(lists) ? lists.find((l: UserList) => l.type === 'want_to_watch') : null;
       if (!wantList) { setToggling(false); return; }
 
       if (movieStatus?.listType === 'want_to_watch') {

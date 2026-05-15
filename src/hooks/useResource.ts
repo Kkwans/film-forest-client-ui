@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { resourceApi } from '@/lib/api';
+import type { AxiosResponse } from 'axios';
 
 export interface OnlineResource {
   id: number;
@@ -44,15 +45,18 @@ export function useResource(contentType: string, contentId: number, episodeId?: 
       ]);
 
       if (onlineRes.status === 'fulfilled') {
-        const data = (onlineRes.value as any)?.data?.data || (onlineRes.value as any)?.data || [];
+        const res: AxiosResponse = onlineRes.value;
+        const data = res?.data?.data || res?.data || [];
         setOnlineResources(Array.isArray(data) ? data : []);
       }
       if (magnetRes.status === 'fulfilled') {
-        const data = (magnetRes.value as any)?.data?.data || (magnetRes.value as any)?.data || [];
+        const res: AxiosResponse = magnetRes.value;
+        const data = res?.data?.data || res?.data || [];
         setMagnetResources(Array.isArray(data) ? data : []);
       }
       if (cloudRes.status === 'fulfilled') {
-        const data = (cloudRes.value as any)?.data?.data || (cloudRes.value as any)?.data || [];
+        const res: AxiosResponse = cloudRes.value;
+        const data = res?.data?.data || res?.data || [];
         setCloudResources(Array.isArray(data) ? data : []);
       }
     } catch (e) {

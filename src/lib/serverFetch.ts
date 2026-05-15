@@ -38,7 +38,7 @@ export async function fetchContentList(
     const data = await res.json();
     const raw = data?.data?.records || [];
     return {
-      items: raw.map((m: any) => ({
+      items: raw.map((m: Record<string, unknown>) => ({
         id: m.id,
         title: m.title,
         cover: m.posterUrl || m.cover || '',

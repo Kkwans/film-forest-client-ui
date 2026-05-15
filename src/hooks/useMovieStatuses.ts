@@ -8,6 +8,13 @@ export interface MovieStatusInfo {
   listName: string;
 }
 
+/** API 返回的片单状态条目 */
+interface StatusListEntry {
+  added: boolean;
+  type: string;
+  listName?: string;
+}
+
 /**
  * Hook to fetch movie statuses for a batch of movies.
  * Returns a map of movieId → { listType, listName } with priority: watched > watching > want_to_watch > custom
@@ -34,7 +41,7 @@ export function useMovieStatuses(movieIds: number[], contentType: string) {
 
       for (const movieId of movieIds) {
         const lists = data[movieId] || [];
-        const addedLists = Array.isArray(lists) ? lists.filter((l: any) => l.added) : [];
+        const addedLists = Array.isArray(lists) ? lists.filter((l: StatusListEntry) => l.added) : [];
 
         if (addedLists.length === 0) {
           result[movieId] = null;
@@ -42,15 +49,15 @@ export function useMovieStatuses(movieIds: number[], contentType: string) {
         }
 
         // Find highest priority default list
-        let matched: any = null;
+        let matched: StatusListEntry | null = null;
         for (const p of priority) {
-          const found = addedLists.find((l: any) => l.type === p);
+          const found = addedLists.find((l: StatusListEntry) => l.type === p);
           if (found) { matched = found; break; }
         }
 
         // If not in any default list, check custom lists
         if (!matched) {
-          matched = addedLists.find((l: any) => l.type === 'custom') || addedLists[0];
+          matched = addedLists.find((l: StatusListEntry) => l.type === 'custom') || addedLists[0];
         }
 
         result[movieId] = matched ? { listType: matched.type, listName: matched.listName || matched.type } : null;

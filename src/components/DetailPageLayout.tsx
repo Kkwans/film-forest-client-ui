@@ -21,6 +21,30 @@ import {
   DetailNotFound,
 } from '@/components/detail/DetailComponents';
 
+/** 在线播放资源 */
+interface OnlineResourceItem {
+  id: number;
+  sourceName: string;
+  sourceUrl: string;
+  sort?: number;
+}
+
+/** 磁力链接资源 */
+interface MagnetResourceItem {
+  id: number;
+  title: string;
+  magnetUrl: string;
+  resolution?: string;
+}
+
+/** 网盘资源 */
+interface CloudResourceItem {
+  id: number;
+  title: string;
+  shareUrl: string;
+  storageName?: string;
+}
+
 /** 加载骨架屏（别名） */
 export function DetailPageLoading() {
   return <DetailPageSkeleton />;
@@ -89,9 +113,9 @@ export default function DetailPageLayout({
 
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<number | null>(null);
-  const [onlineResources, setOnlineResources] = useState<any[]>([]);
-  const [magnetResources, setMagnetResources] = useState<any[]>([]);
-  const [cloudResources, setCloudResources] = useState<any[]>([]);
+  const [onlineResources, setOnlineResources] = useState<OnlineResourceItem[]>([]);
+  const [magnetResources, setMagnetResources] = useState<MagnetResourceItem[]>([]);
+  const [cloudResources, setCloudResources] = useState<CloudResourceItem[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [resourceError, setResourceError] = useState(false);
   const [downloadTab, setDownloadTab] = useState<'magnet' | 'cloud'>('magnet');
@@ -261,7 +285,7 @@ export default function DetailPageLayout({
                   </div>
                 ) : downloadTab === 'magnet' ? (
                   <CopyableResourceList
-                    resources={magnetResources.map((r: any) => ({ id: r.id, title: r.title, url: r.magnetUrl, resolution: r.resolution }))}
+                    resources={magnetResources.map((r: MagnetResourceItem) => ({ id: r.id, title: r.title, url: r.magnetUrl, resolution: r.resolution }))}
                     copiedId={copiedId}
                     onCopy={copyLink}
                     icon="🧲"
@@ -269,7 +293,7 @@ export default function DetailPageLayout({
                   />
                 ) : (
                   <CopyableResourceList
-                    resources={cloudResources.map((r: any) => ({ id: r.id, title: r.title, url: r.shareUrl, storageName: r.storageName }))}
+                    resources={cloudResources.map((r: CloudResourceItem) => ({ id: r.id, title: r.title, url: r.shareUrl, storageName: r.storageName }))}
                     copiedId={copiedId}
                     onCopy={copyLink}
                     icon="☁️"
