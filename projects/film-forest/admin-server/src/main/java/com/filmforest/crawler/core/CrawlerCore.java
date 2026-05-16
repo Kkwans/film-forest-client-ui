@@ -238,7 +238,7 @@ public class CrawlerCore {
                 log.debug("Skipping {} due to genre filter", detailUrl);
                 return new int[]{0, 0, 0};
             }
-            List<String> regionList = extractRegionFromTags(doc); String region = "[]"; try { region = objectMapper.writeValueAsString(regionList); } catch (Exception ignored) {}
+            String region = toJsonArray(extractRegionFromTags(doc));
 
             // 评分: 优先从豆瓣链接提取，fallback 到 meta description
             BigDecimal score = extractScore(doc);
@@ -265,7 +265,7 @@ public class CrawlerCore {
             movie.setDirector(toJsonArray(director));
             movie.setWriter(toJsonArray(writer));
             movie.setGenre(toJsonArray(genre));
-            movie.setRegion(toJsonArray(region));
+            movie.setRegion(region);
             movie.setLanguage(language);
             movie.setDuration(duration);
             movie.setReleaseDate(releaseDate);
@@ -342,7 +342,7 @@ public class CrawlerCore {
             String actor = extractTextByLabel(doc, "主演");
             String director = extractTextByLabel(doc, "导演");
             String genre = extractGenresFromTags(doc);
-            List<String> regionList = extractRegionFromTags(doc); String region = "[]"; try { region = objectMapper.writeValueAsString(regionList); } catch (Exception ignored) {}
+            String region = toJsonArray(extractRegionFromTags(doc));
             // 类型筛选：如果配置了 genreFilter 且当前内容的类型不在过滤列表中，跳过
             if (genreFilter != null && !genreFilter.isEmpty() && !matchesGenreFilter(genre, genreFilter)) {
                 log.debug("Skipping {} due to genre filter", detailUrl);
@@ -371,7 +371,7 @@ public class CrawlerCore {
             drama.setDirector(toJsonArray(director));
             drama.setWriter(toJsonArray(writer));
             drama.setGenre(toJsonArray(genre));
-            drama.setRegion(toJsonArray(region));
+            drama.setRegion(region);
             drama.setLanguage(language);
             drama.setDuration(duration);
             drama.setReleaseDate(releaseDate);
@@ -514,7 +514,7 @@ public class CrawlerCore {
             String actor = extractTextByLabel(doc, "主演");
             String director = extractTextByLabel(doc, "导演");
             String genre = extractGenresFromTags(doc);
-            List<String> regionList = extractRegionFromTags(doc); String region = "[]"; try { region = objectMapper.writeValueAsString(regionList); } catch (Exception ignored) {}
+            String region = toJsonArray(extractRegionFromTags(doc));
             if (genreFilter != null && !genreFilter.isEmpty() && !matchesGenreFilter(genre, genreFilter)) {
                 log.debug("Skipping {} due to genre filter", detailUrl);
                 return new int[]{0, 0, 0};
@@ -542,7 +542,7 @@ public class CrawlerCore {
             variety.setDirector(toJsonArray(director));
             variety.setWriter(toJsonArray(writer));
             variety.setGenre(toJsonArray(genre));
-            variety.setRegion(toJsonArray(region));
+            variety.setRegion(region);
             variety.setLanguage(language);
             variety.setDuration(duration);
             variety.setReleaseDate(releaseDate);
@@ -583,7 +583,7 @@ public class CrawlerCore {
             String actor = extractTextByLabel(doc, "主演");
             String director = extractTextByLabel(doc, "导演");
             String genre = extractGenresFromTags(doc);
-            List<String> regionList = extractRegionFromTags(doc); String region = "[]"; try { region = objectMapper.writeValueAsString(regionList); } catch (Exception ignored) {}
+            String region = toJsonArray(extractRegionFromTags(doc));
             if (genreFilter != null && !genreFilter.isEmpty() && !matchesGenreFilter(genre, genreFilter)) {
                 log.debug("Skipping {} due to genre filter", detailUrl);
                 return new int[]{0, 0, 0};
@@ -610,7 +610,7 @@ public class CrawlerCore {
             anime.setDirector(toJsonArray(director));
             anime.setWriter(toJsonArray(writer));
             anime.setGenre(toJsonArray(genre));
-            anime.setRegion(toJsonArray(region));
+            anime.setRegion(region);
             anime.setLanguage(language);
             anime.setDuration(duration);
             anime.setReleaseDate(releaseDate);
@@ -648,7 +648,7 @@ public class CrawlerCore {
             String actor = extractTextByLabel(doc, "主演");
             String director = extractTextByLabel(doc, "导演");
             String genre = extractGenresFromTags(doc);
-            List<String> regionList = extractRegionFromTags(doc); String region = "[]"; try { region = objectMapper.writeValueAsString(regionList); } catch (Exception ignored) {}
+            String region = toJsonArray(extractRegionFromTags(doc));
             if (genreFilter != null && !genreFilter.isEmpty() && !matchesGenreFilter(genre, genreFilter)) {
                 log.debug("Skipping {} due to genre filter", detailUrl);
                 return new int[]{0, 0, 0};
@@ -674,7 +674,7 @@ public class CrawlerCore {
             shortDrama.setActor(toJsonArray(actor));
             shortDrama.setDirector(toJsonArray(director));
             shortDrama.setGenre(toJsonArray(genre));
-            shortDrama.setRegion(toJsonArray(region));
+            shortDrama.setRegion(region);
             shortDrama.setLanguage(language);
             shortDrama.setDuration(duration);
             shortDrama.setReleaseDate(releaseDate);
@@ -777,21 +777,25 @@ public class CrawlerCore {
         int onlineSort = 0;
         int cloudSort = 0;
 
-        // Magnet links
-        Elements magnetLinks = doc.select("a[href^=magnet:]");
+        // Magnet links — 只选 .down-list3 内的链接（有 title 属性和详细文本），跳过 span 内的 "磁力下载" 通用链接
+        Elements magnetLinks = doc.select("p.down-list3 > a[href^=magnet:]");
         for (Element el : magnetLinks) {
             String url = el.attr("href");
             if (!url.startsWith("magnet:")) continue;
-            String text = el.text();
+            // 优先用 title 属性（含完整资源名+大小），fallback 到文本
+            String titleAttr = el.attr("title").trim();
+            String text = el.text().trim();
+            String displayTitle = !titleAttr.isEmpty() ? titleAttr : text;
+            if (displayTitle.isEmpty() || displayTitle.equals("磁力下载")) continue;
 
             ResourceMagnet magnet = new ResourceMagnet();
             magnet.setContentType(contentType);
             magnet.setContentId(contentId);
-            magnet.setTitle(text);
+            magnet.setTitle(displayTitle);
             magnet.setMagnetUrl(url);
-            magnet.setResolution(extractResolution(text));
-            magnet.setHasSubtitle(text.contains("sub") || text.contains("zh") ? Boolean.TRUE : Boolean.FALSE);
-            magnet.setIsSpecialSub(text.contains("special") || text.contains("特效") ? Boolean.TRUE : Boolean.FALSE);
+            magnet.setResolution(extractResolution(displayTitle));
+            magnet.setHasSubtitle(displayTitle.contains("sub") || displayTitle.contains("字幕") || displayTitle.contains("zh") ? Boolean.TRUE : Boolean.FALSE);
+            magnet.setIsSpecialSub(displayTitle.contains("special") || displayTitle.contains("特效") ? Boolean.TRUE : Boolean.FALSE);
             magnet.setSort(magnetSort++);
             magnetMapper.insert(magnet);
         }
@@ -819,17 +823,22 @@ public class CrawlerCore {
         }
 
         // Cloud disk links (百度/夸克/迅雷/UC/阿里/123/蓝奏)
-        Elements cloudLinks = doc.select("a[href*=pan.baidu], a[href*=quark], a[href*=lanzou], a[href*=xunlei], a[href*=uc.cn], a[href*=alipan], a[href*=aliyundrive], a[href*=123pan], a[href*=123.com]");
+        // 只选 .down-list3 内的链接（有 title 属性和详细文本），跳过 span 内的 "网盘下载" 通用链接
+        Elements cloudLinks = doc.select("p.down-list3 > a[href*=pan.baidu], p.down-list3 > a[href*=quark], p.down-list3 > a[href*=lanzou], p.down-list3 > a[href*=xunlei], p.down-list3 > a[href*=uc.cn], p.down-list3 > a[href*=alipan], p.down-list3 > a[href*=aliyundrive], p.down-list3 > a[href*=123pan], p.down-list3 > a[href*=123.com]");
         for (Element el : cloudLinks) {
             String href = el.attr("href");
             if (href.isEmpty() || href.startsWith("javascript")) continue;
-            String text = el.text();
+            // 优先用 title 属性，fallback 到文本
+            String titleAttr = el.attr("title").trim();
+            String text = el.text().trim();
+            String displayTitle = !titleAttr.isEmpty() ? titleAttr : text;
+            if (displayTitle.isEmpty() || displayTitle.equals("网盘下载")) continue;
 
             ResourceCloud cloud = new ResourceCloud();
             cloud.setContentType(contentType);
             cloud.setContentId(contentId);
             cloud.setDiskType(detectDiskType(href));
-            cloud.setTitle(text);
+            cloud.setTitle(displayTitle);
             cloud.setUrl(href);
             cloud.setSort(cloudSort++);
             cloudMapper.insert(cloud);
@@ -890,7 +899,7 @@ public class CrawlerCore {
     private Document fetchWithRetry(String url) {
         // 速率限制：请求间延迟
         if (rateLimitMs > 0) {
-            try { Thread.sleep(rateLimitMs); } catch (InterruptedException ignored) {}
+            try { Thread.sleep(rateLimitMs); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
         for (int i = 0; i < RETRY_TIMES; i++) {
             try {
@@ -915,7 +924,7 @@ public class CrawlerCore {
                 }
             } catch (Exception e) {
                 log.warn("[HTTP-FETCH] FAIL {} ({}/{}): {} — retry in 2s", url, i + 1, RETRY_TIMES, e.getMessage());
-                try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+                try { Thread.sleep(2000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
             }
         }
         log.error("[HTTP-FETCH] GAVE UP after {} retries: {}", RETRY_TIMES, url);
@@ -1001,7 +1010,7 @@ public class CrawlerCore {
             if (pm.find()) {
                 try {
                     int pct = Integer.parseInt(pm.group(1));
-                    return new BigDecimal(pct).divide(new BigDecimal("10"), 1, BigDecimal.ROUND_HALF_UP);
+                    return new BigDecimal(pct).divide(new BigDecimal("10"), 1, java.math.RoundingMode.HALF_UP);
                 } catch (Exception ignored) {}
             }
         }
@@ -1011,10 +1020,19 @@ public class CrawlerCore {
     }
 
     private Integer extractEpisodeCount(Document doc) {
+        // 优先从 .otherbox 提取 "XX集全" 格式
+        Element otherbox = doc.selectFirst(".otherbox");
+        if (otherbox != null) {
+            Matcher m = Pattern.compile("(\\d+)集[全更新完结]").matcher(otherbox.text());
+            if (m.find()) return Integer.parseInt(m.group(1));
+        }
+        // Fallback: 从 .total, .episode 提取
         Element el = doc.selectFirst(".total, .episode, [class*=episode]");
-        if (el == null) return null;
-        Matcher m = Pattern.compile("(\\d+)").matcher(el.text());
-        return m.find() ? Integer.parseInt(m.group(1)) : null;
+        if (el != null) {
+            Matcher m = Pattern.compile("(\\d+)").matcher(el.text());
+            if (m.find()) return Integer.parseInt(m.group(1));
+        }
+        return null;
     }
 
     private String extractResolution(String text) {
@@ -1131,6 +1149,11 @@ public class CrawlerCore {
     }
 
     /** 从页面 tag 判断地区 */
+    /** 将 List 序列化为 JSON 数组字符串，失败返回 "[]" */
+    private String toJsonArray(List<String> list) {
+        try { return objectMapper.writeValueAsString(list); } catch (Exception e) { return "[]"; }
+    }
+
     private List<String> extractRegionFromTags(Document doc) {
         // pkmp4.xyz: 地区字段结构与主演相同，使用 extractTextByLabel 逻辑
         String regionJson = extractTextByLabel(doc, "地区");

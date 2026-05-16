@@ -29,6 +29,7 @@
 - **已部署**: 后端 8081 + 前端 3001
 - **已推送**: GitHub (admin-ui + admin-server) + 阿里云 ACR
 - **待完善**: Cron 编辑器精细化、资源管理丰富、通知告警模块
+- **爬虫测试（2026-05-15）**: 全面部署测试完成，修复5个bug（genreFilter/Druid/extractEpisodeCount/resource_online/InterruptedException），所有测试用例通过
 
 ## 当前任务: 影视森林 (film-forest) - 管理端 UX 全面优化
 
@@ -180,3 +181,5 @@
 - **教训**: 部署前端必须用 `/volume1/Docker/Film-Forest/frontend`（大写D大写F），不是 `/volume1/docker/film-forest/frontend`（小写）。已犯3次，必须杜绝。
 - **部署检查清单**: ①确认目标路径大小写 ②上传后验证BUILD_ID ③重启容器 ④curl验证页面加载新代码
 - **教训**: 规范流程（Git提交/推送/文档更新/记忆更新）应自动执行，不应等主人催。每次代码改动完成后立即执行全套流程。
+- **教训**: 部署验证不能只看“代码已推送到 GitHub”，必须确认 NAS 上运行的 JAR 是最新版本。爬虫 genreFilter bug 因旧 JAR 未更新而长期未被发现。
+- **教训**: 定时任务汇报应该包含实际部署验证结果，不能只汇报单元测试。主人关心的是功能是否真正工作，而不是代码是否写好。
