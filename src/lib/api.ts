@@ -89,14 +89,14 @@ export const searchApi = {
 };
 
 export const resourceApi = {
-  online: (contentType: string, contentId: number, episodeId?: number) =>
-    client.get<Result<unknown>>('/api/resources/online', { params: { contentType, contentId, episodeId } }),
+  online: (contentType: string, contentId: number, episodeNumber?: number) =>
+    client.get<Result<unknown>>('/api/resources/online', { params: { contentType, contentId, episodeNumber } }),
 
-  magnet: (contentType: string, contentId: number, episodeId?: number) =>
-    client.get<Result<unknown>>('/api/resources/magnet', { params: { contentType, contentId, episodeId } }),
+  magnet: (contentType: string, contentId: number, episodeNumber?: number) =>
+    client.get<Result<unknown>>('/api/resources/magnet', { params: { contentType, contentId, episodeNumber } }),
 
-  cloud: (contentType: string, contentId: number, episodeId?: number) =>
-    client.get<Result<unknown>>('/api/resources/cloud', { params: { contentType, contentId, episodeId } }),
+  cloud: (contentType: string, contentId: number, episodeNumber?: number) =>
+    client.get<Result<unknown>>('/api/resources/cloud', { params: { contentType, contentId, episodeNumber } }),
 };
 
 export default client;

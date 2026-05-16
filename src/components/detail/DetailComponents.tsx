@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import Link from 'next/link';
 
 /**
@@ -236,13 +237,31 @@ export function EpisodeGrid({ total, selected, onSelect, label = '集', gridCols
 }
 
 /* ============================================================
- * 9. 在线播放资源网格
+ * 9. 在线播放资源网格（按平台分组展示）
  * ============================================================ */
 
 interface OnlineResource {
   id: number;
   sourceName?: string;
   sourceUrl?: string;
+}
+
+/** 平台名称到图标/颜色的映射 */
+const PLATFORM_STYLES: Record<string, { icon: string; color: string }> = {
+  '优酷': { icon: '▶️', color: '#00BEFF' },
+  '腾讯视频': { icon: '▶️', color: '#FF6A00' },
+  '爱奇艺': { icon: '▶️', color: '#00BE06' },
+  '芒果TV': { icon: '▶️', color: '#FF7F00' },
+  'bilibili': { icon: '▶️', color: '#FB7299' },
+  '哔哩哔哩': { icon: '▶️', color: '#FB7299' },
+  '搜狐视频': { icon: '▶️', color: '#EE2F2F' },
+  'PPTV': { icon: '▶️', color: '#0099FF' },
+  '乐视': { icon: '▶️', color: '#E60012' },
+};
+
+function getPlatformStyle(name: string) {
+  const key = Object.keys(PLATFORM_STYLES).find(k => name.includes(k));
+  return key ? PLATFORM_STYLES[key] : { icon: '🎬', color: 'var(--accent)' };
 }
 
 export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在线播放资源', selectedEpisode, episodeLabel = '集' }: {
@@ -254,41 +273,68 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
 }) {
   const title = selectedEpisode ? `第${selectedEpisode}${episodeLabel} 播放源` : '在线播放';
 
+  // 按平台（sourceName）分组
+  const grouped = useMemo(() => {
+    const map = new Map<string, OnlineResource[]>();
+    for (const r of resources) {
+      const name = r.sourceName || '未知来源';
+      const arr = map.get(name) || [];
+      arr.push(r);
+      map.set(name, arr);
+    }
+    return Array.from(map.entries());
+  }, [resources]);
+
   return (
     <section
       className="rounded-xl p-5 border"
-
     >
-      <h3 className="font-bold mb-4 text-foreground" >{title}</h3>
+      <h3 className="font-bold mb-4 text-foreground">{title}</h3>
       {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="space-y-3">
           {[1, 2].map(i => (
-            <div key={i} className="h-12 rounded-lg animate-pulse bg-background"  />
+            <div key={i} className="h-16 rounded-lg animate-pulse bg-background" />
           ))}
         </div>
       ) : resources.length === 0 ? (
-        <p className="text-center py-8 text-sm text-muted-foreground" >
+        <p className="text-center py-8 text-sm text-muted-foreground">
           {selectedEpisode ? `该${episodeLabel}暂无资源` : emptyText}
         </p>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {resources.map(r => (
-            <a
-              key={r.id}
-              href={r.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between px-4 py-3 rounded-lg border transition-colors hover:opacity-80"
-              
-            >
-              <span className="text-sm font-medium truncate text-foreground" >
-                {r.sourceName}
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded bg-accent text-white" >
-                播放
-              </span>
-            </a>
-          ))}
+        <div className="space-y-4">
+          {grouped.map(([platformName, items]) => {
+            const style = getPlatformStyle(platformName);
+            return (
+              <div key={platformName}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-base">{style.icon}</span>
+                  <span className="text-sm font-semibold text-foreground">{platformName}</span>
+                  <span className="text-xs text-muted-foreground">({items.length}条线路)</span>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  {items.map(r => (
+                    <a
+                      key={r.id}
+                      href={r.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between px-4 py-2.5 rounded-lg border transition-colors hover:opacity-80"
+                    >
+                      <span className="text-sm font-medium truncate text-foreground">
+                        {items.length > 1 ? `线路${items.indexOf(r) + 1}` : platformName}
+                      </span>
+                      <span
+                        className="text-xs px-2 py-0.5 rounded text-white"
+                        style={{ backgroundColor: style.color }}
+                      >
+                        播放
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>
