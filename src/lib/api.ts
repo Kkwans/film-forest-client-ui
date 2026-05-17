@@ -152,4 +152,26 @@ export const resourceApi = {
     client.get<Result<unknown>>('/api/resources/cloud', { params: { contentType, contentId, episodeNumber } }),
 };
 
+export interface RecommendItem {
+  id: number;
+  type: string;
+  title: string;
+  posterUrl?: string;
+  year?: number;
+  scoreDouban?: number;
+  genre?: string;
+  region?: string;
+  totalEpisode?: number;
+}
+
+export interface RecommendData {
+  hot: Record<string, RecommendItem[]>;
+  latest: Record<string, RecommendItem[]>;
+}
+
+export const recommendApi = {
+  get: (topN?: number) =>
+    client.get<Result<RecommendData>>('/api/recommend', { params: { topN } }),
+};
+
 export default client;
