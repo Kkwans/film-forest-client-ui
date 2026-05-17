@@ -269,7 +269,7 @@ function HistoryTab() {
     setLoading(true);
     try {
       const res = await listApi.getAll();
-      const allLists: UserList[] = res.data.data || res.data;
+      const allLists = (res.data.data || res.data) as UserList[];
       if (!Array.isArray(allLists)) { setItems([]); return; }
 
       // 从所有默认片单中获取条目，按时间倒序
@@ -280,7 +280,7 @@ function HistoryTab() {
         try {
           const itemsRes = await listApi.getItems(list.id, { page: 1, size: 20, sort: 'addedAt', sortDir: 'desc' });
           const pageData = itemsRes.data.data || itemsRes.data;
-          const records = pageData.records || [];
+          const records = (pageData as { records?: HistoryItem[] }).records || [];
           const actionLabel = list.type === 'want_to_watch' ? '想看' : list.type === 'watching' ? '在看' : list.type === 'watched' ? '看过' : '收藏';
 
           for (const item of records) {

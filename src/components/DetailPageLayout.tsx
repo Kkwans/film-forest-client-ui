@@ -307,6 +307,8 @@ export default function DetailPageLayout({
               </ResourceTabs>
             </>
           )}
+        </>
+      )}
 
       <RelatedSection contentType={contentType} contentId={item.id} />
     </div>

@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
+import LazyImage from '@/components/ui/lazy-image';
 
 /**
  * 详情页通用组件库
@@ -41,10 +42,13 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
 export function DetailCover({ src, alt, seed }: { src?: string; alt: string; seed: string }) {
   return (
     <div className="w-full sm:w-48 md:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px]">
-      <img
+      <LazyImage
         src={src || `https://picsum.photos/seed/${seed}/400/600`}
         alt={alt}
-        className="w-full aspect-[2/3] object-cover rounded-xl sm:aspect-auto sm:h-full"
+        className="rounded-xl"
+        placeholder="skeleton"
+        fallbackSrc={`https://picsum.photos/seed/${seed}/400/600`}
+        lazy={false}
       />
     </div>
   );

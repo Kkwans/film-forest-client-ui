@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { relatedApi, type RelatedItem } from '@/lib/api';
+import LazyImage from '@/components/ui/lazy-image';
 
 /** 获取内容类型对应的路由路径 */
 function getTypePath(type: string): string {
@@ -39,7 +40,7 @@ export default function RelatedSection({
         setItems(Array.isArray(data) ? data : []);
       })
       .catch(() => setItems([]))
-      .finally(() => setLoading(false));
+      .then(() => setLoading(false));
   }, [contentType, contentId, limit]);
 
   if (!loading && items.length === 0) return null;
@@ -78,11 +79,15 @@ export default function RelatedSection({
               >
                 {/* 海报 */}
                 <div className="relative aspect-[2/3] overflow-hidden">
-                  <img
+                  <LazyImage
                     src={item.posterUrl || `https://picsum.photos/seed/r${item.id}/300/450`}
                     alt={item.title}
-                    className="w-full h-full object-cover img-zoom"
-                    loading="lazy"
+                    className="rounded-none"
+                    imgClassName="img-zoom"
+                    placeholder="blur"
+                    aspectRatio={null}
+                    fallbackSrc={`https://picsum.photos/seed/r${item.id}/300/450`}
+                    rootMargin="300px"
                   />
                   {item.scoreDouban != null && item.scoreDouban > 0 && (
                     <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold text-white bg-amber-500/90">

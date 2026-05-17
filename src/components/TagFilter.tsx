@@ -26,7 +26,7 @@ export default function TagFilter({ selectedTagId, onSelect }: TagFilterProps) {
         setTags(Array.isArray(data) ? data : []);
       })
       .catch(() => setTags([]))
-      .finally(() => setLoading(false));
+      .then(() => setLoading(false));
   }, []);
 
   if (loading || tags.length === 0) return null;

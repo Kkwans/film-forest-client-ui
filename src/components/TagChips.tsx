@@ -30,7 +30,7 @@ export default function TagChips({ contentType, contentId, max = 5, onTagClick }
         setTags(Array.isArray(data) ? data.slice(0, max) : []);
       })
       .catch(() => setTags([]))
-      .finally(() => setLoading(false));
+      .then(() => setLoading(false));
   }, [contentType, contentId, max]);
 
   if (loading || tags.length === 0) return null;

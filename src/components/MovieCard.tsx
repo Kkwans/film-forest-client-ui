@@ -9,6 +9,7 @@ import { useUserStore } from '@/stores/userStore';
 import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import dynamic from 'next/dynamic';
+import LazyImage from '@/components/ui/lazy-image';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
 
@@ -177,11 +178,15 @@ export default function MovieCard({
 
         {/* Poster */}
         <div className="relative aspect-[2/3] overflow-hidden">
-          <img
+          <LazyImage
             src={cover || fallbackCover}
             alt={title}
-            className="w-full h-full object-cover img-zoom"
-            loading="lazy"
+            className="rounded-none"
+            imgClassName="img-zoom"
+            placeholder="blur"
+            aspectRatio={null}
+            fallbackSrc={`https://picsum.photos/seed/${id}/300/450`}
+            rootMargin="300px"
           />
           {rating != null && (
             <span
