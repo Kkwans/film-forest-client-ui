@@ -76,9 +76,30 @@ export function cleanTitle(title: string | null | undefined): string {
 }
 
 /**
- * Clean storyline: remove trailing [] artifacts
+ * Clean storyline: remove UI artifacts like [展开全部], [收起部分] etc.
+ * Handles both bracketed and non-bracketed variants at any position.
  */
 export function cleanStoryline(text: string | null | undefined): string {
   if (!text) return '';
-  return text.replace(/\[\]\s*$/g, '').replace(/\[展开全部\]\s*/g, '').replace(/\[收起部分\]\s*/g, '').trim();
+  return text
+    // 带方括号的 UI 残留（任意位置）
+    .replace(/\[展开全部\]/g, '')
+    .replace(/\[收起部分\]/g, '')
+    .replace(/\[收起简介\]/g, '')
+    .replace(/\[展开简介\]/g, '')
+    .replace(/\[收起全文\]/g, '')
+    .replace(/\[展开全文\]/g, '')
+    .replace(/\[查看更多\]/g, '')
+    // 不带方括号的 UI 残留
+    .replace(/展开全部/g, '')
+    .replace(/收起部分/g, '')
+    .replace(/收起简介/g, '')
+    .replace(/展开简介/g, '')
+    .replace(/收起全文/g, '')
+    .replace(/展开全文/g, '')
+    // 残留空方括号
+    .replace(/\[\]/g, '')
+    // 清理多余空白
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }

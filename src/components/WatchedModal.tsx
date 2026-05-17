@@ -193,19 +193,31 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
           {/* Note */}
           <div>
             <label className="block text-sm font-medium mb-2 text-secondary-foreground" >感想</label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={isReadOnly ? '暂无感想' : '记录一下看完的感受...'}
-              rows={4}
-              maxLength={500}
-              readOnly={isReadOnly}
-              className={`w-full px-4 py-3 rounded-lg text-sm border outline-none resize-none border-border text-foreground ${isReadOnly ? 'bg-secondary' : 'bg-background'}`}
-              style={{ opacity: isReadOnly ? 0.7 : 1 }}
-            />
-            <div className="flex justify-end mt-1">
-              <span className="text-[10px] text-muted-foreground" >{note.length}/500</span>
-            </div>
+            {isReadOnly ? (
+              note ? (
+                <div className="w-full px-4 py-3 rounded-lg text-sm border border-border bg-secondary/50 text-foreground leading-relaxed whitespace-pre-wrap min-h-[5rem]">
+                  {note}
+                </div>
+              ) : (
+                <div className="w-full px-4 py-3 rounded-lg text-sm border border-border bg-secondary/30 text-muted-foreground italic min-h-[5rem]">
+                  暂无感想
+                </div>
+              )
+            ) : (
+              <>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="记录一下看完的感受..."
+                  rows={4}
+                  maxLength={500}
+                  className="w-full px-4 py-3 rounded-lg text-sm border outline-none resize-none border-border text-foreground bg-background"
+                />
+                <div className="flex justify-end mt-1">
+                  <span className="text-[10px] text-muted-foreground" >{note.length}/500</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

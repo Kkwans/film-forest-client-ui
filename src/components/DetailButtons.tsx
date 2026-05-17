@@ -84,7 +84,7 @@ export default function DetailButtons({
         </div>
         <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
         <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle}
-          initialRating={watchedReadOnly ? status.watchedRating : undefined} initialNote={watchedReadOnly ? status.watchedNote : undefined}
+          initialRating={status.watchedRating} initialNote={status.watchedNote}
           isReadOnly={watchedReadOnly} onEdit={onWatchedEdit} />
       </>
     );

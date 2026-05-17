@@ -135,6 +135,7 @@ export default function ListDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState<UserListItem | null>(null);
   const [removing, setRemoving] = useState<number | null>(null);
   const [noteEdit, setNoteEdit] = useState<{ item: UserListItem; listId: number } | null>(null);
+  const [noteReadOnly, setNoteReadOnly] = useState(false);
   const [swipedId, setSwipedId] = useState<number | null>(null);
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -190,11 +191,14 @@ export default function ListDetailPage() {
       await listApi.updateItem(listId, { movieId: noteEdit.item.movieId, contentType: noteEdit.item.contentType, note: note || undefined, rating });
       setItems(prev => prev.map(i => i.id === noteEdit.item.id ? { ...i, note: note || i.note, userRating: rating ?? i.userRating } : i));
       showToast('已更新', 'success');
+      // 保存后切换回只读模式
+      setNoteReadOnly(true);
+      // 更新 noteEdit 中的数据以反映最新保存的内容
+      setNoteEdit(prev => prev ? { ...prev, item: { ...prev.item, note: note || prev.item.note, userRating: rating ?? prev.item.userRating } } : null);
     } catch (err) {
       console.error('Update item failed:', err);
       showToast('更新失败，请稍后再试', 'error');
     }
-    setNoteEdit(null);
   };
 
   const handleTouchStart = useCallback((e: React.TouchEvent, itemId: number) => { touchStartX.current = e.touches[0].clientX; touchCurrentId.current = itemId; }, []);
@@ -333,7 +337,7 @@ export default function ListDetailPage() {
                   )}
                   {/* Mobile swipe action buttons - behind the card */}
                   <div className="md:hidden absolute right-0 top-0 bottom-0 flex items-center gap-1 pr-2 z-0" style={{ opacity: isSwiped ? 1 : 0, transition: 'opacity 0.2s' }}>
-                    <button onClick={() => setNoteEdit({ item, listId })} className="h-8 px-3 rounded-lg text-xs font-medium text-white bg-accent" >{isWatchedList ? '编辑' : '备注'}</button>
+                    <button onClick={() => { setNoteEdit({ item, listId }); setNoteReadOnly(false); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white bg-accent" >{isWatchedList ? '编辑' : '备注'}</button>
                     <button onClick={() => setConfirmDelete(item)} className="h-8 px-3 rounded-lg text-xs font-medium text-white text-destructive" >移除</button>
                   </div>
                   {/* Card wrapper that slides */}
@@ -383,7 +387,7 @@ export default function ListDetailPage() {
                   {/* Note hook card - attached below */}
                   {(hasNote || hasRating) && (
                     <div className="mx-0 -mt-px px-3 py-2.5 text-xs relative bg-muted border border-border rounded-b-xl" >
-                      <button onClick={() => setNoteEdit({ item, listId })} className="absolute top-2 right-2 w-5 h-5 rounded flex items-center justify-center transition-colors hover:opacity-70 text-muted-foreground"  title={isWatchedList ? '编辑评分和感想' : '编辑备注'}>
+                      <button onClick={() => { setNoteEdit({ item, listId }); setNoteReadOnly(true); }} className="absolute top-2 right-2 w-5 h-5 rounded flex items-center justify-center transition-colors hover:opacity-70 text-muted-foreground"  title={isWatchedList ? '查看评分和感想' : '查看备注'}>
                         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                       </button>
                       <div className="pr-6">
@@ -468,8 +472,9 @@ export default function ListDetailPage() {
       )}
 
       {noteEdit && (
-        <NoteEditModal open={true} onClose={() => setNoteEdit(null)} onSave={handleNoteSave}
-          initialNote={noteEdit.item.note || ''} initialRating={noteEdit.item.userRating} isWatchedList={isWatchedList} movieTitle={noteEdit.item.title || ''} />
+        <NoteEditModal open={true} onClose={() => { setNoteEdit(null); setNoteReadOnly(false); }} onSave={handleNoteSave}
+          initialNote={noteEdit.item.note || ''} initialRating={noteEdit.item.userRating} isWatchedList={isWatchedList} movieTitle={noteEdit.item.title || ''}
+          isReadOnly={noteReadOnly} onEdit={() => setNoteReadOnly(false)} />
       )}
     </div>
   );

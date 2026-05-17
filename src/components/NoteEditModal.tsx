@@ -10,6 +10,8 @@ interface NoteEditModalProps {
   initialRating?: number;
   isWatchedList?: boolean;
   movieTitle?: string;
+  isReadOnly?: boolean;
+  onEdit?: () => void;
 }
 
 function getRatingLabel(r: number): string {
@@ -32,7 +34,7 @@ function getRatingColor(r: number): string {
   return 'var(--rating-none)';
 }
 
-export default function NoteEditModal({ open, onClose, onSave, initialNote = '', initialRating, isWatchedList = false, movieTitle }: NoteEditModalProps) {
+export default function NoteEditModal({ open, onClose, onSave, initialNote = '', initialRating, isWatchedList = false, movieTitle, isReadOnly = false, onEdit }: NoteEditModalProps) {
   const [note, setNote] = useState(initialNote);
   const [rating, setRating] = useState<number>(initialRating || 0);
   const [hoverRating, setHoverRating] = useState<number>(0);
@@ -108,7 +110,7 @@ export default function NoteEditModal({ open, onClose, onSave, initialNote = '',
 
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0 border-border" >
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-bold text-foreground" >{isWatchedList ? '编辑评价' : '备注'}</h3>
+            <h3 className="text-base font-bold text-foreground" >{isReadOnly ? '评价详情' : isWatchedList ? '编辑评价' : '备注'}</h3>
             {movieTitle && <p className="text-xs mt-0.5 truncate text-muted-foreground" >{movieTitle}</p>}
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full shrink-0 text-muted-foreground" >✕</button>
@@ -120,9 +122,9 @@ export default function NoteEditModal({ open, onClose, onSave, initialNote = '',
               <label className="block text-sm font-medium mb-3 text-secondary-foreground" >评分</label>
               {/* 10 stars with touch support */}
               <div ref={starsRef}
-                className="flex items-center justify-center gap-0.5 cursor-pointer select-none touch-none"
-                onClick={handleClick} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverRating(0)}
-                onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+                className={`flex items-center justify-center gap-0.5 select-none touch-none ${isReadOnly ? '' : 'cursor-pointer'}`}
+                onClick={isReadOnly ? undefined : handleClick} onMouseMove={isReadOnly ? undefined : handleMouseMove} onMouseLeave={isReadOnly ? undefined : () => setHoverRating(0)}
+                onTouchStart={isReadOnly ? undefined : handleTouchStart} onTouchMove={isReadOnly ? undefined : handleTouchMove} onTouchEnd={isReadOnly ? undefined : handleTouchEnd}
               >
                 {Array.from({ length: 10 }, (_, i) => {
                   const fillRatio = Math.max(0, Math.min(1, displayRating - i * 0.5 * 2));
@@ -157,23 +159,46 @@ export default function NoteEditModal({ open, onClose, onSave, initialNote = '',
                   </span>
                 )}
               </div>
-              <p className="text-center text-[10px] mt-1 text-muted-foreground" >点击或滑动选择（支持半星，满分10.0）</p>
-              {rating > 0 && <button onClick={() => setRating(0)} className="block mx-auto text-xs mt-1 text-muted-foreground" >清除评分</button>}
+              {!isReadOnly && <p className="text-center text-[10px] mt-1 text-muted-foreground" >点击或滑动选择（支持半星，满分10.0）</p>}
+              {!isReadOnly && rating > 0 && <button onClick={() => setRating(0)} className="block mx-auto text-xs mt-1 text-muted-foreground" >清除评分</button>}
             </div>
           )}
 
           <div>
             <label className="block text-sm font-medium mb-2 text-secondary-foreground" >{isWatchedList ? '感想' : '备注'}</label>
-            <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={placeholder} rows={4} maxLength={500}
-              className="w-full px-4 py-3 rounded-lg text-sm border outline-none resize-none"
-               />
-            <div className="flex justify-end mt-1 text-muted-foreground"><span className="text-[10px]" >{note.length}/500</span></div>
+            {isReadOnly ? (
+              note ? (
+                <div className="w-full px-4 py-3 rounded-lg text-sm border border-border bg-secondary/50 text-foreground leading-relaxed whitespace-pre-wrap min-h-[5rem]">
+                  {note}
+                </div>
+              ) : (
+                <div className="w-full px-4 py-3 rounded-lg text-sm border border-border bg-secondary/30 text-muted-foreground italic min-h-[5rem]">
+                  暂无感想
+                </div>
+              )
+            ) : (
+              <>
+                <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={placeholder} rows={4} maxLength={500}
+                  className="w-full px-4 py-3 rounded-lg text-sm border outline-none resize-none border-border text-foreground bg-background"
+                />
+                <div className="flex justify-end mt-1 text-muted-foreground"><span className="text-[10px]" >{note.length}/500</span></div>
+              </>
+            )}
           </div>
         </div>
 
         <div className="flex gap-3 justify-end px-5 py-4 border-t shrink-0 border-border" >
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-secondary-foreground" >取消</button>
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 bg-accent" >{saving ? '保存中...' : '保存'}</button>
+          {isReadOnly ? (
+            <>
+              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-secondary-foreground" >关闭</button>
+              <button onClick={() => onEdit?.()} className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-accent" >编辑</button>
+            </>
+          ) : (
+            <>
+              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-secondary-foreground" >取消</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 bg-accent" >{saving ? '保存中...' : '保存'}</button>
+            </>
+          )}
         </div>
       </div>
     </div>
