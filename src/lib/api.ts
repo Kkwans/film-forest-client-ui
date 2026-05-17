@@ -136,9 +136,24 @@ export const shortDramaApi = {
     client.get<Result<ContentDetail>>(`/api/short-dramas/${id}`),
 };
 
+export interface HotSearchItem {
+  id: number;
+  type: string;
+  title: string;
+  score: number;
+}
+
 export const searchApi = {
   search: (keyword: string, params?: SearchParams) =>
     client.get<Result<PagedResult<SearchRecord>>>('/api/search', { params: { keyword, ...params } }),
+
+  /** 搜索建议：标题前缀匹配 Top 10 */
+  suggest: (q: string) =>
+    client.get<Result<string[]>>('/api/search/suggest', { params: { q } }),
+
+  /** 热门搜索：评分最高的内容 Top 10 */
+  hot: () =>
+    client.get<Result<HotSearchItem[]>>('/api/search/hot'),
 };
 
 export const resourceApi = {

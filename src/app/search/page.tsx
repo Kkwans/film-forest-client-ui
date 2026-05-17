@@ -1,10 +1,10 @@
 
 'use client';
 
-import { Suspense, useEffect, useState, useMemo, useCallback } from 'react';
+import { Suspense, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { searchApi } from '@/lib/api';
+import { searchApi, HotSearchItem } from '@/lib/api';
 import Pagination from '@/components/Pagination';
 import CustomSelect from '@/components/CustomSelect';
 import SortDirButton from '@/components/SortDirButton';
@@ -73,6 +73,12 @@ function SearchContent() {
   const [sortBy, setSortBy] = useState('latest');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [collectMovieId, setCollectMovieId] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [hotItems, setHotItems] = useState<HotSearchItem[]>([]);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [collectType, setCollectType] = useState('');
   const [collectTitle, setCollectTitle] = useState('');
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
@@ -119,6 +125,21 @@ function SearchContent() {
     else { setSearched(false); setResults([]); }
   }, [searchParams]);
 
+  // Load search history from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('search_history');
+      if (stored) setSearchHistory(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  // Load hot search items
+  useEffect(() => {
+    searchApi.hot().then(res => {
+      setHotItems(res.data?.data || []);
+    }).catch(() => {});
+  }, []);
+
   // Re-search when sort changes
   useEffect(() => {
     if (searched && keyword.trim()) {
@@ -131,7 +152,50 @@ function SearchContent() {
     if (keyword.trim()) {
       doSearch(keyword.trim(), 1);
       window.history.pushState({}, '', `/search?q=${encodeURIComponent(keyword.trim())}`);
+      saveSearchHistory(keyword.trim());
+      setShowSuggestions(false);
     }
+  };
+
+  /** Save keyword to search history (max 10, dedup) */
+  const saveSearchHistory = (kw: string) => {
+    setSearchHistory(prev => {
+      const next = [kw, ...prev.filter(h => h !== kw)].slice(0, 10);
+      try { localStorage.setItem('search_history', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  /** Clear search history */
+  const clearSearchHistory = () => {
+    setSearchHistory([]);
+    try { localStorage.removeItem('search_history'); } catch {}
+  };
+
+  /** Debounced suggest */
+  const handleInputChange = (value: string) => {
+    setKeyword(value);
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    if (!value.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    suggestTimerRef.current = setTimeout(() => {
+      searchApi.suggest(value.trim()).then(res => {
+        setSuggestions(res.data?.data || []);
+        setShowSuggestions(true);
+      }).catch(() => setSuggestions([]));
+    }, 300);
+  };
+
+  /** Click a suggestion or history item */
+  const handleSuggestionClick = (kw: string) => {
+    setKeyword(kw);
+    setShowSuggestions(false);
+    doSearch(kw, 1);
+    window.history.pushState({}, '', `/search?q=${encodeURIComponent(kw)}`);
+    saveSearchHistory(kw);
   };
 
   // Client-side type filter only (sorting is server-side)
@@ -175,12 +239,75 @@ function SearchContent() {
   return (
     <>
     <div className="flex flex-col gap-6">
-      {/* Search bar */}
-      <div className="rounded-xl p-6 border bg-secondary border-border" >
+      {/* Search bar with suggestions */}
+      <div className="rounded-xl p-6 border bg-secondary border-border relative">
         <form onSubmit={handleSearch} className="flex gap-2">
-          <input type="text" placeholder="搜索影片、演员、导演..." value={keyword} onChange={e => setKeyword(e.target.value)}
-            className="flex-1 h-10 px-4 rounded-lg text-sm border outline-none bg-background border-border text-foreground"  />
-          <button type="submit" className="h-10 px-6 rounded-lg text-white text-sm font-medium bg-accent" >搜索</button>
+          <div className="relative flex-1">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="搜索影片、演员、导演..."
+              value={keyword}
+              onChange={e => handleInputChange(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              className="w-full h-10 px-4 rounded-lg text-sm border outline-none bg-background border-border text-foreground"
+            />
+            {/* Suggestions dropdown */}
+            {showSuggestions && (suggestions.length > 0 || searchHistory.length > 0 || hotItems.length > 0) && (
+              <div className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-lg bg-background border-border z-50 max-h-80 overflow-y-auto">
+                {/* Suggestions */}
+                {suggestions.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">搜索建议</div>
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent/10 transition-colors text-foreground"
+                        onMouseDown={() => handleSuggestionClick(s)}
+                      >
+                        <span className="text-muted-foreground">🔍</span> {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Search history (when no input) */}
+                {!keyword.trim() && searchHistory.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground flex items-center justify-between">
+                      搜索历史
+                      <button onClick={clearSearchHistory} className="text-xs text-muted-foreground hover:text-foreground">清空</button>
+                    </div>
+                    {searchHistory.map((h, i) => (
+                      <button
+                        key={i}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent/10 transition-colors text-foreground"
+                        onMouseDown={() => handleSuggestionClick(h)}
+                      >
+                        <span className="text-muted-foreground">🕐</span> {h}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Hot search (when no input) */}
+                {!keyword.trim() && hotItems.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">热门搜索</div>
+                    {hotItems.map((item, i) => (
+                      <button
+                        key={i}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent/10 transition-colors text-foreground"
+                        onMouseDown={() => handleSuggestionClick(item.title)}
+                      >
+                        <span className="text-muted-foreground font-bold text-xs w-5 inline-block">{i + 1}</span> {item.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <button type="submit" className="h-10 px-6 rounded-lg text-white text-sm font-medium bg-accent">搜索</button>
         </form>
       </div>
 

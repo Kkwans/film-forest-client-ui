@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUserStore } from '@/stores/userStore';
+import { searchApi } from '@/lib/api';
 
 const NAV_ITEMS = [
   { label: '首页', href: '/' },
@@ -27,6 +28,10 @@ export default function Header() {
   const [darkMode, setDarkMode] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useUserStore();
 
@@ -60,8 +65,31 @@ export default function Header() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (keyword.trim()) {
+      setShowSuggestions(false);
       window.location.href = `/search?q=${encodeURIComponent(keyword.trim())}`;
     }
+  };
+
+  const handleSearchInput = (value: string) => {
+    setKeyword(value);
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    if (!value.trim()) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    suggestTimerRef.current = setTimeout(() => {
+      searchApi.suggest(value.trim()).then(res => {
+        setSuggestions(res.data?.data || []);
+        setShowSuggestions(true);
+      }).catch(() => setSuggestions([]));
+    }, 300);
+  };
+
+  const handleSuggestionClick = (kw: string) => {
+    setKeyword(kw);
+    setShowSuggestions(false);
+    window.location.href = `/search?q=${encodeURIComponent(kw)}`;
   };
 
   const isActive = (href: string) => {
@@ -113,18 +141,42 @@ export default function Header() {
           {/* Search + Dark Toggle + Auth (desktop) */}
           <div className="hidden md:flex items-center gap-2">
             <form onSubmit={handleSearch} className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="搜索影片、演员、导演"
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                className="w-40 lg:w-52 h-9 px-3 rounded-lg text-sm outline-none border transition-colors"
-                style={{
-                  backgroundColor: 'var(--bg-primary)',
-                  borderColor: 'var(--border-color)',
-                  color: 'var(--text-primary)',
-                }}
-              />
+              <div className="relative" ref={searchWrapRef}>
+                <input
+                  type="text"
+                  placeholder="搜索影片、演员、导演"
+                  value={keyword}
+                  onChange={(e) => handleSearchInput(e.target.value)}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  className="w-40 lg:w-52 h-9 px-3 rounded-lg text-sm outline-none border transition-colors"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    borderColor: 'var(--border-color)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div
+                    className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-lg py-1 z-50 max-h-60 overflow-y-auto"
+                    style={{
+                      backgroundColor: 'var(--bg-secondary)',
+                      borderColor: 'var(--border-color)',
+                    }}
+                  >
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:opacity-80 transition-colors"
+                        style={{ color: 'var(--text-primary)' }}
+                        onMouseDown={() => handleSuggestionClick(s)}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 className="h-9 px-4 rounded-lg text-white text-sm font-medium transition-colors shrink-0"
