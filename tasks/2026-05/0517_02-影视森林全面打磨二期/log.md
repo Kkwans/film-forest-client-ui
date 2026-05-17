@@ -547,3 +547,103 @@
 - 管理端全流程测试
 - 部署到 NAS
 - 验证修复效果
+
+---
+
+## 2026-05-17 16:23 - 第 13 轮
+
+### 本次目标
+- F13: 代码质量审查 - 消除 `as any` 类型断言和静默错误吞噬
+
+### 排查过程
+1. 全局扫描 `admin-ui/src/` 中的 `as any` 使用（4 处）
+2. 全局扫描 `.catch(() => {})` 静默错误吞噬模式（4 处）
+3. 审查 Java 后端代码：无 `printStackTrace()`、无空 catch 块、无 TODO/FIXME 标记
+4. 分类评估每处问题的影响和修复方案
+
+### 问题分析
+
+**`as any` 类型断言（4 处）**：
+| 文件 | 行 | 问题 | 评估 |
+|------|-----|------|------|
+| ThemeToggle.tsx:21-22 | `(window as any).__applyTheme` | 访问自定义 window 全局方法 | ✅ 可接受，无需修复 |
+| resources/page.tsx:257 | `editingMagnet as any` | Partial→SaveMagnetData 类型不匹配 | ❌ 隐藏类型错误 |
+| resources/page.tsx:297 | `editingCloud as any` | Partial→SaveCloudData 类型不匹配 | ❌ 隐藏类型错误 |
+
+**静默 `.catch(() => {})`（4 处）**：
+| 文件 | 行 | 场景 | 影响 |
+|------|-----|------|------|
+| crawler/page.tsx:383 | 加载资源来源列表 | 失败时无日志，排查困难 |
+| settings/page.tsx:55 | 加载数据库信息 | 失败时无日志，排查困难 |
+| content/page.tsx:176 | 加载统计数据 | 失败时无日志，排查困难 |
+| login/page.tsx:24 | 检查登录状态 | 失败时无日志，排查困难 |
+
+### 修复内容
+
+**resources/page.tsx - 消除 as any**
+- 导入 `SaveMagnetData` 和 `SaveCloudData` 类型
+- `saveMagnet(editingMagnet as any)` → `saveMagnet(editingMagnet as SaveMagnetData)`
+- `saveCloud(editingCloud as any)` → `saveCloud(editingCloud as SaveCloudData)`
+- 类型安全：编译器现在会检查字段兼容性
+
+**4 个文件 - 静默 catch 增加日志**
+- `crawler/page.tsx`: `.catch(() => {})` → `.catch(e => console.error('加载资源来源失败', e))`
+- `settings/page.tsx`: `.catch(() => {})` → `.catch(e => console.error('加载数据库信息失败', e))`
+- `content/page.tsx`: `.catch(() => {})` → `.catch(e => console.error('加载统计数据失败', e))`
+- `login/page.tsx`: `.catch(() => {})` → `.catch(e => console.error('检查登录状态失败', e))`
+
+### Git
+- Commit: `c3591d8` fix(code-quality): 消除 as any 类型断言和静默错误吞噬(F13)
+- Push: main -> origin/main ✅
+
+### 影响范围
+- 资源管理保存操作现在有类型检查保护
+- 5 个页面的 API 调用失败时会输出错误日志，便于排查
+- TypeScript 编译通过，无新增类型错误
+
+### 剩余任务
+- 用户端全流程测试
+- 管理端全流程测试
+- 部署到 NAS
+- 验证修复效果
+
+---
+
+## 2026-05-17 16:53 - 第 14 轮
+
+### 本次目标
+- F13: 代码质量审查 - client-server SearchController 静默错误吞噬
+
+### 排查过程
+1. 全局扫描 client-server 和 admin-server 的 `catch (Exception ignored) {}` 模式
+2. 发现 `SearchController.java` 有 5 个搜索方法(searchMovies/searchDramas/searchVarieties/searchAnimes/searchShortDramas)使用 `catch (Exception ignored) {}`
+3. 这些方法是用户-facing 的全局搜索接口，如果某个表查询失败（如数据库连接问题），用户会得到不完整的搜索结果，且无任何错误日志
+4. 对比 admin-server CrawlerCore 中的 `catch (Exception ignored)` 用于 JSON 解析等工具方法，属于合理使用
+5. 对比 ContentController 中解析 genre JSON 的 catch 也是合理的（跳过格式错误的单条记录）
+
+### 问题分析
+- **根因**: 代码注释说"各表独立 try-catch，单表失败不影响其他"，设计意图正确但实现过于粗暴
+- **影响**: 生产环境如果某张表出现问题，搜索结果缺失但无法排查原因
+- **评估**: 不影响功能正确性，但影响可观测性和运维效率
+
+### 修复内容
+- 文件: `client-server/.../content/controller/SearchController.java`
+- 5 个 `catch (Exception ignored) {}` → `catch (Exception e) { log.error("[Search] XXX搜索异常: keyword={}", kw, e); }`
+- 保留了"单表失败不影响其他"的设计意图，只是增加了错误日志
+
+### 补充提交
+- 之前遗漏的 `StorylineCleaner.java`(F5) 一并提交
+
+### Git
+- Commit: `900ee11` fix(search): SearchController 5个搜索方法增加错误日志(F13)
+- Push: main -> origin/main ✅
+
+### 影响范围
+- 全局搜索某个类型查询失败时，日志会记录具体异常信息
+- 不改变搜索行为逻辑，单表失败仍然不影响其他类型搜索
+
+### 剩余任务
+- 用户端全流程测试
+- 管理端全流程测试
+- 部署到 NAS
+- 验证修复效果
