@@ -44,7 +44,7 @@ export function DetailCover({ src, alt, seed }: { src?: string; alt: string; see
       <img
         src={src || `https://picsum.photos/seed/${seed}/400/600`}
         alt={alt}
-        className="w-full aspect-[2/3] object-cover rounded-xl"
+        className="w-full aspect-[2/3] object-cover rounded-xl sm:aspect-auto sm:h-full"
       />
     </div>
   );

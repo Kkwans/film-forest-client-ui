@@ -163,7 +163,7 @@ export default function DetailPageLayout({
         ]}
       />
 
-      <div className="flex flex-col sm:flex-row gap-6">
+      <div className="flex flex-col sm:flex-row gap-6 items-stretch">
         <DetailCover src={item.cover} alt={item.title} seed={`${contentType[0]}${item.id}`} />
         <div className="flex-1 flex flex-col gap-3 min-w-0">
           <DetailTitle title={item.title} year={item.year} />
