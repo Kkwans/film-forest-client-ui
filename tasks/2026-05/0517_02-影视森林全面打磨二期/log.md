@@ -242,9 +242,9 @@
 - 大数据量下不再全量加载,分页每页 20 条
 
 ### 下一步建议
-- F4: 详情页布局优化（海报与信息区等高）
+- F4: 详情页布局优化(海报与信息区等高)
 - F8: 内容管理筛选项下拉被遮挡修复
-- F5: 爬虫数据质量修复（简介清理“[展开全部]”）
+- F5: 爬虫数据质量修复(简介清理"[展开全部]")
 - F10a: 数据统计柱状图样式修复
 
 ---
@@ -252,24 +252,24 @@
 ## 2026-05-17 12:51 - 第 6 轮
 
 ### 本次目标
-- F5: 爬虫数据质量修复 — 简介清理“[展开全部]”统一化
+- F5: 爬虫数据质量修复 - 简介清理"[展开全部]"统一化
 
 ### 排查过程
-1. 审查 `StorylineCleaner.java`（client-server）发现是完整的清理工具
-2. 审查 `CrawlerCore.extractStoryline()`（admin-server）发现内联清理逻辑是 StorylineCleaner 的不完整子集
-3. 核心问题：admin-server 的 CrawlerCore 没有引用 StorylineCleaner，而是用 inline regex 做了部分清理
+1. 审查 `StorylineCleaner.java`(client-server)发现是完整的清理工具
+2. 审查 `CrawlerCore.extractStoryline()`(admin-server)发现内联清理逻辑是 StorylineCleaner 的不完整子集
+3. 核心问题:admin-server 的 CrawlerCore 没有引用 StorylineCleaner,而是用 inline regex 做了部分清理
    - StorylineCleaner: 9 种方括号模式 + 8 种纯文本模式 + 省略号清理
-   - CrawlerCore inline: 仅 7 种方括号 + 6 种纯文本，缺少 [展开][收起][更多] 等变体
+   - CrawlerCore inline: 仅 7 种方括号 + 6 种纯文本,缺少 [展开][收起][更多] 等变体
 
 ### 修复内容
-- **新增**: `admin-server/.../common/util/StorylineCleaner.java` — 与 client-server 版本一致
+- **新增**: `admin-server/.../common/util/StorylineCleaner.java` - 与 client-server 版本一致
 - **修改**: `admin-server/.../crawler/core/CrawlerCore.java`
   - import StorylineCleaner
-  - `extractStoryline()` 方法：移除 20+ 行 inline regex 清理，替换为 `StorylineCleaner.clean(text)` 一行调用
+  - `extractStoryline()` 方法:移除 20+ 行 inline regex 清理,替换为 `StorylineCleaner.clean(text)` 一行调用
   - 覆盖全部 17 种 UI 残留文本模式 + 省略号/空白清理
 
 ### 补充说明
-- tasks.md 中 F1/F2/F3 已在第 1 轮确认实现但未勾选，本轮补勾
+- tasks.md 中 F1/F2/F3 已在第 1 轮确认实现但未勾选,本轮补勾
 - F5 现在勾选完成
 
 ### Git
@@ -277,11 +277,11 @@
 - Push: master -> origin ✅
 
 ### 影响范围
-- 所有类型（电影/剧集/综艺/动漫/短剧）的简介字段现在统一使用 StorylineCleaner 清理
+- 所有类型(电影/剧集/综艺/动漫/短剧)的简介字段现在统一使用 StorylineCleaner 清理
 - 爬取的数据不再包含 [展开全部][收起][查看更多] 等 UI 残留文本
 
 ### 下一步建议
-- F4: 详情页布局优化（海报与信息区等高）
+- F4: 详情页布局优化(海报与信息区等高)
 - F8: 内容管理筛选项下拉被遮挡修复
 - F9: 内容表单增加海报配置
 - F10a: 数据统计柱状图样式修复
@@ -291,28 +291,28 @@
 ## 2026-05-17 13:23 - 第 7 轮
 
 ### 本次目标
-- F4: 详情页布局优化（海报与信息区等高）
+- F4: 详情页布局优化(海报与信息区等高)
 
 ### 排查过程
-1. 审查 `DetailPageLayout.tsx` 布局结构：`flex flex-col sm:flex-row gap-6` 容器内包含 `DetailCover` 和信息区
-2. 发现容器缺少 `items-stretch`，导致封面和信息区各自按内容高度渲染，不对齐
-3. 审查 `DetailCover` 组件：桌面端 `w-48 md:w-64` + 图片 `aspect-[2/3]` 固定宽高比
-4. 问题：当信息区内容多于封面高度时，封面不拉伸；反之信息区不拉伸
+1. 审查 `DetailPageLayout.tsx` 布局结构:`flex flex-col sm:flex-row gap-6` 容器内包含 `DetailCover` 和信息区
+2. 发现容器缺少 `items-stretch`,导致封面和信息区各自按内容高度渲染,不对齐
+3. 审查 `DetailCover` 组件:桌面端 `w-48 md:w-64` + 图片 `aspect-[2/3]` 固定宽高比
+4. 问题:当信息区内容多于封面高度时,封面不拉伸;反之信息区不拉伸
 
 ### 修复内容
 
 **DetailPageLayout.tsx**
-- 容器 div 添加 `items-stretch`，使封面和信息区在桌面端等高
+- 容器 div 添加 `items-stretch`,使封面和信息区在桌面端等高
 
 **DetailComponents.tsx - DetailCover**
-- 图片添加 `sm:aspect-auto sm:h-full`：桌面端移除固定宽高比，改为填满容器高度
-- 移动端保持原有 `aspect-[2/3]` 不变（上下堆叠模式无需等高）
+- 图片添加 `sm:aspect-auto sm:h-full`:桌面端移除固定宽高比,改为填满容器高度
+- 移动端保持原有 `aspect-[2/3]` 不变(上下堆叠模式无需等高)
 - `object-cover` 确保图片裁剪不变形
 
-**补充提交：F2/F3/F5 客户端改动**
-- 发现之前轮次的 F2/F3/F5 客户端实现未提交，一并推送
+**补充提交:F2/F3/F5 客户端改动**
+- 发现之前轮次的 F2/F3/F5 客户端实现未提交,一并推送
 - F2: NoteEditModal/WatchedModal 增加 isReadOnly 只读模式
-- F3: 评价编辑保存后保留数据，切换回只读模式而非关闭
+- F3: 评价编辑保存后保留数据,切换回只读模式而非关闭
 - F5: cleanStoryline 扩展清理全部 UI 残留文本模式
 
 ### Git
@@ -321,15 +321,15 @@
 - Push: main -> origin/main ✅
 
 ### 影响范围
-- 所有详情页（电影/剧集/综艺/动漫/短剧）海报与信息区在桌面端等高展示
-- 封面图片自动裁剪填充，不变形
+- 所有详情页(电影/剧集/综艺/动漫/短剧)海报与信息区在桌面端等高展示
+- 封面图片自动裁剪填充,不变形
 - 移动端布局不受影响
 
 ### 下一步建议
 - F8: 内容管理筛选项下拉被遮挡修复
 - F9: 内容表单增加海报配置
 - F10a: 数据统计柱状图样式修复
-- F10b: Tooltip 即时显示（不从左上角飞出）
+- F10b: Tooltip 即时显示(不从左上角飞出)
 
 ---
 
@@ -339,19 +339,19 @@
 - F8: 内容管理筛选项下拉被遮挡修复
 
 ### 排查过程
-1. 审查 `content/page.tsx` 筛选区域结构：Select 组件放在 `Card > CardContent > div.flex` 内
-2. 审查 `Select` 组件：下拉菜单使用 `absolute` 定位 + `z-[10000]`
-3. **发现根因**：`Card` 组件默认 className 包含 `overflow-hidden`，这会裁剪所有超出 Card 边界的子元素
-4. Select 下拉菜单是 `absolute` 定位，从 Card 内部弹出时被 `overflow-hidden` 裁剪，导致不可见
+1. 审查 `content/page.tsx` 筛选区域结构:Select 组件放在 `Card > CardContent > div.flex` 内
+2. 审查 `Select` 组件:下拉菜单使用 `absolute` 定位 + `z-[10000]`
+3. **发现根因**:`Card` 组件默认 className 包含 `overflow-hidden`,这会裁剪所有超出 Card 边界的子元素
+4. Select 下拉菜单是 `absolute` 定位,从 Card 内部弹出时被 `overflow-hidden` 裁剪,导致不可见
 
 ### 修复内容
-- 文件：`admin-ui/src/app/content/page.tsx`
+- 文件:`admin-ui/src/app/content/page.tsx`
 - 筛选栏 Card 添加 `overflow-visible` 覆盖默认的 `overflow-hidden`
-- 仅影响筛选区域的 Card，不影响其他 Card 组件
+- 仅影响筛选区域的 Card,不影响其他 Card 组件
 
 ### Git
-- Commit：`5bfc52f` fix(content): 修复筛选项下拉菜单被 Card overflow-hidden 裁剪(F8)
-- Push：main -> origin/main ✅
+- Commit:`5bfc52f` fix(content): 修复筛选项下拉菜单被 Card overflow-hidden 裁剪(F8)
+- Push:main -> origin/main ✅
 
 ### 影响范围
 - 内容管理页面类型筛选和状态下拉菜单现在可正常弹出显示
@@ -359,8 +359,8 @@
 
 ### 下一步建议
 - F10a: 数据统计柱状图样式修复
-- F10b: Tooltip 即时显示（不从左上角飞出）
-- F10c: 扩展图表类型（折线图等）
+- F10b: Tooltip 即时显示(不从左上角飞出)
+- F10c: 扩展图表类型(折线图等)
 
 ---
 
@@ -370,36 +370,36 @@
 - F9: 内容表单增加海报配置
 
 ### 排查过程
-1. 审查 `ContentFormFields.tsx` 表单定义：`EditForm` 接口缺少 `posterUrl` 字段
-2. 审查后端实体：`Movie`/`Drama`/`Anime`/`ShortDrama`/`Variety` 均有 `posterUrl` 字段
-3. 审查后端 API：`@RequestBody Movie movie` 自动反序列化，已支持 posterUrl
-4. 审查前端显示：`content/page.tsx` 列表和详情弹窗已使用 `item.posterUrl` 展示海报
-5. 核心问题：表单没有海报 URL 输入框，管理员无法手动配置海报图片
+1. 审查 `ContentFormFields.tsx` 表单定义:`EditForm` 接口缺少 `posterUrl` 字段
+2. 审查后端实体:`Movie`/`Drama`/`Anime`/`ShortDrama`/`Variety` 均有 `posterUrl` 字段
+3. 审查后端 API:`@RequestBody Movie movie` 自动反序列化,已支持 posterUrl
+4. 审查前端显示:`content/page.tsx` 列表和详情弹窗已使用 `item.posterUrl` 展示海报
+5. 核心问题:表单没有海报 URL 输入框,管理员无法手动配置海报图片
 
 ### 修复内容
 
 **ContentFormFields.tsx**
 - `EditForm` 接口新增 `posterUrl: string` 字段
 - `EMPTY_FORM` 新增 `posterUrl: ''` 默认值
-- `buildSubmitData` 新增 `posterUrl: form.posterUrl || undefined`（匹配 `ContentSubmitData` 类型）
-- 表单 UI：标题下方新增「海报 URL」输入框，placeholder 引导输入图片链接
+- `buildSubmitData` 新增 `posterUrl: form.posterUrl || undefined`(匹配 `ContentSubmitData` 类型)
+- 表单 UI:标题下方新增「海报 URL」输入框,placeholder 引导输入图片链接
 
 **content/page.tsx**
-- `handleEditClick` 编辑初始化：新增 `posterUrl: item.posterUrl || ''` 填充已有值
+- `handleEditClick` 编辑初始化:新增 `posterUrl: item.posterUrl || ''` 填充已有值
 
 ### Git
 - Commit: `9904705` fix(content): 内容表单增加海报 URL 配置字段(F9)
-- Push: ⚠️ 本地 commit 完成，GitHub 网络超时未推送
+- Push: ⚠️ 本地 commit 完成,GitHub 网络超时未推送
 
 ### 影响范围
 - 新增/编辑内容时可手动配置海报图片 URL
 - 编辑已有内容时海报 URL 自动回显
-- 后端已支持 posterUrl 字段持久化，无需后端改动
+- 后端已支持 posterUrl 字段持久化,无需后端改动
 
 ### 下一步建议
 - F10a: 数据统计柱状图样式修复
-- F10b: Tooltip 即时显示（不从左上角飞出）
-- F10c: 扩展图表类型（折线图等）
+- F10b: Tooltip 即时显示(不从左上角飞出)
+- F10c: 扩展图表类型(折线图等)
 - 等网络恢复后执行 `git push` 同步远程
 
 ---
@@ -408,41 +408,142 @@
 
 ### 本次目标
 - F10a: 数据统计柱状图样式修复
-- F10b: Tooltip 即时显示（不从左上角飞出）
+- F10b: Tooltip 即时显示(不从左上角飞出)
 
 ### 排查过程
-1. 审查 `stats/page.tsx` 图表实现，使用 recharts 库
-2. **F10b Tooltip 飞出问题**：BarChart 的 `<Tooltip>` 未设置 `isAnimationActive={false}`，recharts 默认会从图表原点(0,0)动画飞入到目标位置，视觉效果差
-3. **F10a 柱状图样式问题**：
-   - CartesianGrid 同时有水平和垂直网格线，视觉 clutter
-   - XAxis/YAxis 有 tickLine 但无 axisLine，风格不统一
+1. 审查 `stats/page.tsx` 图表实现,使用 recharts 库
+2. **F10b Tooltip 飞出问题**:BarChart 的 `<Tooltip>` 未设置 `isAnimationActive={false}`,recharts 默认会从图表原点(0,0)动画飞入到目标位置,视觉效果差
+3. **F10a 柱状图样式问题**:
+   - CartesianGrid 同时有水平和垂直网格线,视觉 clutter
+   - XAxis/YAxis 有 tickLine 但无 axisLine,风格不统一
    - barGap=8 导致柱子偏细
-   - Tooltip 无阴影，层次感不足
-4. PieChart 的 Tooltip 也存在同样的动画问题（虽使用 CustomTooltip，但未禁用动画）
+   - Tooltip 无阴影,层次感不足
+4. PieChart 的 Tooltip 也存在同样的动画问题(虽使用 CustomTooltip,但未禁用动画)
 
 ### 修复内容
 
 **F10b: Tooltip 即时显示**
-- BarChart `<Tooltip>` 添加 `isAnimationActive={false}` — 禁用飞入动画，鼠标悬停即时显示
-- PieChart `<Tooltip>` 同步添加 `isAnimationActive={false}` — 保持一致性
+- BarChart `<Tooltip>` 添加 `isAnimationActive={false}` - 禁用飞入动画,鼠标悬停即时显示
+- PieChart `<Tooltip>` 同步添加 `isAnimationActive={false}` - 保持一致性
 
 **F10a: 柱状图样式优化**
-- `CartesianGrid` 添加 `vertical={false}` — 仅保留水平网格线，更简洁
-- `XAxis` 添加 `axisLine={{ stroke: 'var(--border)' }}` + `tickLine={false}` — 显示轴线但隐藏刻度线
-- `YAxis` 添加 `axisLine={false}` + `tickLine={false}` — 隐藏轴线和刻度线，更干净
-- `barGap` 从 8 调整为 4，`barCategoryGap` 设为 "20%" — 柱子更饱满
-- `Tooltip` 添加 `cursor={{ fill: 'var(--muted)', opacity: 0.3 }}` — hover 时高亮整组柱子
-- `Tooltip` 添加 `boxShadow: '0 4px 12px rgba(0,0,0,0.15)'` — 提升弹出层次感
+- `CartesianGrid` 添加 `vertical={false}` - 仅保留水平网格线,更简洁
+- `XAxis` 添加 `axisLine={{ stroke: 'var(--border)' }}` + `tickLine={false}` - 显示轴线但隐藏刻度线
+- `YAxis` 添加 `axisLine={false}` + `tickLine={false}` - 隐藏轴线和刻度线,更干净
+- `barGap` 从 8 调整为 4,`barCategoryGap` 设为 "20%" - 柱子更饱满
+- `Tooltip` 添加 `cursor={{ fill: 'var(--muted)', opacity: 0.3 }}` - hover 时高亮整组柱子
+- `Tooltip` 添加 `boxShadow: '0 4px 12px rgba(0,0,0,0.15)'` - 提升弹出层次感
 
 ### Git
 - Commit admin-ui: `24e52df` fix(stats): 柱状图样式优化+Tooltip即时显示(F10a+F10b)
 - Push: main -> origin/main ✅
 
 ### 影响范围
-- 数据统计页面柱状图和饼图的 Tooltip 现在即时显示，不再从左上角飞出
-- 柱状图视觉更简洁清爽，交互反馈更明确
+- 数据统计页面柱状图和饼图的 Tooltip 现在即时显示,不再从左上角飞出
+- 柱状图视觉更简洁清爽,交互反馈更明确
 
 ### 下一步建议
-- F10c: 扩展图表类型（折线图等）— 需要时间序列数据支撑，可考虑增加爬虫运行趋势图
 - F13: 梳理代码自主发现问题
 - F12: 仪表盘"下线"按钮含义明确化
+- 用户端全流程测试
+- 管理端全流程测试
+
+---
+
+## 2026-05-17 15:23 - 第 11 轮
+
+### 本次目标
+- F10c: 扩展图表类型(折线图等)
+
+### 排查过程
+1. 审查 stats/page.tsx 现有图表:饼图(内容分布)+ 柱状图(爬虫运行统计)+ 进度条(内容占比)
+2. 分析 CrawlerTaskLog 实体:有 startedAt/itemsCrawled/itemsAdded/itemsUpdated/durationMs 等时间序列字段
+3. 发现后端缺少按日期聚合的 API,前端缺少折线图组件
+4. 决定新增爬虫运行趋势折线图,展示近7天每日数据
+
+### 修复内容
+
+**后端 - CrawlerController.java**
+- 新增 `/api/crawler/daily-stats` GET 接口
+- 查询近7天 CrawlerTaskLog,按日期分组聚合
+- 返回每天的运行次数、抓取量、新增数、更新数
+- 使用 LambdaQueryWrapper + Java Stream groupingBy 实现
+
+**前端 - api.ts**
+- 新增 `crawlerApi.getDailyStats()` 方法
+
+**前端 - stats/page.tsx**
+- 新增 `DailyStatsItem` 接口定义
+- 新增 `dailyStats` 状态 + 数据获取(与 stats/crawlerStatus 并行请求)
+- 新增 LineChart 折线图区域,展示4条趋势线:
+  - 抓取量(蓝色 #3B82F6)
+  - 新增(绿色 #10B981)
+  - 更新(黄色 #F59E0B)
+  - 运行次数(紫色 #8B5CF6)
+- 统一 Tooltip 样式(禁用动画 + 阴影层次感)
+- 无数据时展示空状态占位
+
+### Git
+- Commit admin-server: `5e996bd` feat(crawler): 新增 /daily-stats API 支持爬虫运行趋势数据(F10c)
+- Commit admin-ui: `60a7142` feat(stats): 新增爬虫运行趋势折线图(F10c)
+- Push: master/main -> origin ✅
+
+### 影响范围
+- 数据统计页面新增爬虫运行趋势折线图
+- 可直观查看近7天的爬虫运行频率和数据抓取量变化
+- 空数据时展示友好提示，不影响其他图表
+
+### 下一步建议
+- F13: 梳理代码自主发现问题
+- F12: 仪表盘“下线”按钮含义明确化
+- 用户端全流程测试
+- 管理端全流程测试
+
+---
+
+## 2026-05-17 15:53 - 第 12 轮
+
+### 本次目标
+- F12: 仪表盘“下线”按钮含义明确化
+- F13: 梳理代码自主发现问题（部分）
+
+### 排查过程
+1. 审查仪表盘 `page.tsx` 状态标签：显示“上线”/“下线”，但内容管理页显示“已上线”/“已下线”
+2. “下线”含义模糊——既像状态描述又像可点击按钮
+3. 代码审查发现设置页 `settings/page.tsx` 硬编码了数据库 IP `192.168.5.110:3306` 和库名 `film_forest`
+4. 后端 SettingsController 无 DB 元信息接口
+
+### 修复内容
+
+**F12: 仪表盘状态标签统一**
+- 文件：`admin-ui/src/app/page.tsx`
+- 将“上线”/“下线”改为“已上线”/“已下线”，与内容管理页一致
+- 明确为状态展示，非可操作按钮
+
+**F13: 设置页硬编码数据库 IP 移除**
+- 后端 `SettingsController.java`：新增 `/api/settings/db-info` 接口
+  - 通过 `DataSource.getConnection().getMetaData()` 动态获取数据库元信息
+  - 返回 productName/productVersion/driverName/driverVersion，不含敏感凭据
+- 前端 `api.ts`：新增 `settingsApi.getDbInfo()` 方法
+- 前端 `settings/page.tsx`：
+  - 新增 `dbInfo` 状态，页面加载时调用 `/db-info` API
+  - 数据库配置区域从硬编码改为动态展示
+  - 字段从“主机地址/数据库名/引擎/字符集”改为“数据库产品/版本/驱动/驱动版本”
+
+### Git
+- Commit admin-server: `dce9ba9` feat(settings): 新增 /db-info API 动态获取数据库元信息(F13)
+- Commit admin-ui: `973adf6` fix(settings): 移除硬编码数据库IP，改为动态获取(F12+F13)
+- Commit parent: `fd229f7` chore: 更新子模块引用
+- Push: 三个仓库全部推送到 GitHub ✅
+
+### 影响范围
+- 仪表盘状态标签与内容管理页统一，不再有歧义
+- 设置页不再暴露内部数据库 IP 地址
+- 数据库信息通过 API 动态获取，始终准确
+
+### 剩余任务
+- F13 剩余：更多代码质量审查（空 catch 块、as any 类型断言等）
+- 用户端全流程测试
+- 管理端全流程测试
+- 部署到 NAS
+- 验证修复效果
