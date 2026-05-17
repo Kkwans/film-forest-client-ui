@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { useUserStore } from '@/stores/userStore';
 import { searchApi } from '@/lib/api';
 
@@ -25,7 +26,8 @@ function AvatarFallback({ name }: { name?: string }) {
 export default function Header() {
   const pathname = usePathname();
   const [keyword, setKeyword] = useState('');
-  const [darkMode, setDarkMode] = useState(false);
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -36,12 +38,7 @@ export default function Header() {
   const { user, isAuthenticated, logout } = useUserStore();
 
   useEffect(() => {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark' || (!stored && prefersDark)) {
-      setDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
+    setMounted(true);
   }, []);
 
   // Close user dropdown on outside click
@@ -55,11 +52,10 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  const isDark = mounted && resolvedTheme === 'dark';
+
   const toggleDark = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    document.documentElement.classList.toggle('dark', next);
-    localStorage.setItem('theme', next ? 'dark' : 'light');
+    setTheme(isDark ? 'light' : 'dark');
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -194,7 +190,7 @@ export default function Header() {
               }}
               title="切换深色模式"
             >
-              {darkMode ? '☀️' : '🌙'}
+              {mounted ? (isDark ? '☀️' : '🌙') : '🌙'}
             </button>
 
             {/* Auth section - PC only show login (no register), entry point is inside login page */}
@@ -273,7 +269,7 @@ export default function Header() {
                 color: 'var(--text-secondary)',
               }}
             >
-              {darkMode ? '☀️' : '🌙'}
+              {mounted ? (isDark ? '☀️' : '🌙') : '🌙'}
             </button>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
