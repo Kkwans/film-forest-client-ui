@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useTheme } from 'next-themes';
 import { useUserStore, hasStoredToken } from '@/stores/userStore';
 import { listApi, type UserList, type UserListItem } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
@@ -431,14 +432,93 @@ function HistoryTab() {
 // ═══════════════════════════════════════════════
 //  设置 Tab
 // ═══════════════════════════════════════════════
+// ─── 用户偏好 Hook ───
+const PREFS_KEY = 'ff-user-prefs';
+
+interface UserPreferences {
+  defaultContentType: string;
+  pageSize: number;
+  listDensity: 'comfortable' | 'compact';
+}
+
+const DEFAULT_PREFS: UserPreferences = {
+  defaultContentType: 'all',
+  pageSize: 20,
+  listDensity: 'comfortable',
+};
+
+function useUserPrefs() {
+  const [prefs, setPrefsState] = useState<UserPreferences>(DEFAULT_PREFS);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(PREFS_KEY);
+      if (stored) {
+        setPrefsState({ ...DEFAULT_PREFS, ...JSON.parse(stored) });
+      }
+    } catch { /* ignore */ }
+    setMounted(true);
+  }, []);
+
+  const updatePrefs = (patch: Partial<UserPreferences>) => {
+    setPrefsState((prev) => {
+      const next = { ...prev, ...patch };
+      try { localStorage.setItem(PREFS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  return { prefs, updatePrefs, mounted };
+}
+
+// ─── 主题选项 ───
+const THEME_OPTIONS = [
+  { key: 'light', label: '浅色', icon: '☀️', desc: '始终使用浅色模式' },
+  { key: 'dark', label: '深色', icon: '🌙', desc: '始终使用深色模式' },
+  { key: 'system', label: '跟随系统', icon: '💻', desc: '自动匹配系统设置' },
+] as const;
+
+const CONTENT_TYPE_OPTIONS = [
+  { key: 'all', label: '全部' },
+  { key: 'movie', label: '电影' },
+  { key: 'drama', label: '电视剧' },
+  { key: 'variety', label: '综艺' },
+  { key: 'anime', label: '动漫' },
+  { key: 'short_drama', label: '短剧' },
+];
+
+const PAGE_SIZE_OPTIONS = [12, 20, 30, 50];
+
 function SettingsTab() {
   const { user, logout } = useUserStore();
   const router = useRouter();
+  const { showToast } = useToast();
+  const { theme, setTheme } = useTheme();
+  const { prefs, updatePrefs, mounted: prefsMounted } = useUserPrefs();
+  const [themeMounted, setThemeMounted] = useState(false);
+  const [clearingHistory, setClearingHistory] = useState(false);
+
+  useEffect(() => { setThemeMounted(true); }, []);
 
   const handleLogout = () => {
     logout();
     router.replace('/');
   };
+
+  const handleClearSearchHistory = () => {
+    setClearingHistory(true);
+    try {
+      localStorage.removeItem('ff-search-history');
+      showToast('搜索历史已清除', 'success');
+    } catch {
+      showToast('清除失败', 'error');
+    } finally {
+      setClearingHistory(false);
+    }
+  };
+
+  const currentTheme = themeMounted ? theme : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -465,39 +545,156 @@ function SettingsTab() {
         </div>
       </section>
 
-      {/* 外观设置（预留） */}
+      {/* 外观设置 */}
       <section className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
         <h3 className="text-sm font-bold text-foreground mb-3">外观设置</h3>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-foreground">暗色模式</p>
-            <p className="text-xs text-muted-foreground mt-0.5">即将在三期 Phase 3 支持</p>
-          </div>
-          <div
-            className="w-10 h-6 rounded-full relative cursor-not-allowed opacity-50"
-            style={{ backgroundColor: 'var(--border-color)' }}
-          >
-            <div
-              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full shadow-sm"
-              style={{ backgroundColor: 'var(--bg-card)' }}
-            />
+
+        {/* 主题选择 */}
+        <div className="mb-4">
+          <p className="text-sm text-foreground mb-2">主题模式</p>
+          <div className="grid grid-cols-3 gap-2">
+            {THEME_OPTIONS.map((opt) => {
+              const isActive = currentTheme === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => setTheme(opt.key)}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all"
+                  style={{
+                    borderColor: isActive ? 'var(--accent)' : 'var(--border-color)',
+                    backgroundColor: isActive ? 'var(--bg-primary)' : 'var(--bg-card)',
+                  }}
+                >
+                  <span className="text-xl">{opt.icon}</span>
+                  <span className="text-xs font-medium text-foreground">{opt.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        {/* 列表密度 */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-foreground">列表密度</p>
+            <p className="text-xs text-muted-foreground mt-0.5">调整内容列表的显示间距</p>
+          </div>
+          <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: 'var(--border-color)' }}>
+            {(
+              [
+                { key: 'comfortable', label: '舒适' },
+                { key: 'compact', label: '紧凑' },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => updatePrefs({ listDensity: opt.key })}
+                className="px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  backgroundColor: prefs.listDensity === opt.key ? 'var(--accent)' : 'var(--bg-card)',
+                  color: prefs.listDensity === opt.key ? '#fff' : 'var(--text-secondary)',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 内容偏好 */}
+      <section className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+        <h3 className="text-sm font-bold text-foreground mb-3">内容偏好</h3>
+
+        {/* 默认内容类型 */}
+        <div className="mb-4">
+          <p className="text-sm text-foreground mb-2">默认内容类型</p>
+          <p className="text-xs text-muted-foreground mb-2">首页默认展示的内容分类</p>
+          <div className="flex flex-wrap gap-2">
+            {CONTENT_TYPE_OPTIONS.map((opt) => {
+              const isActive = prefs.defaultContentType === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => updatePrefs({ defaultContentType: opt.key })}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent)' : 'var(--bg-primary)',
+                    color: isActive ? '#fff' : 'var(--text-secondary)',
+                    border: isActive ? 'none' : '1px solid var(--border-color)',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 每页数量 */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-foreground">每页数量</p>
+            <p className="text-xs text-muted-foreground mt-0.5">列表页每页展示的内容条数</p>
+          </div>
+          <div className="flex gap-1.5">
+            {PAGE_SIZE_OPTIONS.map((size) => {
+              const isActive = prefs.pageSize === size;
+              return (
+                <button
+                  key={size}
+                  onClick={() => updatePrefs({ pageSize: size })}
+                  className="w-9 h-8 rounded-lg text-xs font-medium transition-colors"
+                  style={{
+                    backgroundColor: isActive ? 'var(--accent)' : 'var(--bg-primary)',
+                    color: isActive ? '#fff' : 'var(--text-secondary)',
+                    border: isActive ? 'none' : '1px solid var(--border-color)',
+                  }}
+                >
+                  {size}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 数据管理 */}
+      <section className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+        <h3 className="text-sm font-bold text-foreground mb-3">数据管理</h3>
+        <button
+          onClick={handleClearSearchHistory}
+          disabled={clearingHistory}
+          className="w-full flex items-center justify-between p-3 rounded-lg transition-colors"
+          style={{ backgroundColor: 'var(--bg-primary)' }}
+        >
+          <div className="text-left">
+            <p className="text-sm text-foreground">清除搜索历史</p>
+            <p className="text-xs text-muted-foreground mt-0.5">删除本地保存的搜索记录</p>
+          </div>
+          <span className="text-xs text-muted-foreground">{clearingHistory ? '清除中...' : '清除 →'}</span>
+        </button>
       </section>
 
       {/* 关于 */}
       <section className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
         <h3 className="text-sm font-bold text-foreground mb-3">关于</h3>
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">版本</span>
-          <span className="text-sm font-medium text-foreground">v3.0.0-dev</span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">版本</span>
+            <span className="text-sm font-medium text-foreground">v3.0.0</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">技术栈</span>
+            <span className="text-xs text-muted-foreground">Next.js 15 + SpringBoot 3</span>
+          </div>
         </div>
       </section>
 
       {/* 退出登录 */}
       <button
         onClick={handleLogout}
-        className="w-full py-3 rounded-xl text-sm font-medium border transition-colors hover:bg-red-50"
+        className="w-full py-3 rounded-xl text-sm font-medium border transition-colors hover:bg-red-50 dark:hover:bg-red-950/30"
         style={{ borderColor: '#ef4444', color: '#ef4444' }}
       >
         退出登录
