@@ -10,16 +10,16 @@ created: 2026-05-18
 
 - [x] 创建 GitHub 仓库 `nas-file-browser`
 - [x] 推送前端源码到 GitHub（Go 后端由 Dockerfile 构建时自动拉取）
-- [ ] 编写 Dockerfile.custom（两阶段构建）
-- [ ] NAS 上构建自定义镜像并验证
-- [ ] 替换现有 FileBrowser 容器
+- [x] 编写 Dockerfile.custom（两阶段构建）
+- [x] NAS 上构建自定义镜像并验证（第 19 轮：修复二进制路径 /filebrowser → /usr/local/bin/filebrowser，docker compose 重建容器）
+- [x] 替换现有 FileBrowser 容器（第 19 轮：docker compose down + up -d，容器 healthy）
 
 ## Phase 1: Markdown 核心改造 (P0)
 
 ### F1: Markdown 渲染美化
 - [x] 改写 `frontend/src/css/mdPreview.css`（200+ 行专业样式）
-- [ ] 测试各类 Markdown 元素渲染效果
-- [ ] 验证暗色模式适配
+- [x] 测试各类 Markdown 元素渲染效果（第 17 轮：发现并修复 6 个问题）
+- [x] 验证暗色模式适配（第 17 轮：完整覆盖 h5/h6/dl/details/sup 暗色样式）
 
 ### F2: Vditor 编辑器集成
 - [x] 改写 `frontend/src/views/files/Editor.vue`（集成 Vditor）
@@ -34,28 +34,28 @@ created: 2026-05-18
 ## Phase 2: UI 样式优化 (P1)
 
 ### F3: 全局样式优化
-- [ ] 文件列表页样式优化
-- [ ] 侧边栏样式优化
-- [ ] 顶部导航栏优化
-- [ ] 登录页美化
-- [ ] 设置页样式优化
-- [ ] 移动端响应式优化
+- [x] 文件列表页样式优化
+- [x] 侧边栏样式优化
+- [x] 顶部导航栏优化
+- [x] 登录页美化
+- [x] 设置页样式优化
+- [x] 移动端响应式优化
 
 ### F4: 中文本地化
 - [x] 审查现有中文翻译（发现 20+ 个未翻译项）
 - [x] 补充缺失的翻译项（resumeTransfer/overrideAll/replaceOrSkip 等）
-- [ ] 测试全中文界面
+- [x] 测试全中文界面（第 18 轮：285/285 keys 对齐 + 14 个硬编码 i18n 化）
 
 ## Phase 3: 功能增强 (P2)
 
 ### F5: 文件预览增强
-- [ ] 代码语法高亮优化
-- [ ] PDF 预览优化
-- [ ] 图片预览优化
+- [x] 代码语法高亮优化
+- [x] PDF 预览优化
+- [x] 图片预览优化
 
 ### F6: 批量操作优化
-- [ ] 批量选择体验优化
-- [ ] 批量操作 UI 优化
+- [x] 批量选择体验优化
+- [x] 批量操作 UI 优化
 
 ## 执行策略
 
