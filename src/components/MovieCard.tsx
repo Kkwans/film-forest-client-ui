@@ -27,11 +27,17 @@ interface MovieCardProps {
   duration?: number;
   href: string;
   showCollect?: boolean;
-  // Pre-fetched movie status: which list this movie is in
   movieStatus?: { listType: string; listName: string } | null;
 }
 
-
+/** 获取评分颜色 */
+function getRatingColor(rating: number): string {
+  if (rating >= 9) return 'var(--rating-9)';
+  if (rating >= 8) return 'var(--rating-8)';
+  if (rating >= 7) return 'var(--rating-7)';
+  if (rating >= 6) return 'var(--rating-6)';
+  return 'var(--rating-low)';
+}
 
 export default function MovieCard({
   id,
@@ -59,13 +65,11 @@ export default function MovieCard({
 
   const statusConfig = movieStatus?.listType ? getStatusConfig(movieStatus.listType) : null;
 
-  // Single click: toggle want_to_watch or show toast for other statuses
   const handleSingleClick = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!isAuthenticated || toggling) return;
 
-    // If in watching or watched, show toast
     if (movieStatus?.listType === 'watching' || movieStatus?.listType === 'watched') {
       showToast(`该影片已被标记为${movieStatus.listName}`, 'warning');
       return;
@@ -79,11 +83,9 @@ export default function MovieCard({
       if (!wantList) { setToggling(false); return; }
 
       if (movieStatus?.listType === 'want_to_watch') {
-        // Already in want_to_watch → remove
         await listApi.removeItem(wantList.id, { movieId: id, contentType });
         showToast('已从想看移除', 'error');
       } else {
-        // Not in any default list → add to want_to_watch
         await listApi.addItem(wantList.id, { movieId: id, contentType });
         showToast('已加入想看', 'success');
       }
@@ -95,17 +97,14 @@ export default function MovieCard({
     }
   }, [isAuthenticated, toggling, id, contentType, movieStatus, showToast]);
 
-  // Handle click with delay to distinguish single/double
   const handleCollectClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (clickTimer.current) {
-      // Double click → open modal
       clearTimeout(clickTimer.current);
       clickTimer.current = null;
       setCollectOpen(true);
     } else {
-      // Single click → add to want_to_watch or show toast
       clickTimer.current = setTimeout(() => {
         clickTimer.current = null;
         handleSingleClick(e);
@@ -113,7 +112,6 @@ export default function MovieCard({
     }
   }, [handleSingleClick]);
 
-  // Normalize region and genre
   const regionArr = parseRegion(region);
   const genreArr = parseGenre(genre);
   const regionDisplay = regionArr.length > 0 ? regionArr[0] : '';
@@ -131,7 +129,6 @@ export default function MovieCard({
     setNavigating(true);
   };
 
-  // Render collect/status button
   const renderCollectButton = () => {
     if (!showCollect) return null;
     return (
@@ -140,7 +137,7 @@ export default function MovieCard({
         onClick={handleCollectClick}
         onDoubleClick={handleCollectClick}
         size="sm"
-        className="absolute top-1 left-1 z-10"
+        className="absolute top-1.5 left-1.5 z-10"
         loading={toggling}
       />
     );
@@ -164,20 +161,17 @@ export default function MovieCard({
           backgroundColor: 'var(--bg-card)',
           borderColor: 'var(--border-color)',
           opacity: navigating ? 0.7 : 1,
-          transition: 'opacity 0.15s ease',
+          transition: 'opacity 0.15s ease, transform 0.2s ease, box-shadow 0.2s ease',
         }}
       >
         {navigating && (
           <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
-            <div
-              className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin"
-
-            />
+            <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
         {/* Poster */}
-        <div className="relative aspect-[2/3] overflow-hidden">
+        <div className="relative aspect-[2/3] overflow-hidden poster-gradient">
           <LazyImage
             src={cover || fallbackCover}
             alt={title}
@@ -188,18 +182,21 @@ export default function MovieCard({
             fallbackSrc={`https://picsum.photos/seed/${id}/300/450`}
             rootMargin="300px"
           />
+          {/* Rating badge - enhanced */}
           {rating != null && (
             <span
-              className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold text-white"
-
+              className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold text-white backdrop-blur-sm shadow-sm"
+              style={{
+                background: `linear-gradient(135deg, ${getRatingColor(rating)}dd, ${getRatingColor(rating)})`,
+              }}
             >
-              {rating.toFixed(1)}
+              ★ {rating.toFixed(1)}
             </span>
           )}
           {renderCollectButton()}
           {status && (
             <span
-              className="absolute top-2 left-2 px-1.5 py-0.5 rounded text-xs font-medium text-white"
+              className="absolute top-2 left-10 px-1.5 py-0.5 rounded text-xs font-medium text-white"
               style={{
                 backgroundColor:
                   status === '更新中' || status === '连载中'
@@ -213,29 +210,29 @@ export default function MovieCard({
             </span>
           )}
           {badgeText && (
-            <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded text-xs font-medium text-white bg-black/60 backdrop-blur-sm">
+            <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md text-[11px] font-medium text-white bg-black/60 backdrop-blur-sm">
               {badgeText}
             </span>
           )}
         </div>
 
         {/* Info */}
-        <div className="p-2 md:p-3 flex flex-col gap-1" style={{ minHeight: '72px' }}>
-          <p
-            className="font-medium text-xs md:text-sm truncate min-w-0 group-hover:text-[var(--accent)] transition-colors"
-
-          >
+        <div className="p-2.5 md:p-3 flex flex-col gap-1" style={{ minHeight: '76px' }}>
+          <p className="font-semibold text-xs md:text-sm truncate min-w-0 group-hover:text-[var(--accent)] transition-colors">
             {cleanTitle || '\u00A0'}
           </p>
 
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {year ? (
-              <span className="text-[10px] md:text-xs text-muted-foreground" >
+              <span className="text-[10px] md:text-xs text-muted-foreground">
                 {year}
               </span>
             ) : null}
+            {year && regionDisplay ? (
+              <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground" />
+            ) : null}
             {regionDisplay ? (
-              <span className="text-[10px] md:text-xs truncate max-w-[5em] text-muted-foreground" >
+              <span className="text-[10px] md:text-xs truncate max-w-[5em] text-muted-foreground">
                 {regionDisplay}
               </span>
             ) : null}

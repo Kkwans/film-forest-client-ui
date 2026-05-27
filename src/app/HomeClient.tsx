@@ -34,7 +34,17 @@ const TYPE_HREF: Record<string, string> = {
   short_drama: '/short',
 };
 
-function HorizontalSection({ title, href, items, type, hasError }: { title: string; href: string; items: ContentItem[]; type: string; hasError?: boolean }) {
+/** 统计数字展示 */
+function StatBadge({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-lg md:text-2xl font-bold text-accent">{value}</span>
+      <span className="text-[10px] md:text-xs text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function HorizontalSection({ title, href, items, type, hasError, sectionIndex }: { title: string; href: string; items: ContentItem[]; type: string; hasError?: boolean; sectionIndex?: number }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scroll = (dir: 'left' | 'right') => {
     if (scrollRef.current) scrollRef.current.scrollBy({ left: dir === 'left' ? -400 : 400, behavior: 'smooth' });
@@ -42,9 +52,9 @@ function HorizontalSection({ title, href, items, type, hasError }: { title: stri
   if (items.length === 0 && !hasError) return null;
   if (items.length === 0 && hasError) {
     return (
-      <section>
+      <section className={`animate-fade-in-up ${sectionIndex ? `stagger-${Math.min(sectionIndex, 12)}` : ''}`}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-foreground">{title}</h2>
+          <h2 className="text-xl font-bold text-foreground section-accent-line pb-2">{title}</h2>
           <Link href={href} className="text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all text-accent">更多<svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg></Link>
         </div>
         <div className="flex items-center justify-center py-12 rounded-xl border border-border bg-card">
@@ -63,19 +73,21 @@ function HorizontalSection({ title, href, items, type, hasError }: { title: stri
   const statusMap = useMovieStatuses(movieIds, type);
 
   return (
-    <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-foreground" >{title}</h2>
-        <Link href={href} className="text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all text-accent" >
+    <section className={`animate-fade-in-up ${sectionIndex ? `stagger-${Math.min(sectionIndex, 12)}` : ''}`}>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xl font-bold text-foreground section-accent-line pb-2">{title}</h2>
+        <Link href={href} className="text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all text-accent group/link">
           更多
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          <svg className="w-4 h-4 transition-transform group-hover/link:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
         </Link>
       </div>
 
       {/* PC: grid 2 rows x 6 cols */}
-      <div className="hidden md:grid grid-cols-6 gap-3">
-        {displayItems.map((item) => (
-          <MovieCard key={`${type}-${item.id}`} id={item.id} title={item.title} cover={item.cover} year={item.year} region={item.region} rating={item.rating} genre={item.genre} type={type} duration={item.duration} episodes={item.episodes} href={`/${type}/${item.id}`} movieStatus={statusMap[item.id] || null} />
+      <div className="hidden md:grid grid-cols-6 gap-3.5">
+        {displayItems.map((item, idx) => (
+          <div key={`${type}-${item.id}`} className={`animate-fade-in-up stagger-${Math.min(idx + 1, 12)}`}>
+            <MovieCard id={item.id} title={item.title} cover={item.cover} year={item.year} region={item.region} rating={item.rating} genre={item.genre} type={type} duration={item.duration} episodes={item.episodes} href={`/${type}/${item.id}`} movieStatus={statusMap[item.id] || null} />
+          </div>
         ))}
       </div>
 
@@ -96,15 +108,14 @@ function HorizontalSection({ title, href, items, type, hasError }: { title: stri
 
 /**
  * 跨类型推荐区域
- * 将多个类型的推荐内容混合展示，每个类型最多 3 条
  */
-function RecommendSection({ title, icon, data, hasError }: {
+function RecommendSection({ title, icon, data, hasError, sectionIndex }: {
   title: string;
   icon: string;
   data: Record<string, ContentItem[]>;
   hasError?: boolean;
+  sectionIndex?: number;
 }) {
-  // 将各类型数据混合，每类型最多取 3 条
   const mixedItems = useMemo(() => {
     const items: Array<ContentItem & { type: string }> = [];
     for (const [type, typeItems] of Object.entries(data)) {
@@ -119,7 +130,7 @@ function RecommendSection({ title, icon, data, hasError }: {
 
   if (mixedItems.length === 0 && hasError) {
     return (
-      <section>
+      <section className={`animate-fade-in-up ${sectionIndex ? `stagger-${Math.min(sectionIndex, 12)}` : ''}`}>
         <div className="flex items-center gap-2 mb-4">
           <span className="text-xl">{icon}</span>
           <h2 className="text-xl font-bold text-foreground">{title}</h2>
@@ -132,29 +143,30 @@ function RecommendSection({ title, icon, data, hasError }: {
   }
 
   return (
-    <section>
-      <div className="flex items-center gap-2 mb-4">
+    <section className={`animate-fade-in-up ${sectionIndex ? `stagger-${Math.min(sectionIndex, 12)}` : ''}`}>
+      <div className="flex items-center gap-2.5 mb-5">
         <span className="text-xl">{icon}</span>
-        <h2 className="text-xl font-bold text-foreground">{title}</h2>
+        <h2 className="text-xl font-bold text-foreground section-accent-line pb-2">{title}</h2>
       </div>
 
       {/* PC: grid */}
-      <div className="hidden md:grid grid-cols-6 gap-3">
-        {mixedItems.slice(0, 12).map((item) => (
-          <MovieCard
-            key={`rec-${item.type}-${item.id}`}
-            id={item.id}
-            title={item.title}
-            cover={item.cover}
-            year={item.year}
-            region={item.region}
-            rating={item.rating}
-            genre={item.genre}
-            type={item.type}
-            episodes={item.episodes}
-            href={`/${item.type}/${item.id}`}
-            movieStatus={null}
-          />
+      <div className="hidden md:grid grid-cols-6 gap-3.5">
+        {mixedItems.slice(0, 12).map((item, idx) => (
+          <div key={`rec-${item.type}-${item.id}`} className={`animate-fade-in-up stagger-${Math.min(idx + 1, 12)}`}>
+            <MovieCard
+              id={item.id}
+              title={item.title}
+              cover={item.cover}
+              year={item.year}
+              region={item.region}
+              rating={item.rating}
+              genre={item.genre}
+              type={item.type}
+              episodes={item.episodes}
+              href={`/${item.type}/${item.id}`}
+              movieStatus={null}
+            />
+          </div>
         ))}
       </div>
 
@@ -193,18 +205,44 @@ export default function HomeClient({ initialMovies, initialDramas, initialVariet
 }) {
   return (
     <div className="flex flex-col gap-10">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-2xl border border-border" style={{ background: 'linear-gradient(135deg, var(--bg-secondary), var(--bg-card))' }}>
-        <div className="relative px-6 py-6 md:px-16 md:py-14">
+      {/* Hero - Enhanced */}
+      <section className="relative overflow-hidden rounded-2xl border border-border hero-gradient">
+        {/* Floating decorative elements */}
+        <div className="absolute top-4 right-8 w-20 h-20 rounded-full opacity-10 animate-float" style={{ background: 'var(--accent)' }} />
+        <div className="absolute bottom-6 right-24 w-12 h-12 rounded-full opacity-[0.06] animate-float-delayed" style={{ background: 'var(--accent)' }} />
+        <div className="absolute top-12 right-40 w-6 h-6 rounded-full opacity-[0.08] animate-float" style={{ background: 'var(--accent)', animationDelay: '1s' }} />
+
+        <div className="relative px-6 py-8 md:px-16 md:py-16">
           <div className="max-w-2xl">
-            <div className="inline-block px-3 py-1 rounded-full text-xs font-medium mb-4 bg-accent-light text-accent" >影视资源聚合平台</div>
-            <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight text-foreground" >
-              发现精彩<span className="text-accent" >影视世界</span>
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold mb-5 bg-accent-light text-accent border border-accent/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              影视资源聚合平台
+            </div>
+            <h1 className="text-3xl md:text-5xl font-extrabold mb-4 leading-tight text-foreground tracking-tight">
+              发现精彩<span className="text-accent">影视世界</span>
             </h1>
-            <p className="text-base md:text-lg mb-6 md:mb-8 text-secondary-foreground" >聚合全网优质影视资源，电影、剧集、综艺、动漫一网打尽</p>
+            <p className="text-base md:text-lg mb-3 text-secondary-foreground leading-relaxed">
+              聚合全网优质影视资源，电影、剧集、综艺、动漫一网打尽
+            </p>
+
+            {/* Stats */}
+            <div className="flex items-center gap-6 mb-6 md:mb-8">
+              <StatBadge value="5大" label="内容分类" />
+              <div className="w-px h-8 bg-border" />
+              <StatBadge value="实时" label="热度推荐" />
+              <div className="w-px h-8 bg-border" />
+              <StatBadge value="免费" label="在线观看" />
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/movie" className="inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-colors text-sm text-white bg-accent">探索电影</Link>
-              <Link href="/search" className="inline-flex items-center justify-center px-6 py-3 rounded-full font-medium transition-colors text-sm border border-border text-secondary-foreground" >搜索影视</Link>
+              <Link href="/movie" className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full font-semibold transition-all text-sm text-white bg-accent hover:bg-accent-hover hover:shadow-lg hover:shadow-accent/25 active:scale-[0.97]">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                探索电影
+              </Link>
+              <Link href="/search" className="inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full font-semibold transition-all text-sm border border-border text-secondary-foreground hover:bg-card hover:border-accent/30 active:scale-[0.97]">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                搜索影视
+              </Link>
             </div>
           </div>
         </div>
@@ -212,18 +250,18 @@ export default function HomeClient({ initialMovies, initialDramas, initialVariet
 
       {/* 推荐区域 */}
       {recommendHot && Object.keys(recommendHot).length > 0 && (
-        <RecommendSection title="热门推荐" icon="🔥" data={recommendHot} hasError={errors?.recommend} />
+        <RecommendSection title="热门推荐" icon="🔥" data={recommendHot} hasError={errors?.recommend} sectionIndex={1} />
       )}
       {recommendLatest && Object.keys(recommendLatest).length > 0 && (
-        <RecommendSection title="最新更新" icon="🆕" data={recommendLatest} hasError={errors?.recommend} />
+        <RecommendSection title="最新更新" icon="🆕" data={recommendLatest} hasError={errors?.recommend} sectionIndex={2} />
       )}
 
       {/* 分类列表 */}
-      <HorizontalSection title="热门电影" href="/movie" items={initialMovies} type="movie" hasError={errors?.movies} />
-      <HorizontalSection title="热播剧集" href="/drama" items={initialDramas} type="drama" hasError={errors?.dramas} />
-      <HorizontalSection title="热门综艺" href="/variety" items={initialVarieties} type="variety" hasError={errors?.varieties} />
-      <HorizontalSection title="最新动漫" href="/anime" items={initialAnimes} type="anime" hasError={errors?.animes} />
-      <HorizontalSection title="短剧推荐" href="/short" items={initialShorts} type="short" hasError={errors?.shorts} />
+      <HorizontalSection title="热门电影" href="/movie" items={initialMovies} type="movie" hasError={errors?.movies} sectionIndex={3} />
+      <HorizontalSection title="热播剧集" href="/drama" items={initialDramas} type="drama" hasError={errors?.dramas} sectionIndex={4} />
+      <HorizontalSection title="热门综艺" href="/variety" items={initialVarieties} type="variety" hasError={errors?.varieties} sectionIndex={5} />
+      <HorizontalSection title="最新动漫" href="/anime" items={initialAnimes} type="anime" hasError={errors?.animes} sectionIndex={6} />
+      <HorizontalSection title="短剧推荐" href="/short" items={initialShorts} type="short" hasError={errors?.shorts} sectionIndex={7} />
     </div>
   );
 }
