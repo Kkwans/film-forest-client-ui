@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import LazyImage from '@/components/ui/lazy-image';
+import Dialog from '@/components/Dialog';
 import { usePlayHistoryStore, type PlayHistoryItem } from '@/stores/playHistoryStore';
 
 /** 格式化相对时间 */
@@ -148,6 +150,7 @@ export default function ContinueWatching() {
   const history = usePlayHistoryStore((s) => s.history);
   const remove = usePlayHistoryStore((s) => s.remove);
   const clear = usePlayHistoryStore((s) => s.clear);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   if (history.length === 0) return null;
 
@@ -159,9 +162,7 @@ export default function ContinueWatching() {
           继续观看
         </h2>
         <button
-          onClick={() => {
-            if (confirm('确定清空所有播放记录？')) clear();
-          }}
+          onClick={() => setClearDialogOpen(true)}
           className="text-xs text-muted-foreground hover:text-accent transition-colors"
         >
           清空记录
@@ -178,6 +179,16 @@ export default function ContinueWatching() {
           />
         ))}
       </div>
+
+      <Dialog
+        open={clearDialogOpen}
+        onClose={() => setClearDialogOpen(false)}
+        onConfirm={() => { clear(); setClearDialogOpen(false); }}
+        title="清空播放记录"
+        message="确定清空所有播放记录？此操作不可撤销。"
+        confirmText="清空"
+        variant="danger"
+      />
     </section>
   );
 }

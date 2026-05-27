@@ -14,46 +14,15 @@ export default function Error({
   }, [error]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "60vh",
-        textAlign: "center",
-        padding: "1rem",
-      }}
-    >
-      <div style={{ fontSize: "3.5rem", marginBottom: "1.5rem" }}>😵</div>
-      <h2
-        style={{
-          fontSize: "1.25rem",
-          fontWeight: 700,
-          marginBottom: "0.5rem",
-          color: "var(--text-primary)",
-        }}
-      >
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+      <div className="text-5xl mb-6">😵</div>
+      <h2 className="text-xl font-bold mb-2" style={{ color: "var(--text-primary)" }}>
         页面加载失败
       </h2>
-      <p
-        style={{
-          fontSize: "0.875rem",
-          color: "var(--text-secondary)",
-          marginBottom: "1.5rem",
-          maxWidth: "28rem",
-        }}
-      >
+      <p className="text-sm mb-6 max-w-md" style={{ color: "var(--text-secondary)" }}>
         {error.message || "该页面遇到了意外错误，请尝试刷新"}
         {error.digest && (
-          <span
-            style={{
-              display: "block",
-              fontSize: "0.75rem",
-              marginTop: "0.25rem",
-              opacity: 0.6,
-            }}
-          >
+          <span className="block text-xs mt-1 opacity-60">
             错误ID: {error.digest}
           </span>
         )}
@@ -63,17 +32,17 @@ export default function Error({
           onClick={reset}
           className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors hover:opacity-80"
           style={{
-            borderColor: 'var(--border-color)',
-            backgroundColor: 'var(--bg-secondary)',
-            color: 'var(--text-primary)',
+            borderColor: "var(--border-color)",
+            backgroundColor: "var(--bg-secondary)",
+            color: "var(--text-primary)",
           }}
         >
           🔄 重试
         </button>
         <button
-          onClick={() => (window.location.href = '/')}
+          onClick={() => (window.location.href = "/")}
           className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--accent)' }}
+          style={{ backgroundColor: "var(--accent)" }}
         >
           🏠 回到首页
         </button>

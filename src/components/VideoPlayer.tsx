@@ -185,7 +185,7 @@ export default function VideoPlayer({
               allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
               onLoad={() => setIframeLoaded(true)}
               onError={() => setIframeError(true)}
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
             />
 
             {/* 加载失败 */}

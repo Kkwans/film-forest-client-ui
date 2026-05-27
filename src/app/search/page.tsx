@@ -14,7 +14,7 @@ import { StatusIconButton, TypeBadge, GenreTags } from '@/components/ContentShar
 import { useUserStore } from '@/stores/userStore';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
 import { useToast } from '@/components/Toast';
-import { listApi } from '@/lib/userApi';
+import { listApi, type UserList } from '@/lib/userApi';
 import dynamic from 'next/dynamic';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
@@ -65,7 +65,9 @@ function HighlightText({ text, keyword }: { text: string; keyword: string }) {
   return (
     <>
       {parts.map((part, i) =>
-        regex.test(part) ? (
+        // Use index-based check: odd indices are the matched groups from split()
+        // Avoids regex.test() stateful lastIndex bug with 'g' flag
+        i % 2 === 1 ? (
           <mark key={i} className="bg-transparent font-semibold" style={{ color: 'var(--accent)' }}>
             {part}
           </mark>
@@ -424,7 +426,7 @@ function SearchContent() {
 
     listApi.getAll().then(res => {
       const lists = res.data.data || res.data;
-      const wantList = Array.isArray(lists) ? lists.find((l: any) => l.type === 'want_to_watch') : null;
+      const wantList = Array.isArray(lists) ? lists.find((l: UserList) => l.type === 'want_to_watch') : null;
       if (wantList) {
         listApi.addItem(wantList.id, { movieId: item.id, contentType: item.type === 'short_drama' ? 'short_drama' : item.type });
         showToast('已加入想看', 'success');

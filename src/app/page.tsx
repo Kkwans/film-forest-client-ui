@@ -20,18 +20,19 @@ interface ContentItem {
   duration?: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapItem(m: any, type: string): ContentItem {
   return {
-    id: m.id,
-    title: m.title,
-    cover: m.posterUrl || m.cover || '',
-    year: m.year || 0,
+    id: m.id as number,
+    title: m.title as string,
+    cover: (m.posterUrl || m.cover || '') as string,
+    year: (m.year || 0) as number,
     region: parseRegion(m.region),
-    rating: m.scoreDouban || m.scoreImdb || undefined,
+    rating: (m.scoreDouban || m.scoreImdb || undefined) as number | undefined,
     genre: parseGenre(m.genre),
     status: m.status === 1 ? '在映' : undefined,
-    episodes: m.totalEpisode || m.episodes || undefined,
-    duration: m.duration || undefined,
+    episodes: (m.totalEpisode || m.episodes || undefined) as number | undefined,
+    duration: (m.duration || undefined) as number | undefined,
   };
 }
 
@@ -46,7 +47,7 @@ async function fetchItems(url: string): Promise<FetchResult> {
     if (!res.ok) return { items: [], error: true };
     const data = await res.json();
     const raw = data?.data?.records || data?.data || [];
-    return { items: raw.map((m: any) => mapItem(m, '')), error: false };
+    return { items: raw.map((m: any) => mapItem(m, '')), error: false };  // eslint-disable-line @typescript-eslint/no-explicit-any
   } catch {
     return { items: [], error: true };
   }

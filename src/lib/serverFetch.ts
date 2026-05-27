@@ -31,8 +31,9 @@ export async function fetchContentList(
 ): Promise<FetchResult> {
   const size = options?.size ?? 24;
   try {
+    const baseUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
     const res = await fetch(
-      `http://localhost:8080${apiPath}?page=1&size=${size}`,
+      `${baseUrl}${apiPath}?page=1&size=${size}`,
       { next: { revalidate: 300 } }
     );
     const data = await res.json();

@@ -196,7 +196,7 @@ export default function MovieCard({
           {renderCollectButton()}
           {status && (
             <span
-              className="absolute top-2 left-10 px-1.5 py-0.5 rounded text-xs font-medium text-white"
+              className={`absolute top-2 ${showCollect ? 'left-10' : 'left-2'} px-1.5 py-0.5 rounded text-xs font-medium text-white`}
               style={{
                 backgroundColor:
                   status === '更新中' || status === '连载中'

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useUserStore } from '@/stores/userStore';
 import { searchApi } from '@/lib/api';
@@ -25,6 +25,7 @@ function AvatarFallback({ name }: { name?: string }) {
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const [keyword, setKeyword] = useState('');
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -65,7 +66,7 @@ export default function Header() {
     e.preventDefault();
     if (keyword.trim()) {
       setShowSuggestions(false);
-      window.location.href = `/search?q=${encodeURIComponent(keyword.trim())}`;
+      router.push(`/search?q=${encodeURIComponent(keyword.trim())}`);
     }
   };
 
@@ -88,7 +89,7 @@ export default function Header() {
   const handleSuggestionClick = (kw: string) => {
     setKeyword(kw);
     setShowSuggestions(false);
-    window.location.href = `/search?q=${encodeURIComponent(kw)}`;
+    router.push(`/search?q=${encodeURIComponent(kw)}`);
   };
 
   const isActive = (href: string) => {
@@ -280,7 +281,7 @@ export default function Header() {
                       我的
                     </Link>
                     <button
-                      onClick={() => { setUserMenuOpen(false); logout(); window.location.href = '/'; }}
+                      onClick={() => { setUserMenuOpen(false); logout(); router.push('/'); }}
                       className="block w-full text-left px-4 py-2 text-sm transition-colors hover:opacity-80"
 
                     >

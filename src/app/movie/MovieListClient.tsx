@@ -80,7 +80,7 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
       const res = await fetch(`${apiBase}?${qs}`);
       const data = await res.json();
       const raw = data?.data?.records || data?.data || [];
-      setItems(raw.map((m: any) => ({
+      setItems(raw.map((m: any) => ({  // eslint-disable-line @typescript-eslint/no-explicit-any
         id: m.id,
         title: m.title,
         cover: m.posterUrl || m.cover || '',
@@ -133,7 +133,7 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
     fetch(`/api/tags/${selectedTagId}/content?contentType=${contentType}&size=500`)
       .then(r => r.json())
       .then(data => {
-        const ids = (data?.data || []).map((item: any) => item.contentId);
+        const ids = (data?.data || []).map((item: any) => item.contentId);  // eslint-disable-line @typescript-eslint/no-explicit-any
         setTagContentIds(ids);
       })
       .catch(() => setTagContentIds([]));

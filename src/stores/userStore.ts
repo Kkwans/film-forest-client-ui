@@ -40,9 +40,15 @@ export const useUserStore = create<UserState>()(
 
       register: async (username, password, email?) => {
         const res = await userApi.register({ username, password, email });
-        const body = (res.data as unknown) as { token?: string; user?: User };
-        const token = body.token ?? '';
-        const user = body.user;
+        const body = (res.data as unknown) as { code?: number; message?: string; data?: { token: string; user: User } };
+        if (body.code && body.code !== 200) {
+          throw new Error(body.message || '注册失败');
+        }
+        const token = body.data?.token ?? '';
+        const user = body.data?.user;
+        if (!token) {
+          throw new Error('注册失败，未获取到token');
+        }
         localStorage.setItem('ff_token', token);
         set({ user: user ?? null, token, isAuthenticated: true });
       },
