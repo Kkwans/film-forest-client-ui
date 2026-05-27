@@ -58,9 +58,11 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
 
   if (!movie) {
     return (
-      <div className="text-center py-16">
-        <p className="text-secondary-foreground" >电影不存在</p>
-        <Link href="/movie" className="text-sm mt-4 inline-block bg-accent" >← 返回电影列表</Link>
+      <div className="text-center py-20">
+        <p className="text-5xl mb-4">🎬</p>
+        <p className="text-lg font-medium text-foreground mb-2">电影不存在</p>
+        <p className="text-sm text-muted-foreground mb-6">抱歉，您查找的内容暂时不可用</p>
+        <Link href="/movie" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover transition-colors shadow-sm">← 返回电影列表</Link>
       </div>
     );
   }
