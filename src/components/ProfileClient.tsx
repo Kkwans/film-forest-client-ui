@@ -273,34 +273,40 @@ function HistoryTab() {
       const allLists = (res.data.data || res.data) as UserList[];
       if (!Array.isArray(allLists)) { setItems([]); return; }
 
-      // 从所有默认片单中获取条目，按时间倒序
+      // 从所有默认片单中并行获取条目
       const defaultLists = allLists.filter((l) => l.isDefault === 1);
       const allItems: HistoryItem[] = [];
 
-      for (const list of defaultLists) {
-        try {
-          const itemsRes = await listApi.getItems(list.id, { page: 1, size: 20, sort: 'addedAt', sortDir: 'desc' });
-          const pageData = itemsRes.data.data || itemsRes.data;
-          const records = (pageData as { records?: HistoryItem[] }).records || [];
-          const actionLabel = list.type === 'want_to_watch' ? '想看' : list.type === 'watching' ? '在看' : list.type === 'watched' ? '看过' : '收藏';
+      const results = await Promise.allSettled(
+        defaultLists.map((list) =>
+          listApi.getItems(list.id, { page: 1, size: 20, sort: 'addedAt', sortDir: 'desc' })
+            .then((itemsRes) => ({ list, itemsRes }))
+        )
+      );
 
-          for (const item of records) {
-            allItems.push({
-              id: item.id,
-              movieId: item.movieId,
-              contentType: item.contentType,
-              title: item.title,
-              cover: item.cover,
-              year: item.year,
-              rating: item.rating,
-              addedAt: item.addedAt,
-              action: actionLabel,
-              listType: list.type,
-              region: item.region,
-              genre: item.genre,
-            });
-          }
-        } catch { /* skip failed list */ }
+      for (const result of results) {
+        if (result.status !== 'fulfilled') continue;
+        const { list, itemsRes } = result.value;
+        const pageData = itemsRes.data.data || itemsRes.data;
+        const records = (pageData as { records?: HistoryItem[] }).records || [];
+        const actionLabel = list.type === 'want_to_watch' ? '想看' : list.type === 'watching' ? '在看' : list.type === 'watched' ? '看过' : '收藏';
+
+        for (const item of records) {
+          allItems.push({
+            id: item.id,
+            movieId: item.movieId,
+            contentType: item.contentType,
+            title: item.title,
+            cover: item.cover,
+            year: item.year,
+            rating: item.rating,
+            addedAt: item.addedAt,
+            action: actionLabel,
+            listType: list.type,
+            region: item.region,
+            genre: item.genre,
+          });
+        }
       }
 
       // 按时间倒序排列

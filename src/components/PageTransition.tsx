@@ -9,6 +9,8 @@ export default function PageTransition() {
 
   useEffect(() => {
     setLoading(true);
+    // Scroll to top on page navigation
+    window.scrollTo({ top: 0, behavior: 'instant' });
     const timer = setTimeout(() => setLoading(false), 300);
     return () => clearTimeout(timer);
   }, [pathname]);

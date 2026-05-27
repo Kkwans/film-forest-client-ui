@@ -58,38 +58,22 @@ export default function Error({
           </span>
         )}
       </p>
-      <div style={{ display: "flex", gap: "0.75rem" }}>
+      <div className="flex gap-3">
         <button
           onClick={reset}
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-medium border transition-colors hover:opacity-80"
           style={{
-            padding: "0.5rem 1.25rem",
-            borderRadius: "0.5rem",
-            border: "1px solid var(--border-color)",
-            backgroundColor: "var(--bg-secondary)",
-            color: "var(--text-primary)",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.375rem",
+            borderColor: 'var(--border-color)',
+            backgroundColor: 'var(--bg-secondary)',
+            color: 'var(--text-primary)',
           }}
         >
           🔄 重试
         </button>
         <button
-          onClick={() => (window.location.href = "/")}
-          style={{
-            padding: "0.5rem 1.25rem",
-            borderRadius: "0.5rem",
-            border: "none",
-            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            color: "#fff",
-            cursor: "pointer",
-            fontSize: "0.875rem",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "0.375rem",
-          }}
+          onClick={() => (window.location.href = '/')}
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: 'var(--accent)' }}
         >
           🏠 回到首页
         </button>

@@ -133,16 +133,20 @@ export default function VideoPlayer({
       }
       if (e.key === 'ArrowLeft' || e.key === '[') {
         e.preventDefault();
-        goPrev();
+        if (episode != null && episode > 1 && onEpisodeChange) {
+          onEpisodeChange(episode - 1);
+        }
       }
       if (e.key === 'ArrowRight' || e.key === ']') {
         e.preventDefault();
-        goNext();
+        if (episode != null && totalEpisodes != null && episode < totalEpisodes && onEpisodeChange) {
+          onEpisodeChange(episode + 1);
+        }
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  });
+  }, [toggleFullscreen, episode, totalEpisodes, onEpisodeChange]);
 
   const displayTitle = episode ? `第${episode}${episodeLabel}` : title;
 

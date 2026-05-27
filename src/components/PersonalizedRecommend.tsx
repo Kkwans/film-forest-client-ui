@@ -35,29 +35,6 @@ interface ContentItem {
 }
 
 /**
- * 从播放历史中提取用户偏好的类型（Top 5）
- */
-function extractTopGenres(history: Array<{ contentType: string }>, allItems: RecommendItem[]): string[] {
-  const genreCount: Record<string, number> = {};
-
-  // 从播放历史的内容中提取类型
-  // 由于播放历史不存 genre，我们通过已有的推荐数据来推断
-  // 但如果历史太少，直接返回空（用通用热门推荐）
-  if (history.length < 2) return [];
-
-  // 统计各类型出现次数
-  for (const item of history) {
-    genreCount[item.contentType] = (genreCount[item.contentType] || 0) + 1;
-  }
-
-  // 返回出现最多的类型
-  return Object.entries(genreCount)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([type]) => type);
-}
-
-/**
  * 个性化推荐组件
  * 基于用户播放历史推荐相关内容
  */
