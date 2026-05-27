@@ -187,6 +187,10 @@ export interface RecommendData {
 export const recommendApi = {
   get: (topN?: number) =>
     client.get<Result<RecommendData>>('/api/recommend', { params: { topN } }),
+
+  /** 个性化推荐：基于用户偏好类型 */
+  personalized: (params: { genres?: string; region?: string; excludeIds?: string; limit?: number }) =>
+    client.get<Result<RecommendItem[]>>('/api/recommend/personalized', { params }),
 };
 
 export interface RelatedItem {

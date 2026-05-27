@@ -4,6 +4,7 @@ import { useRef, useMemo } from 'react';
 import Link from 'next/link';
 import MovieCard from '@/components/MovieCard';
 import ContinueWatching from '@/components/ContinueWatching';
+import PersonalizedRecommend from '@/components/PersonalizedRecommend';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
 
 interface ContentItem {
@@ -251,6 +252,9 @@ export default function HomeClient({ initialMovies, initialDramas, initialVariet
 
       {/* 继续观看 */}
       <ContinueWatching />
+
+      {/* 个性化推荐 */}
+      <PersonalizedRecommend />
 
       {/* 推荐区域 */}
       {recommendHot && Object.keys(recommendHot).length > 0 && (
