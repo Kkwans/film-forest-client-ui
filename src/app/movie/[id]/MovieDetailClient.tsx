@@ -73,7 +73,7 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
         { label: movie.title },
       ]} />
 
-      <div className="flex flex-col sm:flex-row gap-6">
+      <div className="flex flex-col sm:flex-row gap-6 animate-fade-in-up stagger-3">
         <DetailCover src={movie.cover} alt={movie.title} seed={`m${movie.id}`} />
         <div className="flex-1 flex flex-col gap-3 min-w-0">
           <DetailTitle title={cleanTitleUtil(movie.title)} year={movie.year} />
@@ -85,9 +85,8 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
             onWatchedEdit={ds.handleWatchedEdit} onCollectOpen={() => ds.setCollectOpen(true)} />
 
           <RatingBadges douban={movie.rating} imdb={movie.ratingImdb} rt={movie.ratingRT} />
-          <RatingDistribution douban={movie.rating} imdb={movie.ratingImdb} rt={movie.ratingRT} />
 
-          <div className="mt-2 space-y-2">
+          <div className="mt-2 space-y-2 animate-fade-in-up stagger-4">
             {movie.aka.length > 0 && <InfoRow label="又名">{movie.aka.join(' / ')}</InfoRow>}
             {movie.director.length > 0 && <InfoRow label="导演" accent>{movie.director.join(' / ')}</InfoRow>}
             {movie.writer && movie.writer.length > 0 && <InfoRow label="编剧">{movie.writer.join(' / ')}</InfoRow>}
@@ -113,6 +112,10 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
         expanded={synopsisExpanded}
         onToggle={() => setSynopsisExpanded(!synopsisExpanded)}
       />
+
+      <div className="animate-fade-in-up stagger-7">
+        <RatingDistribution douban={movie.rating} imdb={movie.ratingImdb} rt={movie.ratingRT} />
+      </div>
 
       <ResourceTabs
         tabs={[
@@ -141,7 +144,9 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
         )}
       </ResourceTabs>
 
-      <RelatedSection contentType="movie" contentId={movie.id} />
+      <div className="animate-fade-in-up stagger-10">
+        <RelatedSection contentType="movie" contentId={movie.id} />
+      </div>
     </div>
   );
 }

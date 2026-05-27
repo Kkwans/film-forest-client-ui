@@ -61,7 +61,10 @@ export default function RatingDistribution({
 
   return (
     <section className="rounded-xl p-5 border">
-      <h2 className="text-lg font-bold mb-4 text-foreground">评分对比</h2>
+      <h2 className="text-lg font-bold mb-4 text-foreground flex items-center gap-2">
+        <span className="w-1 h-5 bg-accent rounded-full" />
+        评分对比
+      </h2>
       <div className="space-y-4">
         {ratings.map((r) => {
           const percent = (r.value / r.maxValue) * 100;
@@ -74,11 +77,11 @@ export default function RatingDistribution({
                 </span>
               </div>
               <div
-                className="h-3 rounded-full overflow-hidden"
+                className="h-3 rounded-full overflow-hidden shadow-inner"
                 style={{ backgroundColor: r.bgColor }}
               >
                 <div
-                  className="h-full rounded-full transition-all duration-700 ease-out"
+                  className="h-full rounded-full transition-all duration-700 ease-out shadow-sm"
                   style={{
                     width: `${percent}%`,
                     backgroundColor: r.color,

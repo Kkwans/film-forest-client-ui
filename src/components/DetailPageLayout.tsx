@@ -166,7 +166,7 @@ export default function DetailPageLayout({
         ]}
       />
 
-      <div className="flex flex-col sm:flex-row gap-6 items-stretch">
+      <div className="flex flex-col sm:flex-row gap-6 items-stretch animate-fade-in-up stagger-3">
         <DetailCover src={item.cover} alt={item.title} seed={`${contentType[0]}${item.id}`} />
         <div className="flex-1 flex flex-col gap-3 min-w-0">
           <DetailTitle title={item.title} year={item.year} />
@@ -191,7 +191,7 @@ export default function DetailPageLayout({
 
           <TagChips contentType={contentType} contentId={item.id} />
 
-          <div className="mt-2 space-y-2">
+          <div className="mt-2 space-y-2 animate-fade-in-up stagger-4">
             {item.status && (
               <InfoRow label="状态" accent={item.status === updatingText}>
                 {item.status}
@@ -233,6 +233,8 @@ export default function DetailPageLayout({
         onToggle={() => setSynopsisExpanded(!synopsisExpanded)}
       />
 
+      {/* Rating distribution - movie only shows this in MovieDetailClient */}
+
       {hasEpisodes && item.totalEpisode && item.totalEpisode > 0 && (
         <>
           <EpisodeGrid
@@ -243,7 +245,7 @@ export default function DetailPageLayout({
           />
 
           {resourceError ? (
-            <section className="rounded-xl p-5 border">
+            <section className="rounded-xl p-5 border animate-fade-in-up stagger-8">
               <div className="text-center py-8">
                 <p className="text-3xl mb-2">😵</p>
                 <p className="text-sm text-muted-foreground">资源加载失败</p>
@@ -310,7 +312,9 @@ export default function DetailPageLayout({
         </>
       )}
 
-      <RelatedSection contentType={contentType} contentId={item.id} />
+      <div className="animate-fade-in-up stagger-10">
+        <RelatedSection contentType={contentType} contentId={item.id} />
+      </div>
     </div>
   );
 }

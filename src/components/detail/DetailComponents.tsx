@@ -20,14 +20,14 @@ interface BreadcrumbItem {
 
 export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
   return (
-    <nav className="flex items-center gap-2 text-sm text-muted-foreground" >
+    <nav className="flex items-center gap-2 text-sm text-muted-foreground animate-fade-in-up stagger-1">
       {items.map((item, i) => (
         <span key={i} className="flex items-center gap-2">
-          {i > 0 && <span>›</span>}
+          {i > 0 && <span className="text-border">›</span>}
           {item.href ? (
-            <Link className="text-secondary-foreground" href={item.href} >{item.label}</Link>
+            <Link className="text-secondary-foreground hover:text-accent transition-colors" href={item.href}>{item.label}</Link>
           ) : (
-            <span className="text-foreground" >{item.label}</span>
+            <span className="text-foreground font-medium">{item.label}</span>
           )}
         </span>
       ))}
@@ -41,15 +41,19 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
 
 export function DetailCover({ src, alt, seed }: { src?: string; alt: string; seed: string }) {
   return (
-    <div className="w-full sm:w-48 md:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px]">
-      <LazyImage
-        src={src || `https://picsum.photos/seed/${seed}/400/600`}
-        alt={alt}
-        className="rounded-xl"
-        placeholder="skeleton"
-        fallbackSrc={`https://picsum.photos/seed/${seed}/400/600`}
-        lazy={false}
-      />
+    <div className="w-full sm:w-48 md:w-56 lg:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px] animate-fade-in-up stagger-2">
+      <div className="relative group">
+        <LazyImage
+          src={src || `https://picsum.photos/seed/${seed}/400/600`}
+          alt={alt}
+          className="rounded-xl shadow-lg"
+          placeholder="skeleton"
+          fallbackSrc={`https://picsum.photos/seed/${seed}/400/600`}
+          lazy={false}
+        />
+        {/* Decorative glow behind cover */}
+        <div className="absolute -inset-1 rounded-xl bg-accent/10 blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      </div>
     </div>
   );
 }
@@ -60,10 +64,10 @@ export function DetailCover({ src, alt, seed }: { src?: string; alt: string; see
 
 export function DetailTitle({ title, year }: { title: string; year?: number }) {
   return (
-    <h1 className="text-2xl md:text-3xl font-bold text-foreground" >
+    <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
       {title}
       {year != null && year > 0 && (
-        <span className="text-lg font-normal ml-2 text-muted-foreground" >
+        <span className="text-lg font-normal ml-2 text-muted-foreground">
           ({year})
         </span>
       )}
@@ -82,22 +86,23 @@ interface RatingBadgesProps {
 }
 
 export function RatingBadges({ douban, imdb, rt }: RatingBadgesProps) {
-  const badges: { label: string; value: string; bg: string; color: string; }[] = [
-    douban != null ? { label: '豆瓣', value: douban.toFixed(1), bg: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)' } : null,
-    imdb != null ? { label: 'IMDB', value: imdb.toFixed(1), bg: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)' } : null,
-    rt != null ? { label: '烂番茄', value: `${rt}%`, bg: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)' } : null,
+  const badges: { label: string; value: string; bg: string; color: string; icon: string }[] = [
+    douban != null ? { label: '豆瓣', value: douban.toFixed(1), bg: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)', icon: '⭐' } : null,
+    imdb != null ? { label: 'IMDB', value: imdb.toFixed(1), bg: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)', icon: '🎬' } : null,
+    rt != null ? { label: '烂番茄', value: `${rt}%`, bg: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)', icon: '🍅' } : null,
   ].filter((b): b is NonNullable<typeof b> => b !== null);
 
   if (badges.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       {badges.map((b, i) => (
         <span
           key={i}
-          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-sm font-bold"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm"
           style={{ backgroundColor: b.bg, color: b.color }}
         >
+          <span className="text-xs">{b.icon}</span>
           {b.label} {b.value}
         </span>
       ))}
@@ -116,10 +121,10 @@ export function InfoRow({ label, children, accent }: {
 }) {
   return (
     <div className="flex gap-2 text-sm leading-relaxed">
-      <span className="shrink-0 font-medium text-muted-foreground" style={{ minWidth: '3.5em' }}>
+      <span className="shrink-0 font-medium text-muted-foreground border-l-2 border-accent/30 pl-2" style={{ minWidth: '3.5em' }}>
         {label}
       </span>
-      <div className={accent ? "text-accent" : "text-secondary-foreground"}>{children}</div>
+      <div className={accent ? "text-accent font-medium" : "text-secondary-foreground"}>{children}</div>
     </div>
   );
 }
@@ -136,22 +141,18 @@ export function SynopsisSection({ text, expanded, onToggle }: {
   if (!text) return null;
 
   return (
-    <section
-      className="rounded-xl p-5 border"
-
-    >
-      <h2 className="text-lg font-bold mb-3 text-foreground" >简介</h2>
-      <p
-        className={`text-sm leading-relaxed ${expanded ? '' : 'line-clamp-3'}`}
-
-      >
+    <section className="rounded-xl p-5 border animate-fade-in-up stagger-6">
+      <h2 className="text-lg font-bold mb-3 text-foreground flex items-center gap-2">
+        <span className="w-1 h-5 bg-accent rounded-full" />
+        简介
+      </h2>
+      <p className={`text-sm leading-relaxed text-secondary-foreground ${expanded ? '' : 'line-clamp-3'}`}>
         {text}
       </p>
       {text.length > 200 && (
         <button
           onClick={onToggle}
-          className="mt-3 text-sm font-medium active:opacity-70 transition-opacity flex items-center gap-1"
-
+          className="mt-3 text-sm font-medium text-accent active:opacity-70 transition-opacity flex items-center gap-1 hover:gap-2 transition-all"
         >
           {expanded ? '收起' : '展开全部'}
           <svg
@@ -182,7 +183,7 @@ export function DetailTabBar<T extends string>({ tabs, active, onChange }: {
   onChange: (key: T) => void;
 }) {
   return (
-    <div className="flex gap-6 border-b border-border" >
+    <div className="flex gap-6 border-b border-border">
       {tabs.map(tab => (
         <button
           key={tab.key}
@@ -216,8 +217,9 @@ export function EpisodeGrid({ total, selected, onSelect, label = '集', gridCols
   const episodes = Array.from({ length: total }, (_, i) => i + 1);
 
   return (
-    <div>
-      <h3 className="font-medium mb-3 text-foreground" >
+    <div className="animate-fade-in-up stagger-7">
+      <h3 className="font-bold mb-3 text-foreground flex items-center gap-2">
+        <span className="w-1 h-5 bg-accent rounded-full" />
         全部{label} ({total}{label})
       </h3>
       <div className={`grid ${gridCols} gap-2`}>
@@ -225,7 +227,11 @@ export function EpisodeGrid({ total, selected, onSelect, label = '集', gridCols
           <button
             key={ep}
             onClick={() => onSelect(selected === ep ? null : ep)}
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+              selected === ep
+                ? 'shadow-md'
+                : 'hover:border-accent/50 hover:text-accent'
+            }`}
             style={{
               backgroundColor: selected === ep ? 'var(--accent)' : 'var(--bg-card)',
               color: selected === ep ? '#fff' : 'var(--text-primary)',
@@ -290,10 +296,11 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
   }, [resources]);
 
   return (
-    <section
-      className="rounded-xl p-5 border"
-    >
-      <h3 className="font-bold mb-4 text-foreground">{title}</h3>
+    <section className="rounded-xl p-5 border animate-fade-in-up stagger-8">
+      <h3 className="font-bold mb-4 text-foreground flex items-center gap-2">
+        <span className="w-1 h-5 bg-accent rounded-full" />
+        {title}
+      </h3>
       {loading ? (
         <div className="space-y-3">
           {[1, 2].map(i => (
@@ -301,9 +308,12 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
           ))}
         </div>
       ) : resources.length === 0 ? (
-        <p className="text-center py-8 text-sm text-muted-foreground">
-          {selectedEpisode ? `该${episodeLabel}暂无资源` : emptyText}
-        </p>
+        <div className="text-center py-10">
+          <p className="text-3xl mb-2">📺</p>
+          <p className="text-sm text-muted-foreground">
+            {selectedEpisode ? `该${episodeLabel}暂无资源` : emptyText}
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
           {grouped.map(([platformName, items]) => {
@@ -322,7 +332,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                       href={r.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-2.5 rounded-lg border transition-colors hover:opacity-80"
+                      className="flex items-center justify-between px-4 py-2.5 rounded-lg border transition-all hover:border-accent/40 hover:shadow-sm active:scale-[0.98]"
                     >
                       <span className="text-sm font-medium truncate text-foreground">
                         {items.length > 1 ? `线路${items.indexOf(r) + 1}` : platformName}
@@ -365,7 +375,12 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
   emptyText: string;
 }) {
   if (resources.length === 0) {
-    return <p className="text-center py-8 text-sm text-muted-foreground" >{emptyText}</p>;
+    return (
+      <div className="text-center py-10">
+        <p className="text-3xl mb-2">📭</p>
+        <p className="text-sm text-muted-foreground">{emptyText}</p>
+      </div>
+    );
   }
 
   return (
@@ -373,31 +388,29 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
       {resources.map(r => (
         <div
           key={r.id}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-lg border"
-          
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-lg border hover:border-accent/30 hover:bg-accent/5 transition-all group"
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="text-lg shrink-0">{icon}</span>
+            <span className="text-lg shrink-0 group-hover:scale-110 transition-transform">{icon}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium break-all sm:truncate text-foreground" >
+              <p className="text-sm font-medium break-all sm:truncate text-foreground">
                 {r.resolution && (
-                  <span
-                    className="inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-2"
-
-                  >
+                  <span className="inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-2 bg-accent/10 text-accent">
                     {r.resolution}
                   </span>
                 )}
                 {r.title || '资源链接'}
               </p>
               {r.storageName && (
-                <p className="text-xs mt-0.5 text-muted-foreground" >{r.storageName}</p>
+                <p className="text-xs mt-0.5 text-muted-foreground">{r.storageName}</p>
               )}
             </div>
           </div>
           <button
             onClick={() => onCopy(r.url || '', r.id)}
-            className={`shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white ${copiedId === r.id ? 'bg-copied' : 'bg-accent'}`}
+            className={`shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white transition-all active:scale-95 ${
+              copiedId === r.id ? 'bg-copied' : 'bg-accent hover:bg-accent-hover shadow-sm'
+            }`}
           >
             {copiedId === r.id ? '已复制 ✓' : '复制链接'}
           </button>
@@ -418,11 +431,11 @@ export function ResourceTabs({ tabs, activeTab, onTabChange, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <section
-      className="rounded-xl p-5 border"
-
-    >
-      <h2 className="text-lg font-bold mb-4 text-foreground" >下载资源</h2>
+    <section className="rounded-xl p-5 border animate-fade-in-up stagger-9">
+      <h2 className="text-lg font-bold mb-4 text-foreground flex items-center gap-2">
+        <span className="w-1 h-5 bg-accent rounded-full" />
+        下载资源
+      </h2>
       <DetailTabBar
         tabs={tabs}
         active={activeTab}
@@ -441,16 +454,21 @@ export function DetailPageSkeleton() {
   return (
     <div className="flex flex-col gap-6 animate-pulse">
       <div className="flex flex-col sm:flex-row gap-6">
-        <div
-          className="w-full sm:w-48 md:w-64 aspect-[2/3] rounded-xl max-w-[256px] mx-auto sm:mx-0"
-
-        />
+        <div className="w-full sm:w-48 md:w-64 aspect-[2/3] rounded-xl max-w-[256px] mx-auto sm:mx-0 bg-card shadow-md" />
         <div className="flex-1 space-y-4">
-          <div className="h-8 w-48 rounded bg-card"  />
-          <div className="h-4 w-32 rounded bg-card"  />
-          <div className="h-4 w-64 rounded bg-card"  />
+          <div className="h-8 w-48 rounded bg-card" />
+          <div className="h-4 w-32 rounded bg-card" />
+          <div className="h-4 w-64 rounded bg-card" />
+          <div className="h-4 w-48 rounded bg-card" />
+          <div className="h-4 w-56 rounded bg-card" />
+          <div className="flex gap-2 mt-4">
+            <div className="h-8 w-20 rounded-lg bg-card" />
+            <div className="h-8 w-20 rounded-lg bg-card" />
+          </div>
         </div>
       </div>
+      <div className="h-24 rounded-xl bg-card" />
+      <div className="h-40 rounded-xl bg-card" />
     </div>
   );
 }
@@ -465,9 +483,11 @@ export function DetailNotFound({ message = '内容不存在', backHref = '/', ba
   backLabel?: string;
 }) {
   return (
-    <div className="text-center py-16">
-      <p className="text-secondary-foreground" >{message}</p>
-      <Link href={backHref} className="text-sm mt-4 inline-block bg-accent" >
+    <div className="text-center py-20">
+      <p className="text-5xl mb-4">🎬</p>
+      <p className="text-lg font-medium text-foreground mb-2">{message}</p>
+      <p className="text-sm text-muted-foreground mb-6">抱歉，您查找的内容暂时不可用</p>
+      <Link href={backHref} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover transition-colors shadow-sm">
         ← {backLabel}
       </Link>
     </div>
