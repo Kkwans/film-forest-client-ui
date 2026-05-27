@@ -274,12 +274,16 @@ function getPlatformStyle(name: string) {
   return key ? PLATFORM_STYLES[key] : { icon: '🎬', color: 'var(--accent)' };
 }
 
-export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在线播放资源', selectedEpisode, episodeLabel = '集' }: {
+export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在线播放资源', selectedEpisode, episodeLabel = '集', onPlay, activeSourceId }: {
   resources: OnlineResource[];
   loading: boolean;
   emptyText?: string;
   selectedEpisode?: number | null;
   episodeLabel?: string;
+  /** 点击播放回调（传入则在页面内播放，否则打开新窗口） */
+  onPlay?: (resource: OnlineResource) => void;
+  /** 当前正在播放的资源 ID */
+  activeSourceId?: number | null;
 }) {
   const title = selectedEpisode ? `第${selectedEpisode}${episodeLabel} 播放源` : '在线播放';
 
@@ -326,25 +330,49 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                   <span className="text-xs text-muted-foreground">({items.length}条线路)</span>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                  {items.map(r => (
-                    <a
-                      key={r.id}
-                      href={r.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between px-4 py-2.5 rounded-lg border transition-all hover:border-accent/40 hover:shadow-sm active:scale-[0.98]"
-                    >
-                      <span className="text-sm font-medium truncate text-foreground">
-                        {items.length > 1 ? `线路${items.indexOf(r) + 1}` : platformName}
-                      </span>
-                      <span
-                        className="text-xs px-2 py-0.5 rounded text-white"
-                        style={{ backgroundColor: style.color }}
+                  {items.map(r => {
+                    const isActive = activeSourceId === r.id;
+                    const label = items.length > 1 ? `线路${items.indexOf(r) + 1}` : platformName;
+                    return onPlay ? (
+                      <button
+                        key={r.id}
+                        onClick={() => onPlay(r)}
+                        className={`flex items-center justify-between px-4 py-2.5 rounded-lg border transition-all active:scale-[0.98] ${
+                          isActive
+                            ? 'border-accent bg-accent/10 shadow-sm'
+                            : 'hover:border-accent/40 hover:shadow-sm'
+                        }`}
                       >
-                        播放
-                      </span>
-                    </a>
-                  ))}
+                        <span className="text-sm font-medium truncate text-foreground">
+                          {isActive ? '▶ ' : ''}{label}
+                        </span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded text-white ${isActive ? 'animate-pulse' : ''}`}
+                          style={{ backgroundColor: isActive ? 'var(--accent)' : style.color }}
+                        >
+                          {isActive ? '播放中' : '播放'}
+                        </span>
+                      </button>
+                    ) : (
+                      <a
+                        key={r.id}
+                        href={r.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between px-4 py-2.5 rounded-lg border transition-all hover:border-accent/40 hover:shadow-sm active:scale-[0.98]"
+                      >
+                        <span className="text-sm font-medium truncate text-foreground">
+                          {label}
+                        </span>
+                        <span
+                          className="text-xs px-2 py-0.5 rounded text-white"
+                          style={{ backgroundColor: style.color }}
+                        >
+                          播放
+                        </span>
+                      </a>
+                    );
+                  })}
                 </div>
               </div>
             );

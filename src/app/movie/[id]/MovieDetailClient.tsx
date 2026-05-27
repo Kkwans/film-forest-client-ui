@@ -6,9 +6,10 @@ import { useDetailStatus } from '@/hooks/useDetailStatus';
 import DetailButtons from '@/components/DetailButtons';
 import {
   DetailBreadcrumb, DetailCover, DetailTitle, RatingBadges,
-  InfoRow, SynopsisSection, ResourceTabs, CopyableResourceList,
+  InfoRow, SynopsisSection, OnlineResourceGrid, ResourceTabs, CopyableResourceList,
   DetailPageSkeleton, DetailNotFound,
 } from '@/components/detail/DetailComponents';
+import VideoPlayer, { type PlayerSource } from '@/components/VideoPlayer';
 import RelatedSection from '@/components/RelatedSection';
 import RatingDistribution from '@/components/detail/RatingDistribution';
 
@@ -20,14 +21,21 @@ interface MovieDetail {
   updatedAt?: string;
 }
 interface Resource { id: number; title?: string; magnetUrl?: string; shareUrl?: string; resolution?: string; hasSubtitle?: boolean; storageName?: string; }
+interface OnlineResource { id: number; sourceName?: string; sourceUrl?: string; }
 
-export default function MovieDetailClient({ movie, magnetResources, cloudResources }: {
-  movie: MovieDetail; magnetResources: Resource[]; cloudResources: Resource[];
+export default function MovieDetailClient({ movie, magnetResources, cloudResources, onlineResources = [] }: {
+  movie: MovieDetail; magnetResources: Resource[]; cloudResources: Resource[]; onlineResources?: OnlineResource[];
 }) {
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<'magnet' | 'cloud'>('magnet');
   const [qualityFilter, setQualityFilter] = useState('全部');
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [playerSrc, setPlayerSrc] = useState<string | undefined>(
+    onlineResources.length > 0 ? onlineResources[0].sourceUrl : undefined
+  );
+  const [playerSourceId, setPlayerSourceId] = useState<number | null>(
+    onlineResources.length > 0 ? onlineResources[0].id : null
+  );
   const ds = useDetailStatus(movie.id, 'movie');
 
   const realMagnets = useMemo(() => {
@@ -116,6 +124,41 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
       <div className="animate-fade-in-up stagger-7">
         <RatingDistribution douban={movie.rating} imdb={movie.ratingImdb} rt={movie.ratingRT} />
       </div>
+
+      {/* 视频播放器 */}
+      <VideoPlayer
+        src={playerSrc}
+        title={movie.title}
+        contentId={movie.id}
+        contentType="movie"
+        cover={movie.cover}
+        year={movie.year}
+        rating={movie.rating}
+        sources={onlineResources.map((r) => ({
+          id: r.id,
+          sourceName: r.sourceName,
+          sourceUrl: r.sourceUrl,
+        }))}
+        onSourceChange={(s) => {
+          setPlayerSrc(s.sourceUrl);
+          setPlayerSourceId(s.id);
+        }}
+      />
+
+      {/* 在线播放源 */}
+      {onlineResources.length > 0 && (
+        <OnlineResourceGrid
+          resources={onlineResources}
+          loading={false}
+          onPlay={(r) => {
+            if (r.sourceUrl) {
+              setPlayerSrc(r.sourceUrl);
+              setPlayerSourceId(r.id);
+            }
+          }}
+          activeSourceId={playerSourceId}
+        />
+      )}
 
       <ResourceTabs
         tabs={[

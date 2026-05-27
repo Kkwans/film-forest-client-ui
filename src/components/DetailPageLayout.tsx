@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { resourceApi } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
 import { useDetailStatus } from '@/hooks/useDetailStatus';
+import VideoPlayer, { type PlayerSource } from '@/components/VideoPlayer';
 import {
   DetailBreadcrumb,
   DetailCover,
@@ -121,6 +122,8 @@ export default function DetailPageLayout({
   const [resourceError, setResourceError] = useState(false);
   const [downloadTab, setDownloadTab] = useState<'magnet' | 'cloud'>('magnet');
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [playerSrc, setPlayerSrc] = useState<string | undefined>(undefined);
+  const [playerSourceId, setPlayerSourceId] = useState<number | null>(null);
 
   const ds = useDetailStatus(item.id, contentType);
 
@@ -129,6 +132,8 @@ export default function DetailPageLayout({
     if (!hasEpisodes) return;
     setLoadingResources(true);
     setResourceError(false);
+    setPlayerSrc(undefined);
+    setPlayerSourceId(null);
     const ep = selectedEpisode ?? undefined;
 
     Promise.all([
@@ -136,6 +141,14 @@ export default function DetailPageLayout({
       resourceApi.magnet(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: MagnetResourceItem[] } | undefined)?.data; setMagnetResources(Array.isArray(d) ? d : []); return d; }),
       resourceApi.cloud(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: CloudResourceItem[] } | undefined)?.data; setCloudResources(Array.isArray(d) ? d : []); return d; }),
     ])
+      .then(([online]) => {
+        // 自动选择第一个播放源
+        const list = Array.isArray(online) ? online : [];
+        if (list.length > 0 && list[0].sourceUrl) {
+          setPlayerSrc(list[0].sourceUrl);
+          setPlayerSourceId(list[0].id);
+        }
+      })
       .catch(e => {
         console.error('加载在线资源失败', e);
         setOnlineResources([]);
@@ -244,6 +257,31 @@ export default function DetailPageLayout({
             label={episodeLabel}
           />
 
+          {/* 视频播放器 */}
+          <VideoPlayer
+            src={playerSrc}
+            title={item.title}
+            contentId={item.id}
+            contentType={contentType}
+            cover={item.cover}
+            episode={selectedEpisode ?? undefined}
+            episodeLabel={episodeLabel}
+            year={item.year}
+            rating={item.rating}
+            totalEpisodes={item.totalEpisode}
+            sources={onlineResources.map((r) => ({
+              id: r.id,
+              sourceName: r.sourceName,
+              sourceUrl: r.sourceUrl,
+            }))}
+            onEpisodeChange={setSelectedEpisode}
+            onSourceChange={(s) => {
+              setPlayerSrc(s.sourceUrl);
+              setPlayerSourceId(s.id);
+            }}
+            loading={loadingResources}
+          />
+
           {resourceError ? (
             <section className="rounded-xl p-5 border animate-fade-in-up stagger-8">
               <div className="text-center py-8">
@@ -273,6 +311,13 @@ export default function DetailPageLayout({
                 loading={loadingResources}
                 selectedEpisode={selectedEpisode}
                 episodeLabel={episodeLabel}
+                onPlay={(r) => {
+                  if (r.sourceUrl) {
+                    setPlayerSrc(r.sourceUrl);
+                    setPlayerSourceId(r.id);
+                  }
+                }}
+                activeSourceId={playerSourceId}
               />
 
               <ResourceTabs

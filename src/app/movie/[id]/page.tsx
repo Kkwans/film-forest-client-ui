@@ -37,24 +37,27 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 async function fetchResources(type: string, contentId: number) {
   try {
-    const [magnetRes, cloudRes] = await Promise.all([
+    const [magnetRes, cloudRes, onlineRes] = await Promise.all([
       fetch(`http://localhost:8080/api/resources/magnet?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
       fetch(`http://localhost:8080/api/resources/cloud?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
+      fetch(`http://localhost:8080/api/resources/online?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
     ]);
     const magnetData = await magnetRes.json();
     const cloudData = await cloudRes.json();
+    const onlineData = await onlineRes.json();
     return {
       magnets: magnetData?.data || [],
       clouds: cloudData?.data || [],
+      onlines: onlineData?.data || [],
     };
-  } catch { return { magnets: [], clouds: [] }; }
+  } catch { return { magnets: [], clouds: [], onlines: [] }; }
 }
 
 export default async function MovieDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: idStr } = await params;
   const id = Number(idStr);
   const movie = await fetchMovie(id);
-  const { magnets, clouds } = await fetchResources('movie', id);
+  const { magnets, clouds, onlines } = await fetchResources('movie', id);
 
   if (!movie) {
     return (
@@ -67,5 +70,5 @@ export default async function MovieDetailPage({ params }: { params: Promise<{ id
     );
   }
 
-  return <MovieDetailClient movie={movie} magnetResources={magnets} cloudResources={clouds} />;
+  return <MovieDetailClient movie={movie} magnetResources={magnets} cloudResources={clouds} onlineResources={onlines} />;
 }
