@@ -75,7 +75,7 @@ export default function PersonalizedRecommend() {
     return Array.from(ids).join(',');
   }, [history]);
 
-  useEffect() {
+  useEffect(() => {
     // 不够历史数据时跳过
     if (history.length < 3) {
       setLoading(false);
