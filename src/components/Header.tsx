@@ -93,6 +93,20 @@ export default function Header() {
     return pathname.startsWith(href);
   };
 
+  // Global keyboard shortcut: Ctrl+K or / to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('.header-search-input')?.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <>
       <header
@@ -138,6 +152,13 @@ export default function Header() {
           <div className="hidden md:flex items-center gap-2">
             <form onSubmit={handleSearch} className="flex items-center gap-2">
               <div className="relative" ref={searchWrapRef}>
+                {/* Search icon */}
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }}>
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                </div>
                 <input
                   type="text"
                   placeholder="搜索影片、演员、导演"
@@ -145,13 +166,28 @@ export default function Header() {
                   onChange={(e) => handleSearchInput(e.target.value)}
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  className="w-40 lg:w-52 h-9 px-3 rounded-lg text-sm outline-none border transition-colors"
+                  className="header-search-input w-40 lg:w-52 h-9 pl-8 pr-7 rounded-lg text-sm outline-none border transition-colors focus:border-[var(--accent)]"
                   style={{
                     backgroundColor: 'var(--bg-primary)',
                     borderColor: 'var(--border-color)',
                     color: 'var(--text-primary)',
                   }}
                 />
+                {/* Clear button */}
+                {keyword && (
+                  <button
+                    type="button"
+                    onClick={() => { setKeyword(''); setSuggestions([]); setShowSuggestions(false); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full transition-colors"
+                    style={{ color: 'var(--text-muted)' }}
+                    title="清除"
+                  >
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                )}
                 {showSuggestions && suggestions.length > 0 && (
                   <div
                     className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-lg py-1 z-50 max-h-60 overflow-y-auto"
@@ -175,9 +211,13 @@ export default function Header() {
               </div>
               <button
                 type="submit"
-                className="h-9 px-4 rounded-lg text-white text-sm font-medium transition-colors shrink-0"
-
+                className="h-9 px-4 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90 shrink-0 flex items-center gap-1"
+                style={{ backgroundColor: 'var(--accent)' }}
               >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
                 搜索
               </button>
             </form>
