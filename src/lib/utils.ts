@@ -76,6 +76,34 @@ export function cleanTitle(title: string | null | undefined): string {
 }
 
 /**
+ * Format relative time string (e.g., '3分钟前', '2小时前').
+ * Accepts a timestamp (number) or ISO date string.
+ * Shared utility to avoid duplication across components.
+ */
+export function formatRelativeTime(input: number | string): string {
+  if (!input) return '';
+  const now = Date.now();
+  const ts = typeof input === 'number' ? input : new Date(input).getTime();
+  const diff = now - ts;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diff < minute) return '刚刚';
+  if (diff < hour) return `${Math.floor(diff / minute)}分钟前`;
+  if (diff < day) return `${Math.floor(diff / hour)}小时前`;
+  if (diff < 7 * day) return `${Math.floor(diff / day)}天前`;
+
+  // Same year: show month/day only
+  const nowDate = new Date(now);
+  const then = new Date(ts);
+  if (nowDate.getFullYear() === then.getFullYear()) {
+    return `${then.getMonth() + 1}月${then.getDate()}日`;
+  }
+  return then.toLocaleDateString('zh-CN');
+}
+
+/**
  * Clean storyline: remove UI artifacts like [展开全部], [收起部分] etc.
  * Handles both bracketed and non-bracketed variants at any position.
  */

@@ -3,6 +3,8 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { movieApi, dramaApi, varietyApi, animeApi, shortDramaApi, type Result } from '@/lib/api';
+import type { AxiosResponse } from 'axios';
 
 const CATEGORIES = [
   {
@@ -62,20 +64,20 @@ export default function CategoryPage() {
     const fetchCounts = async () => {
       try {
         const results = await Promise.allSettled([
-          fetch('/api/movies?page=1&size=1').then(r => r.json()),
-          fetch('/api/dramas?page=1&size=1').then(r => r.json()),
-          fetch('/api/varieties?page=1&size=1').then(r => r.json()),
-          fetch('/api/animes?page=1&size=1').then(r => r.json()),
-          fetch('/api/short-dramas?page=1&size=1').then(r => r.json()),
+          movieApi.list({ page: 1, size: 1 }),
+          dramaApi.list({ page: 1, size: 1 }),
+          varietyApi.list({ page: 1, size: 1 }),
+          animeApi.list({ page: 1, size: 1 }),
+          shortDramaApi.list({ page: 1, size: 1 }),
         ]);
-        const get = (r: PromiseSettledResult<any>) =>
-          r.status === 'fulfilled' ? (r.value?.data?.total || 0) : 0;
+        const getTotal = (r: PromiseSettledResult<AxiosResponse<Result<unknown>>>): number =>
+          r.status === 'fulfilled' ? ((r.value?.data?.data as { total?: number })?.total || 0) : 0;
         setCounts({
-          movie: get(results[0]),
-          drama: get(results[1]),
-          variety: get(results[2]),
-          anime: get(results[3]),
-          short: get(results[4]),
+          movie: getTotal(results[0]),
+          drama: getTotal(results[1]),
+          variety: getTotal(results[2]),
+          anime: getTotal(results[3]),
+          short: getTotal(results[4]),
         });
       } catch {}
     };

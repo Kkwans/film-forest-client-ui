@@ -7,7 +7,7 @@ import { useTheme } from 'next-themes';
 import { useUserStore, hasStoredToken } from '@/stores/userStore';
 import { listApi, type UserList, type UserListItem } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
-import { cleanTitle as cleanTitleUtil } from '@/lib/utils';
+import { cleanTitle as cleanTitleUtil, formatRelativeTime } from '@/lib/utils';
 import { parseJsonArr } from '@/lib/contentConstants';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
 
@@ -28,29 +28,7 @@ const DEFAULT_LISTS = [
 ];
 
 // ─── 时间格式化 ───
-function formatRelativeTime(dateStr: string): string {
-  if (!dateStr) return '';
-  const now = new Date();
-  const then = new Date(dateStr);
-  const diffMs = now.getTime() - then.getTime();
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-
-  if (diffMs < minute) return '刚刚';
-  if (diffMs < hour) return `${Math.floor(diffMs / minute)}分钟前`;
-  if (diffMs < day) return `${Math.floor(diffMs / hour)}小时前`;
-  if (diffDays(diffMs) < 7) return `${Math.floor(diffMs / day)}天前`;
-
-  const thisYear = now.getFullYear();
-  const thatYear = then.getFullYear();
-  if (thatYear === thisYear) return `${then.getMonth() + 1}月${then.getDate()}日`;
-  return `${thatYear}年${then.getMonth() + 1}月${then.getDate()}日`;
-}
-
-function diffDays(ms: number): number {
-  return Math.floor(ms / (24 * 60 * 60 * 1000));
-}
+// 使用 utils.ts 中的 formatRelativeTime 共享函数
 
 // ─── 最近动态条目类型 ───
 interface HistoryItem {

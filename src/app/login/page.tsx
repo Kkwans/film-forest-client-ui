@@ -161,7 +161,7 @@ function LoginForm() {
 
         <p className="text-center text-sm mt-6 text-muted-foreground" >
           还没有账号？{' '}
-          <Link href="/register" className="font-medium hover:underline bg-accent" >
+          <Link href="/register" className="font-medium hover:underline text-accent" >
             注册
           </Link>
         </p>

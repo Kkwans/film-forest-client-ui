@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -14,21 +14,19 @@ const authClient = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-authClient.interceptors.request.use((config: any) => {
+authClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('ff_token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.setAuthorization(`Bearer ${token}`);
     }
   }
   return config;
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 authClient.interceptors.response.use(
-  (res: any) => res,
-  (err: any) => {
+  (res: AxiosResponse) => res,
+  (err: AxiosError) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('ff_token');
       localStorage.removeItem('ff_user');
