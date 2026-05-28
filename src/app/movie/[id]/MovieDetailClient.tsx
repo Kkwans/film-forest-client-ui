@@ -12,6 +12,7 @@ import {
 import VideoPlayer, { type PlayerSource } from '@/components/VideoPlayer';
 import RelatedSection from '@/components/RelatedSection';
 import RatingDistribution from '@/components/detail/RatingDistribution';
+import TagChips from '@/components/TagChips';
 
 interface MovieDetail {
   id: number; title: string; cover: string; year: number; region: string;
@@ -102,6 +103,8 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
             onWatchedEdit={ds.handleWatchedEdit} onCollectOpen={() => ds.setCollectOpen(true)} />
 
           <RatingBadges douban={movie.rating} imdb={movie.ratingImdb} rt={movie.ratingRT} />
+
+          <TagChips contentType="movie" contentId={movie.id} />
 
           <div className="mt-2 space-y-2 animate-fade-in-up stagger-4">
             {movie.aka.length > 0 && <InfoRow label="又名">{movie.aka.join(' / ')}</InfoRow>}

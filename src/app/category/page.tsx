@@ -12,7 +12,7 @@ const CATEGORIES = [
     icon: '🎬',
     desc: '最新最热电影资源',
     href: '/movie',
-    hue: 'from-emerald-500 to-teal-600',
+    gradient: 'linear-gradient(135deg, #10b981, #0d9488)',
   },
   {
     type: 'drama',
@@ -20,7 +20,7 @@ const CATEGORIES = [
     icon: '📺',
     desc: '热播剧集追不停',
     href: '/drama',
-    hue: 'from-blue-500 to-indigo-600',
+    gradient: 'linear-gradient(135deg, #3b82f6, #6366f1)',
   },
   {
     type: 'variety',
@@ -28,7 +28,7 @@ const CATEGORIES = [
     icon: '🎤',
     desc: '热门综艺节目大全',
     href: '/variety',
-    hue: 'from-amber-500 to-orange-600',
+    gradient: 'linear-gradient(135deg, #f59e0b, #f97316)',
   },
   {
     type: 'anime',
@@ -36,7 +36,7 @@ const CATEGORIES = [
     icon: '🎌',
     desc: '精彩动漫世界',
     href: '/anime',
-    hue: 'from-pink-500 to-rose-600',
+    gradient: 'linear-gradient(135deg, #ec4899, #f43f5e)',
   },
   {
     type: 'short',
@@ -44,7 +44,7 @@ const CATEGORIES = [
     icon: '📱',
     desc: '短剧速看精彩不断',
     href: '/short',
-    hue: 'from-violet-500 to-purple-600',
+    gradient: 'linear-gradient(135deg, #8b5cf6, #a855f7)',
   },
 ];
 
@@ -98,7 +98,8 @@ export default function CategoryPage() {
         {CATEGORIES.map((cat, idx) => (
           <Link key={cat.type} href={cat.href} className="group block">
             <div
-              className={`animate-fade-in-up stagger-${Math.min(idx + 1, 12)} relative overflow-hidden rounded-2xl p-6 md:p-8 transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-xl cursor-pointer bg-gradient-to-br ${cat.hue}`}
+              className={`animate-fade-in-up stagger-${Math.min(idx + 1, 12)} relative overflow-hidden rounded-2xl p-6 md:p-8 transition-all duration-300 group-hover:scale-[1.02] group-hover:shadow-xl cursor-pointer`}
+              style={{ background: cat.gradient }}
             >
               {/* Decorative circles */}
               <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-20 bg-white" />

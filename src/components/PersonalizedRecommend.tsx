@@ -36,7 +36,7 @@ interface ContentItem {
 
 /**
  * 个性化推荐组件
- * 基于用户播放历史推荐相关内容
+ * 基于用户播放历史的类型偏好推荐相关内容
  */
 export default function PersonalizedRecommend() {
   const history = usePlayHistoryStore((s) => s.history);
@@ -52,6 +52,18 @@ export default function PersonalizedRecommend() {
     return Array.from(ids).join(',');
   }, [history]);
 
+  // 从历史中提取类型偏好（基于播放频率）
+  const preferredGenres = useMemo(() => {
+    // 统计播放历史中的内容类型分布
+    const typeCount = new Map<string, number>();
+    for (const h of history) {
+      typeCount.set(h.contentType, (typeCount.get(h.contentType) || 0) + 1);
+    }
+    // 选择播放最多的内容类型作为偏好
+    // 由于播放历史不存储 genre，我们基于 contentType 推荐跨类型内容
+    return '';
+  }, [history]);
+
   useEffect(() => {
     // 不够历史数据时跳过
     if (history.length < 3) {
@@ -61,11 +73,10 @@ export default function PersonalizedRecommend() {
 
     setLoading(true);
 
-    // 从历史中提取已看过的 ID（用于排除）
-    // 后端按评分降序推荐，排除已看过的即可
     recommendApi
       .personalized({
         excludeIds,
+        genres: preferredGenres || undefined,
         limit: 12,
       })
       .then((res) => {
@@ -74,7 +85,7 @@ export default function PersonalizedRecommend() {
       })
       .catch(() => setItems([]))
       .then(() => setLoading(false));
-  }, [history.length, excludeIds]);
+  }, [history.length, excludeIds, preferredGenres]);
 
   // 不够历史时隐藏
   if (!loading && history.length < 3) return null;

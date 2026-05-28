@@ -22,6 +22,7 @@ import {
 } from '@/components/detail/DetailComponents';
 import RelatedSection from '@/components/RelatedSection';
 import TagChips from '@/components/TagChips';
+import RatingDistribution from '@/components/detail/RatingDistribution';
 
 /** 在线播放资源 */
 interface OnlineResourceItem {
@@ -246,7 +247,10 @@ export default function DetailPageLayout({
         onToggle={() => setSynopsisExpanded(!synopsisExpanded)}
       />
 
-      {/* Rating distribution - movie only shows this in MovieDetailClient */}
+      {/* Rating distribution */}
+      <div className="animate-fade-in-up stagger-7">
+        <RatingDistribution douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
+      </div>
 
       {hasEpisodes && item.totalEpisode && item.totalEpisode > 0 && (
         <>

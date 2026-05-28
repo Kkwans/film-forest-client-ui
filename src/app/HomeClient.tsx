@@ -51,6 +51,12 @@ function HorizontalSection({ title, href, items, type, hasError, sectionIndex }:
   const scroll = (dir: 'left' | 'right') => {
     if (scrollRef.current) scrollRef.current.scrollBy({ left: dir === 'left' ? -400 : 400, behavior: 'smooth' });
   };
+
+  // Hooks must be called before any conditional returns (Rules of Hooks)
+  const displayItems = useMemo(() => items.slice(0, 12), [items]);
+  const movieIds = useMemo(() => displayItems.map(i => i.id), [displayItems]);
+  const statusMap = useMovieStatuses(movieIds, type);
+
   if (items.length === 0 && !hasError) return null;
   if (items.length === 0 && hasError) {
     return (
@@ -69,10 +75,6 @@ function HorizontalSection({ title, href, items, type, hasError, sectionIndex }:
       </section>
     );
   }
-
-  const displayItems = items.slice(0, 12);
-  const movieIds = useMemo(() => displayItems.map(i => i.id), [displayItems]);
-  const statusMap = useMovieStatuses(movieIds, type);
 
   return (
     <section className={`animate-fade-in-up ${sectionIndex ? `stagger-${Math.min(sectionIndex, 12)}` : ''}`}>

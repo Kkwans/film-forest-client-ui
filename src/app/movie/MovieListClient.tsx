@@ -98,16 +98,16 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
       const res = await fetch(`${apiBase}?${qs}`);
       const data = await res.json();
       const raw = data?.data?.records || data?.data || [];
-      setItems(raw.map((m: any) => ({  // eslint-disable-line @typescript-eslint/no-explicit-any
-        id: m.id,
-        title: m.title,
-        cover: m.posterUrl || m.cover || '',
-        year: m.year || 0,
-        region: parseRegion(m.region),
-        rating: m.scoreDouban || m.scoreImdb || undefined,
-        genre: parseGenre(m.genre),
-        duration: m.duration || undefined,
-        episodes: m.totalEpisode || m.currentEpisode || undefined,
+      setItems(raw.map((m: Record<string, unknown>) => ({
+        id: m.id as number,
+        title: m.title as string,
+        cover: (m.posterUrl || m.cover || '') as string,
+        year: (m.year || 0) as number,
+        region: parseRegion(m.region as string),
+        rating: (m.scoreDouban || m.scoreImdb || undefined) as number | undefined,
+        genre: parseGenre(m.genre as string),
+        duration: (m.duration || undefined) as number | undefined,
+        episodes: ((m.totalEpisode || m.currentEpisode) || undefined) as number | undefined,
       })));
       setTotal(data?.data?.total || 0);
     } catch {
@@ -146,12 +146,10 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
       setTagContentIds(null);
       return;
     }
-    tagApi.getContentTags(contentType, 0).catch(() => null);
     // Fetch content IDs for this tag
-    fetch(`/api/tags/${selectedTagId}/content?contentType=${contentType}&size=500`)
-      .then(r => r.json())
-      .then(data => {
-        const ids = (data?.data || []).map((item: any) => item.contentId);  // eslint-disable-line @typescript-eslint/no-explicit-any
+    tagApi.getContentByTag(selectedTagId, contentType, 500)
+      .then(res => {
+        const ids = (res.data?.data || []).map((item: { contentId: number }) => item.contentId);
         setTagContentIds(ids);
       })
       .catch(() => setTagContentIds([]));

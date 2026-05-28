@@ -225,6 +225,9 @@ export const tagApi = {
   /** 获取内容的标签 */
   getContentTags: (contentType: string, contentId: number) =>
     client.get<Result<TagItem[]>>(`/api/tags/content/${contentType}/${contentId}`),
+  /** 按标签筛选内容 ID 列表 */
+  getContentByTag: (tagId: number, contentType?: string, size?: number) =>
+    client.get<Result<{ contentId: number }[]>>(`/api/tags/${tagId}/content`, { params: { contentType, size } }),
 };
 
 export default client;
