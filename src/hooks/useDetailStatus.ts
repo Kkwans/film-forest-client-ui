@@ -98,6 +98,7 @@ export function useDetailStatus(contentId: number, contentType: string) {
         setStatus(prev => ({ ...prev, want_to_watch: true }));
         showToast('已加入想看', 'success');
       }
+      window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: contentId, contentType } }));
     } catch {}
   }, [isAuthenticated, status, contentId, contentType, showToast]);
 
