@@ -151,7 +151,7 @@ export default function DetailPageLayout({
         }
       })
       .catch(e => {
-        console.error('加载在线资源失败', e);
+        console.warn('加载在线资源失败', e);
         setOnlineResources([]);
         setMagnetResources([]);
         setCloudResources([]);

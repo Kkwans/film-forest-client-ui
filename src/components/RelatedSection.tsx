@@ -90,7 +90,7 @@ export default function RelatedSection({
                     rootMargin="300px"
                   />
                   {item.scoreDouban != null && item.scoreDouban > 0 && (
-                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold text-white bg-amber-500/90">
+                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-xs font-bold text-white" style={{ backgroundColor: 'var(--rating-8)', color: '#fff' }}>
                       {item.scoreDouban.toFixed(1)}
                     </span>
                   )}

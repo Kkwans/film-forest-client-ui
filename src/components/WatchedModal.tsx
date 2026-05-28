@@ -53,7 +53,7 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
           const lists = res.data.data || res.data;
           const watched = Array.isArray(lists) ? lists.find((l: UserList) => l.type === 'watched') : null;
           if (watched) setWatchedListId(watched.id);
-        }).catch(e => console.error('加载已看列表失败', e));
+        }).catch(e => console.warn('加载已看列表失败', e));
       }
     }
   }, [open, initialRating, initialNote, watchedListIdProp]);

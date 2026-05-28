@@ -80,7 +80,6 @@ export default function PersonalizedRecommend() {
                   type={item.type}
                   episodes={item.totalEpisode || undefined}
                   href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`}
-                  movieStatus={null}
                 />
               </div>
             ))}
@@ -102,7 +101,6 @@ export default function PersonalizedRecommend() {
                     type={item.type}
                     episodes={item.totalEpisode || undefined}
                     href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`}
-                    movieStatus={null}
                   />
                 </div>
               ))}
