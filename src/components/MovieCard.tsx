@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { getStatusConfig } from '@/lib/contentConstants';
 import { StatusIconButton, GenreTags } from '@/components/ContentShared';
@@ -63,6 +63,16 @@ export default function MovieCard({
   const contentType = type || 'movie';
   const clickTimer = useRef<NodeJS.Timeout | null>(null);
 
+  // Cleanup clickTimer on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (clickTimer.current) {
+        clearTimeout(clickTimer.current);
+        clickTimer.current = null;
+      }
+    };
+  }, []);
+
   const statusConfig = movieStatus?.listType ? getStatusConfig(movieStatus.listType) : null;
 
   const handleSingleClick = useCallback(async (e: React.MouseEvent) => {
@@ -92,7 +102,9 @@ export default function MovieCard({
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: id } }));
       }
-    } catch {} finally {
+    } catch (err) {
+      console.warn('[MovieCard] Failed to toggle status:', err);
+    } finally {
       setToggling(false);
     }
   }, [isAuthenticated, toggling, id, contentType, movieStatus, showToast]);

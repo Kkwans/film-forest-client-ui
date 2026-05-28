@@ -240,14 +240,38 @@ function SearchContent() {
     return filtered.map(r => r.id);
   }, [results, typeFilter]);
 
-  // Use a single contentType for status check
+  // Group items by type for accurate status queries (search returns mixed types)
+  const typeGroups = useMemo(() => {
+    const filtered = typeFilter ? results.filter(r => r.type === typeFilter) : results;
+    const groups = new Map<string, number[]>();
+    for (const r of filtered) {
+      const t = r.type === 'short_drama' ? 'short_drama' : r.type;
+      const arr = groups.get(t) || [];
+      arr.push(r.id);
+      groups.set(t, arr);
+    }
+    return groups;
+  }, [results, typeFilter]);
+
+  // Use a single contentType for status check (works correctly when typeFilter is set)
   const statusContentType = useMemo(() => {
     const filtered = typeFilter ? results.filter(r => r.type === typeFilter) : results;
     if (filtered.length > 0) return filtered[0].type === 'short_drama' ? 'short_drama' : filtered[0].type;
     return 'movie';
   }, [results, typeFilter]);
 
-  const statusMap = useMovieStatuses(displayedMovieIds, statusContentType);
+  // When no type filter, we need to query each type separately
+  const statusMapFiltered = useMovieStatuses(displayedMovieIds, typeFilter ? statusContentType : 'movie');
+  const statusMapDrama = useMovieStatuses(typeGroups.get('drama') || [], 'drama');
+  const statusMapVariety = useMovieStatuses(typeGroups.get('variety') || [], 'variety');
+  const statusMapAnime = useMovieStatuses(typeGroups.get('anime') || [], 'anime');
+  const statusMapShort = useMovieStatuses(typeGroups.get('short_drama') || [], 'short_drama');
+
+  // Merge all status maps
+  const statusMap = useMemo(() => {
+    if (typeFilter) return statusMapFiltered;
+    return { ...statusMapFiltered, ...statusMapDrama, ...statusMapVariety, ...statusMapAnime, ...statusMapShort };
+  }, [typeFilter, statusMapFiltered, statusMapDrama, statusMapVariety, statusMapAnime, statusMapShort]);
 
   // Build the flat list of all suggestion items for keyboard nav
   const allSuggestItems = useMemo(() => {

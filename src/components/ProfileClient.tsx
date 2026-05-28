@@ -515,7 +515,7 @@ function SettingsTab() {
   const handleClearSearchHistory = () => {
     setClearingHistory(true);
     try {
-      localStorage.removeItem('ff-search-history');
+      localStorage.removeItem('search_history');
       showToast('搜索历史已清除', 'success');
     } catch {
       showToast('清除失败', 'error');

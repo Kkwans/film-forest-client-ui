@@ -63,14 +63,23 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
   };
 
   const filteredMagnets = qualityFilter === '全部' ? realMagnets : realMagnets.filter(r => {
-    const t = (r.title || '').toLowerCase(); const res = (r.resolution || '').toLowerCase();
-    if (qualityFilter === '4K') return res.includes('4k') || t.includes('4k');
-    if (qualityFilter === '特效1080P') return (res.includes('1080') || t.includes('1080')) && t.includes('特效');
-    if (qualityFilter === '中字1080P') return (res.includes('1080') || t.includes('1080')) && t.includes('中字') && !t.includes('特效');
-    if (qualityFilter === '1080P') return (res.includes('1080') || t.includes('1080')) && !t.includes('中字') && !t.includes('特效');
-    if (qualityFilter === '720P') return res.includes('720') || t.includes('720');
-    if (qualityFilter === '未知') return !(res.includes('4k')||t.includes('4k'))&&!((res.includes('1080')||t.includes('1080'))&&t.includes('特效'))&&!((res.includes('1080')||t.includes('1080'))&&t.includes('中字')&&!t.includes('特效'))&&!((res.includes('1080')||t.includes('1080'))&&!t.includes('中字')&&!t.includes('特效'))&&!(res.includes('720')||t.includes('720'));
-    return false;
+    const t = (r.title || '').toLowerCase();
+    const res = (r.resolution || '').toLowerCase();
+    const has1080 = res.includes('1080') || t.includes('1080');
+    const has720 = res.includes('720') || t.includes('720');
+    const has4k = res.includes('4k') || t.includes('4k');
+    const has特效 = t.includes('特效');
+    const has中字 = t.includes('中字');
+
+    switch (qualityFilter) {
+      case '4K': return has4k;
+      case '特效1080P': return has1080 && has特效;
+      case '中字1080P': return has1080 && has中字 && !has特效;
+      case '1080P': return has1080 && !has中字 && !has特效;
+      case '720P': return has720;
+      case '未知': return !has4k && !(has1080 && has特效) && !(has1080 && has中字 && !has特效) && !(has1080 && !has中字 && !has特效) && !has720;
+      default: return false;
+    }
   });
 
   return (

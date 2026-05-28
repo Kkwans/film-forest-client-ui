@@ -81,7 +81,9 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
         }
       }
       setMovieStatus(statusMap);
-    } catch {} finally {
+    } catch (err) {
+      console.warn('[CollectModal] Failed to load lists:', err);
+    } finally {
       setLoading(false);
     }
   }, [isAuthenticated, movieId]);

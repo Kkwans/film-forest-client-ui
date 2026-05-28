@@ -64,8 +64,9 @@ export function useMovieStatuses(movieIds: number[], contentType: string) {
       }
 
       setStatusMap(result);
-    } catch {
+    } catch (err) {
       // On error, leave statusMap empty
+      console.warn('[useMovieStatuses] Failed to fetch statuses:', err);
     }
   }, [isAuthenticated, movieIds, contentType]);
 

@@ -41,6 +41,8 @@ interface FetchResult {
   error: boolean;
 }
 
+const BASE_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
 async function fetchItems(url: string): Promise<FetchResult> {
   try {
     const res = await fetch(url, { next: { revalidate: 600 } });
@@ -86,7 +88,7 @@ function mapRecommendItem(m: RecommendItem): ContentItem {
 
 async function fetchRecommend(): Promise<{ hot: Record<string, ContentItem[]>; latest: Record<string, ContentItem[]>; error: boolean }> {
   try {
-    const res = await fetch('http://localhost:8080/api/recommend?topN=6', { next: { revalidate: 600 } });
+    const res = await fetch(`${BASE_URL}/api/recommend?topN=6`, { next: { revalidate: 600 } });
     if (!res.ok) return { hot: {}, latest: {}, error: true };
     const json = await res.json();
     const data: RecommendData = json?.data;
@@ -108,11 +110,11 @@ async function fetchRecommend(): Promise<{ hot: Record<string, ContentItem[]>; l
 
 export default async function HomePage() {
   const [movies, dramas, varieties, animes, shorts, recommend] = await Promise.all([
-    fetchItems('http://localhost:8080/api/movies?page=1&size=12'),
-    fetchItems('http://localhost:8080/api/dramas?page=1&size=12'),
-    fetchItems('http://localhost:8080/api/varieties?page=1&size=12'),
-    fetchItems('http://localhost:8080/api/animes?page=1&size=12'),
-    fetchItems('http://localhost:8080/api/short-dramas?page=1&size=12'),
+    fetchItems(`${BASE_URL}/api/movies?page=1&size=12`),
+    fetchItems(`${BASE_URL}/api/dramas?page=1&size=12`),
+    fetchItems(`${BASE_URL}/api/varieties?page=1&size=12`),
+    fetchItems(`${BASE_URL}/api/animes?page=1&size=12`),
+    fetchItems(`${BASE_URL}/api/short-dramas?page=1&size=12`),
     fetchRecommend(),
   ]);
 

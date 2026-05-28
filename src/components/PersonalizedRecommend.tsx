@@ -61,19 +61,8 @@ export default function PersonalizedRecommend() {
 
     setLoading(true);
 
-    // 从历史中提取偏好类型
-    const typeCount: Record<string, number> = {};
-    for (const h of history) {
-      typeCount[h.contentType] = (typeCount[h.contentType] || 0) + 1;
-    }
-    const topTypes = Object.entries(typeCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([t]) => t);
-
-    // 构造推荐请求参数
-    // 用 topTypes 作为 hint（传给后端的 genres 参数留空，让后端按评分推荐）
-    // 但排除已看过的
+    // 从历史中提取已看过的 ID（用于排除）
+    // 后端按评分降序推荐，排除已看过的即可
     recommendApi
       .personalized({
         excludeIds,
