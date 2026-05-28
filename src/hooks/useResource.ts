@@ -63,7 +63,7 @@ export function useResource(contentType: string, contentId: number, episodeId?: 
         setCloudResources(extractData(cloudRes.value as SettledResponse) as CloudResource[]);
       }
     } catch (e) {
-      console.error('[useResource] fetch failed', e);
+      console.warn('[useResource] fetch failed', e);
     } finally {
       setLoading(false);
     }

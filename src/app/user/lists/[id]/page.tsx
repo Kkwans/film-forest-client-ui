@@ -197,7 +197,7 @@ export default function ListDetailPage() {
       // 更新 noteEdit 中的数据以反映最新保存的内容
       setNoteEdit(prev => prev ? { ...prev, item: { ...prev.item, note: note || prev.item.note, userRating: rating ?? prev.item.userRating } } : null);
     } catch (err) {
-      console.error('Update item failed:', err);
+      console.warn('Update item failed:', err);
       showToast('更新失败，请稍后再试', 'error');
     }
   };
