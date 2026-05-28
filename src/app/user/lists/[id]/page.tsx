@@ -13,6 +13,7 @@ import { cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { parseJsonArr, TYPE_LABELS } from '@/lib/contentConstants';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import dynamic from 'next/dynamic';
+import LazyImage from '@/components/ui/lazy-image';
 
 const NoteEditModal = dynamic(() => import('@/components/NoteEditModal'), { ssr: false });
 const Dialog = dynamic(() => import('@/components/Dialog'), { ssr: false });
@@ -348,7 +349,14 @@ export default function ListDetailPage() {
 
                     <Link href={href} className="shrink-0">
                       <div className="relative w-[80px] h-[110px] md:w-[100px] md:h-[140px] rounded-lg overflow-hidden">
-                        <img src={item.cover || fallbackCover(item.movieId)} alt={item.title || ''} className="w-full h-full object-cover" loading="lazy" />
+                        <LazyImage
+                          src={item.cover || fallbackCover(item.movieId)}
+                          alt={item.title || ''}
+                          className="rounded-lg"
+                          aspectRatio={null}
+                          fallbackSrc={fallbackCover(item.movieId)}
+                          rootMargin="100px"
+                        />
                         {/* Douban rating on poster */}
                         {item.rating && (
                           <span className="absolute bottom-1 right-1 px-1 py-0.5 rounded text-[10px] font-bold text-white" style={{ backgroundColor: 'rgba(220,38,38,0.85)' }}>

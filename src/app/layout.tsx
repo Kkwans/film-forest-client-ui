@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import PageTransition from "@/components/PageTransition";
+import ScrollToTop from "@/components/ScrollToTop";
 import { ToastProvider } from "@/components/Toast";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
@@ -42,6 +43,7 @@ export default function RootLayout({
           </ToastProvider>
           <Footer />
           <MobileBottomNav />
+          <ScrollToTop />
         </ThemeProvider>
       </body>
     </html>

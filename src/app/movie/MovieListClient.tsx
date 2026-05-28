@@ -62,12 +62,30 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
   const [error, setError] = useState(false);
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
   const [tagContentIds, setTagContentIds] = useState<number[] | null>(null);
+  const [pageSize, setPageSize] = useState(24);
+  const [listDensity, setListDensity] = useState<'comfortable' | 'compact'>('comfortable');
+
+  // Read user preferences
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('ff-user-prefs');
+      if (stored) {
+        const prefs = JSON.parse(stored);
+        if (prefs.pageSize && typeof prefs.pageSize === 'number') {
+          setPageSize(prefs.pageSize);
+        }
+        if (prefs.listDensity === 'compact' || prefs.listDensity === 'comfortable') {
+          setListDensity(prefs.listDensity);
+        }
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const fetchData = useCallback(async (p: number, g: string, r: string, y: string, s: string, yf?: string, yt?: string) => {
     setLoading(true);
     try {
       setError(false);
-      const parts: string[] = [`page=${p}`, 'size=24'];
+      const parts: string[] = [`page=${p}`, `size=${pageSize}`];
       if (g !== '全部') parts.push(`genre=${encodeURIComponent(g)}`);
       if (r !== '全部') parts.push(`region=${encodeURIComponent(r)}`);
       if (y !== '全部' && y !== '自定义') parts.push(`year=${encodeURIComponent(y)}`);
@@ -99,7 +117,7 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
     } finally {
       setLoading(false);
     }
-  }, [apiBase, sortDir]);
+  }, [apiBase, sortDir, pageSize]);
 
   useEffect(() => {
     if (initialized) {
@@ -220,8 +238,8 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
 
       {/* Loading skeleton */}
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4" style={{ minHeight: '60vh' }}>
-          {Array.from({ length: 12 }).map((_, i) => (
+        <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 ${listDensity === 'compact' ? 'gap-2 md:gap-3' : 'gap-3 md:gap-4'}`} style={{ minHeight: '60vh' }}>
+          {Array.from({ length: pageSize }).map((_, i) => (
             <div key={i} className="flex flex-col gap-2 animate-pulse">
               <div className="aspect-[2/3] rounded-xl bg-card"  />
               <div className="h-4 w-3/4 rounded bg-card"  />
@@ -232,7 +250,7 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
       ) : (
         <>
           {/* Grid - mobile 2 columns, desktop responsive */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4" style={{ minHeight: '60vh' }}>
+          <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 ${listDensity === 'compact' ? 'gap-2 md:gap-3' : 'gap-3 md:gap-4'}`} style={{ minHeight: '60vh' }}>
             {displayItems.map((item) => (
               <MovieCard key={item.id} id={item.id} title={item.title} cover={item.cover} year={item.year} region={item.region} rating={item.rating} genre={item.genre} type={contentType} duration={item.duration} episodes={item.episodes} href={`/${contentType}/${item.id}`} movieStatus={statusMap[item.id] || null} />
             ))}
@@ -261,7 +279,7 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
             </div>
           )}
 
-          {total > 24 && <Pagination currentPage={page} totalPages={Math.ceil(total / 24)} onPageChange={handlePageChange} />}
+          {total > pageSize && <Pagination currentPage={page} totalPages={Math.ceil(total / pageSize)} onPageChange={handlePageChange} />}
         </>
       )}
     </div>

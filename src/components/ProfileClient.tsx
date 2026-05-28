@@ -10,6 +10,7 @@ import { useToast } from '@/components/Toast';
 import { cleanTitle as cleanTitleUtil, formatRelativeTime } from '@/lib/utils';
 import { parseJsonArr } from '@/lib/contentConstants';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
+import LazyImage from '@/components/ui/lazy-image';
 
 // ─── Tab 定义 ───
 const TABS = [
@@ -365,11 +366,13 @@ function HistoryTab() {
               >
                 {/* 封面 */}
                 <div className="relative w-[60px] h-[84px] rounded-lg overflow-hidden shrink-0">
-                  <img
+                  <LazyImage
                     src={item.cover || `https://picsum.photos/seed/${item.movieId}/120/168`}
                     alt={item.title || ''}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
+                    className="rounded-lg"
+                    aspectRatio={null}
+                    fallbackSrc={`https://picsum.photos/seed/${item.movieId}/120/168`}
+                    rootMargin="100px"
                   />
                   {item.rating != null && Number(item.rating) > 0 && (
                     <span className="absolute bottom-0.5 right-0.5 px-1 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: 'rgba(220,38,38,0.85)' }}>
