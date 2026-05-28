@@ -11,6 +11,7 @@ import FilterChip from '@/components/FilterChip';
 import { cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { parseJsonArr, TYPE_LABELS, TYPE_HREFS, getStatusConfig } from '@/lib/contentConstants';
 import { StatusIconButton, TypeBadge, GenreTags } from '@/components/ContentShared';
+import LazyImage from '@/components/ui/lazy-image';
 import { useUserStore } from '@/stores/userStore';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
 import { useToast } from '@/components/Toast';
@@ -709,7 +710,15 @@ function SearchContent() {
                   />
                   {/* Poster */}
                   <div className="shrink-0 w-[80px] md:w-[110px] aspect-[2/3] rounded-lg overflow-hidden">
-                    <img src={item.cover || `https://picsum.photos/seed/${item.id}/110/165`} alt={item.title} className="w-full h-full object-cover img-zoom" loading="lazy" />
+                    <LazyImage
+                      src={item.cover || `https://picsum.photos/seed/${item.id}/110/165`}
+                      alt={item.title}
+                      className="rounded-lg"
+                      imgClassName="img-zoom"
+                      aspectRatio={null}
+                      fallbackSrc={`https://picsum.photos/seed/${item.id}/110/165`}
+                      rootMargin="200px"
+                    />
                   </div>
                   {/* Info */}
                   <div className="flex-1 min-w-0 flex flex-col gap-1">
