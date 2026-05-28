@@ -400,3 +400,9 @@ a, button, [role="button"], input[type="submit"] {
     box-shadow: none !important;
   }
 }
+
+
+/* Remove underline from links (used by MovieCard, MobileBottomNav, ProfileClient, RelatedSection) */
+.no-underline {
+  text-decoration: none !important;
+}
