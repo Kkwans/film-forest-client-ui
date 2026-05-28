@@ -69,6 +69,10 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
         note: note.trim() || undefined,
       });
       showToast('评价保存成功', 'success');
+      // Notify all listeners (e.g. useMovieStatuses on home page) to refresh
+      window.dispatchEvent(new CustomEvent('movie-status-changed', {
+        detail: { movieId, contentType, action: 'added' }
+      }));
       onClose();
     } catch {
       showToast('保存失败，请稍后再试', 'error');

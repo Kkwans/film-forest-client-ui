@@ -135,6 +135,10 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
       }
       setShowNoteInput(null);
       setAddNote('');
+      // Notify all listeners (e.g. useMovieStatuses on home page) to refresh
+      window.dispatchEvent(new CustomEvent('movie-status-changed', {
+        detail: { movieId, contentType, action: isCurrentlyIn ? 'removed' : 'added' }
+      }));
     } catch {} finally {
       setToggling(null);
     }
