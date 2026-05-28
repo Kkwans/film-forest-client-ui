@@ -1,38 +1,11 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
 import MovieCard from '@/components/MovieCard';
 import { usePlayHistoryStore } from '@/stores/playHistoryStore';
 import { recommendApi, type RecommendItem } from '@/lib/api';
 import { parseGenre } from '@/lib/utils';
 
-const TYPE_LABELS: Record<string, string> = {
-  movie: '电影',
-  drama: '剧集',
-  variety: '综艺',
-  anime: '动漫',
-  short_drama: '短剧',
-};
-
-const TYPE_HREF: Record<string, string> = {
-  movie: '/movie',
-  drama: '/drama',
-  variety: '/variety',
-  anime: '/anime',
-  short_drama: '/short',
-};
-
-interface ContentItem {
-  id: number;
-  title: string;
-  cover: string;
-  year: number;
-  region: string | string[];
-  rating?: number;
-  genre?: string[];
-  episodes?: number;
-}
 
 /**
  * 个性化推荐组件
@@ -43,7 +16,7 @@ export default function PersonalizedRecommend() {
   const [items, setItems] = useState<RecommendItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 从历史中提取已看过的 ID
+  // 从历史中提取已看过的 ID 用于排除
   const excludeIds = useMemo(() => {
     const ids = new Set<number>();
     for (const h of history) {
@@ -52,55 +25,21 @@ export default function PersonalizedRecommend() {
     return Array.from(ids).join(',');
   }, [history]);
 
-  // 从历史中提取类型偏好（基于播放频率）
-  const preferredGenres = useMemo(() => {
-    // 统计播放历史中的内容类型分布
-    const typeCount = new Map<string, number>();
-    for (const h of history) {
-      typeCount.set(h.contentType, (typeCount.get(h.contentType) || 0) + 1);
-    }
-    // 选择播放最多的内容类型作为偏好
-    // 由于播放历史不存储 genre，我们基于 contentType 推荐跨类型内容
-    return '';
-  }, [history]);
-
   useEffect(() => {
-    // 不够历史数据时跳过
     if (history.length < 3) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
-
     recommendApi
-      .personalized({
-        excludeIds,
-        genres: preferredGenres || undefined,
-        limit: 12,
-      })
-      .then((res) => {
-        const data = res.data?.data;
-        setItems(Array.isArray(data) ? data : []);
-      })
+      .personalized({ excludeIds, limit: 12 })
+      .then((res) => setItems(Array.isArray(res.data?.data) ? res.data.data : []))
       .catch(() => setItems([]))
       .then(() => setLoading(false));
-  }, [history.length, excludeIds, preferredGenres]);
+  }, [excludeIds]);
 
-  // 不够历史时隐藏
-  if (!loading && history.length < 3) return null;
   if (!loading && items.length === 0) return null;
-
-  const mapItem = (item: RecommendItem): ContentItem => ({
-    id: item.id,
-    title: item.title,
-    cover: item.posterUrl || '',
-    year: item.year || 0,
-    region: item.region || '',
-    rating: item.scoreDouban || undefined,
-    genre: item.genre ? parseGenre(item.genre) : undefined,
-    episodes: item.totalEpisode || undefined,
-  });
 
   return (
     <section className="animate-fade-in-up">
@@ -128,51 +67,45 @@ export default function PersonalizedRecommend() {
         <>
           {/* PC: grid */}
           <div className="hidden md:grid grid-cols-6 gap-3.5">
-            {items.map((item, idx) => {
-              const ci = mapItem(item);
-              return (
-                <div key={`personalized-${item.type}-${item.id}`} className={`animate-fade-in-up stagger-${Math.min(idx + 1, 12)}`}>
-                  <MovieCard
-                    id={ci.id}
-                    title={ci.title}
-                    cover={ci.cover}
-                    year={ci.year}
-                    region={ci.region}
-                    rating={ci.rating}
-                    genre={ci.genre}
-                    type={item.type}
-                    episodes={ci.episodes}
-                    href={`/${item.type === 'short_drama' ? 'short' : item.type}/${ci.id}`}
-                    movieStatus={null}
-                  />
-                </div>
-              );
-            })}
+            {items.map((item, idx) => (
+              <div key={`personalized-${item.type}-${item.id}`} className={`animate-fade-in-up stagger-${Math.min(idx + 1, 12)}`}>
+                <MovieCard
+                  id={item.id}
+                  title={item.title}
+                  cover={item.posterUrl || ''}
+                  year={item.year || 0}
+                  region={item.region || ''}
+                  rating={item.scoreDouban || undefined}
+                  genre={item.genre ? parseGenre(item.genre) : undefined}
+                  type={item.type}
+                  episodes={item.totalEpisode || undefined}
+                  href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`}
+                  movieStatus={null}
+                />
+              </div>
+            ))}
           </div>
 
           {/* Mobile: horizontal scroll */}
           <div className="md:hidden relative">
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
-              {items.map((item) => {
-                const ci = mapItem(item);
-                return (
-                  <div key={`personalized-m-${item.type}-${item.id}`} className="flex-shrink-0 w-[120px] snap-start">
-                    <MovieCard
-                      id={ci.id}
-                      title={ci.title}
-                      cover={ci.cover}
-                      year={ci.year}
-                      region={ci.region}
-                      rating={ci.rating}
-                      genre={ci.genre}
-                      type={item.type}
-                      episodes={ci.episodes}
-                      href={`/${item.type === 'short_drama' ? 'short' : item.type}/${ci.id}`}
-                      movieStatus={null}
-                    />
-                  </div>
-                );
-              })}
+              {items.map((item) => (
+                <div key={`personalized-m-${item.type}-${item.id}`} className="flex-shrink-0 w-[120px] snap-start">
+                  <MovieCard
+                    id={item.id}
+                    title={item.title}
+                    cover={item.posterUrl || ''}
+                    year={item.year || 0}
+                    region={item.region || ''}
+                    rating={item.scoreDouban || undefined}
+                    genre={item.genre ? parseGenre(item.genre) : undefined}
+                    type={item.type}
+                    episodes={item.totalEpisode || undefined}
+                    href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`}
+                    movieStatus={null}
+                  />
+                </div>
+              ))}
             </div>
             <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none" style={{ background: 'linear-gradient(to right, transparent, var(--bg-primary))' }} />
           </div>
