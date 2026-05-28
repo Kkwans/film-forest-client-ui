@@ -194,6 +194,7 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
         </h1>
         {activeFilterCount > 0 && (
           <button
+            type="button"
             onClick={resetAllFilters}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-colors"
             style={{ background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent)' }}
@@ -268,6 +269,7 @@ export default function MovieListClient({ initialItems, initialTotal, contentTyp
               <p className="text-sm mb-1 text-secondary-foreground">数据加载失败</p>
               <p className="text-xs text-muted-foreground mb-3">网络或服务异常，请稍后再试</p>
               <button
+            type="button"
                 onClick={() => fetchData(page, genre, region, year, sort, yearFrom, yearTo)}
                 className="px-4 py-2 rounded-full text-xs font-medium cursor-pointer transition-colors"
                 style={{ background: 'var(--accent)', color: '#fff' }}

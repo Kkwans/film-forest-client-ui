@@ -536,6 +536,7 @@ function SearchContent() {
                       const globalIndex = i;
                       return (
                         <button
+                          type="button"
                           key={i}
                           data-suggest-index={globalIndex}
                           className="w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2"
@@ -559,12 +560,13 @@ function SearchContent() {
                   <div>
                     <div className="px-3 py-2 text-xs font-medium flex items-center justify-between" style={{ color: 'var(--text-muted)' }}>
                       <span className="flex items-center gap-1.5"><HistoryIcon /> 搜索历史</span>
-                      <button onClick={clearSearchHistory} className="text-xs transition-colors hover:opacity-80" style={{ color: 'var(--text-muted)' }}>清空</button>
+                      <button type="button" onClick={clearSearchHistory} className="text-xs transition-colors hover:opacity-80" style={{ color: 'var(--text-muted)' }}>清空</button>
                     </div>
                     {searchHistory.map((h, i) => {
                       const globalIndex = suggestions.length + i;
                       return (
                         <button
+                        type="button"
                           key={i}
                           data-suggest-index={globalIndex}
                           className="w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2"
@@ -593,6 +595,7 @@ function SearchContent() {
                       const globalIndex = suggestions.length + searchHistory.length + i;
                       return (
                         <button
+                        type="button"
                           key={i}
                           data-suggest-index={globalIndex}
                           className="w-full text-left px-3 py-2 text-sm transition-colors flex items-center gap-2"
