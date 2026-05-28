@@ -15,7 +15,8 @@ interface NoteEditModalProps {
 }
 
 function getRatingLabel(r: number): string {
-  if (r >= 9) return '神作';
+  if (r >= 10) return '神作';
+  if (r >= 9) return '极佳';
   if (r >= 8) return '顶级';
   if (r >= 7) return '推荐';
   if (r >= 6) return '还行';
@@ -127,9 +128,9 @@ export default function NoteEditModal({ open, onClose, onSave, initialNote = '',
                 onTouchStart={isReadOnly ? undefined : handleTouchStart} onTouchMove={isReadOnly ? undefined : handleTouchMove} onTouchEnd={isReadOnly ? undefined : handleTouchEnd}
               >
                 {Array.from({ length: 10 }, (_, i) => {
-                  const fillRatio = Math.max(0, Math.min(1, displayRating - i * 0.5 * 2));
-                  // Simplified: star i is fully filled if displayRating >= (i+1), partially if between i and i+1
-                  const starFill = Math.max(0, Math.min(1, displayRating / 2 - i));
+                  // WatchedModal uses activeSteps = round(rating*2) in [0,20], each star = 2 steps
+                  const activeSteps = Math.round(displayRating * 2); // 0-20
+                  const starFill = Math.max(0, Math.min(1, activeSteps / 2 - i));
                   const clipId = `note-clip-${i}`;
                   return (
                     <svg key={i} width="24" height="24" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>

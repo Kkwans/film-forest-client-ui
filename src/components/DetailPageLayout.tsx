@@ -190,6 +190,7 @@ export default function DetailPageLayout({
             contentType={contentType}
             contentTitle={item.title}
             status={ds.status}
+            watchedListId={ds.watchedListId}
             collectOpen={ds.collectOpen}
             watchedOpen={ds.watchedOpen}
             watchedReadOnly={ds.watchedReadOnly}

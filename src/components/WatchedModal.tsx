@@ -14,26 +14,28 @@ interface WatchedModalProps {
   initialNote?: string;
   isReadOnly?: boolean;
   onEdit?: () => void;
+  watchedListId: number | null; // Passed from useDetailStatus to avoid redundant getAll() call
 }
 
 const RATING_LEVELS = [
   { value: 1, label: '很差', color: 'var(--rating-low)' },
-  { value: 2, label: '很差', color: 'var(--rating-low)' },
-  { value: 3, label: '较差', color: 'var(--rating-low)' },
-  { value: 4, label: '一般', color: 'var(--rating-6)' },
-  { value: 5, label: '还行', color: 'var(--rating-6)' },
-  { value: 6, label: '中等', color: 'var(--rating-6)' },
-  { value: 7, label: '较好', color: 'var(--rating-7)' },
-  { value: 8, label: '良好', color: 'var(--rating-7)' },
-  { value: 9, label: '优秀', color: 'var(--rating-8)' },
+  { value: 2, label: '较差', color: 'var(--rating-low)' },
+  { value: 3, label: '一般', color: 'var(--rating-low)' },
+  { value: 4, label: '还行', color: 'var(--rating-6)' },
+  { value: 5, label: '中等', color: 'var(--rating-6)' },
+  { value: 6, label: '较好', color: 'var(--rating-6)' },
+  { value: 7, label: '良好', color: 'var(--rating-7)' },
+  { value: 8, label: '优秀', color: 'var(--rating-7)' },
+  { value: 9, label: '极佳', color: 'var(--rating-8)' },
   { value: 10, label: '神作', color: 'var(--rating-9)' },
 ];
 
-export default function WatchedModal({ open, onClose, movieId, contentType, movieTitle, initialRating, initialNote, isReadOnly, onEdit }: WatchedModalProps) {
+export default function WatchedModal({ open, onClose, movieId, contentType, movieTitle, initialRating, initialNote, isReadOnly, onEdit, watchedListId: watchedListIdProp }: WatchedModalProps) {
   const [rating, setRating] = useState<number>(0);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+  // watchedListId from props (useDetailStatus) to avoid redundant listApi.getAll()
   const [watchedListId, setWatchedListId] = useState<number | null>(null);
   const starsRef = useRef<HTMLDivElement>(null);
   const { showToast } = useToast();
@@ -43,13 +45,18 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
       setRating(initialRating || 0);
       setHoverRating(0);
       setNote(initialNote || '');
-      listApi.getAll().then(res => {
-        const lists = res.data.data || res.data;
-        const watched = Array.isArray(lists) ? lists.find((l: UserList) => l.type === 'watched') : null;
-        if (watched) setWatchedListId(watched.id);
-      }).catch(e => console.error('加载已看列表失败', e));
+      // Use prop if available, otherwise fetch
+      if (watchedListIdProp) {
+        setWatchedListId(watchedListIdProp);
+      } else {
+        listApi.getAll().then(res => {
+          const lists = res.data.data || res.data;
+          const watched = Array.isArray(lists) ? lists.find((l: UserList) => l.type === 'watched') : null;
+          if (watched) setWatchedListId(watched.id);
+        }).catch(e => console.error('加载已看列表失败', e));
+      }
     }
-  }, [open, initialRating, initialNote]);
+  }, [open, initialRating, initialNote, watchedListIdProp]);
 
   const handleSave = async () => {
     if (!watchedListId) return;

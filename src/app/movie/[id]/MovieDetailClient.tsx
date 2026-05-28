@@ -97,7 +97,7 @@ export default function MovieDetailClient({ movie, magnetResources, cloudResourc
           <DetailTitle title={cleanTitleUtil(movie.title)} year={movie.year} />
 
           <DetailButtons contentId={movie.id} contentType="movie" contentTitle={movie.title}
-            status={ds.status} collectOpen={ds.collectOpen} watchedOpen={ds.watchedOpen} watchedReadOnly={ds.watchedReadOnly}
+            status={ds.status} watchedListId={ds.watchedListId} collectOpen={ds.collectOpen} watchedOpen={ds.watchedOpen} watchedReadOnly={ds.watchedReadOnly}
             onWantButtonClick={ds.handleWantButtonClick} onWatchedClick={ds.handleWatchedClick}
             onCollectClose={ds.handleCollectClose} onWatchedClose={ds.handleWatchedClose}
             onWatchedEdit={ds.handleWatchedEdit} onCollectOpen={() => ds.setCollectOpen(true)} />

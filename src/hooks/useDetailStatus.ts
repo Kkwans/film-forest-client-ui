@@ -36,6 +36,7 @@ export function useDetailStatus(contentId: number, contentType: string) {
   const [collectOpen, setCollectOpen] = useState(false);
   const [watchedOpen, setWatchedOpen] = useState(false);
   const [watchedReadOnly, setWatchedReadOnly] = useState(false);
+  const [watchedListId, setWatchedListId] = useState<number | null>(null);
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
   const { showToast } = useToast();
   const wantClickTimer = useRef<NodeJS.Timeout | null>(null);
@@ -44,8 +45,16 @@ export function useDetailStatus(contentId: number, contentType: string) {
     if (!isAuthenticated) return;
     setStatusLoading(true);
     try {
-      const res = await statusApi.get(contentId, contentType);
-      const data = res.data.data || res.data;
+      // Call both in parallel to reduce round-trips
+      const [listsRes, statusRes] = await Promise.all([listApi.getAll(), statusApi.get(contentId, contentType)]);
+      const lists = listsRes.data.data || listsRes.data;
+      const data = statusRes.data.data || statusRes.data;
+
+      // Extract watchedListId for WatchedModal
+      const watched = Array.isArray(lists) ? lists.find((l: UserListSummary) => l.type === 'watched') : null;
+      if (watched) setWatchedListId(watched.id);
+
+      // Parse status
       const s: DetailStatus = {};
       if (Array.isArray(data)) {
         data.forEach((item: StatusItem) => {
@@ -134,6 +143,7 @@ export function useDetailStatus(contentId: number, contentType: string) {
   return {
     status,
     statusLoading,
+    watchedListId,
     collectOpen,
     watchedOpen,
     watchedReadOnly,

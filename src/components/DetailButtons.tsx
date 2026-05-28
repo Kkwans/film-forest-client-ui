@@ -11,6 +11,7 @@ interface DetailButtonsProps {
   contentType: string;
   contentTitle: string;
   status: DetailStatus;
+  watchedListId: number | null;
   collectOpen: boolean;
   watchedOpen: boolean;
   watchedReadOnly: boolean;
@@ -38,7 +39,7 @@ function MiniStars({ rating }: { rating?: number }) {
 }
 
 export default function DetailButtons({
-  contentId, contentType, contentTitle, status,
+  contentId, contentType, contentTitle, status, watchedListId,
   collectOpen, watchedOpen, watchedReadOnly,
   onWantButtonClick, onWatchedClick, onCollectClose, onWatchedClose, onWatchedEdit, onCollectOpen,
 }: DetailButtonsProps) {
@@ -76,6 +77,7 @@ export default function DetailButtons({
         </div>
         <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
         <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle}
+          watchedListId={watchedListId}
           initialRating={status.watchedRating} initialNote={status.watchedNote}
           isReadOnly={watchedReadOnly} onEdit={onWatchedEdit} />
       </>
@@ -104,7 +106,7 @@ export default function DetailButtons({
           </button>
         </div>
         <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
-        <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
+        <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} watchedListId={watchedListId} />
       </>
     );
   }
@@ -128,7 +130,7 @@ export default function DetailButtons({
           </button>
         </div>
         <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
-        <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
+        <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} watchedListId={watchedListId} />
       </>
     );
   }
@@ -152,7 +154,7 @@ export default function DetailButtons({
         </button>
       </div>
       <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
-      <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
+      <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} watchedListId={watchedListId} />
     </>
   );
 }
