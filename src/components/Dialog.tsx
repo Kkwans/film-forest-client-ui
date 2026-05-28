@@ -69,7 +69,7 @@ export default function Dialog({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-message">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -96,12 +96,12 @@ export default function Dialog({
             </svg>
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-base font-bold text-foreground" >{title}</h3>
+            <h3 id="dialog-title" className="text-base font-bold text-foreground" >{title}</h3>
           </div>
         </div>
 
         {/* Message */}
-        <p className="text-sm leading-relaxed mb-6 text-secondary-foreground" >{message}</p>
+        <p id="dialog-message" className="text-sm leading-relaxed mb-6 text-secondary-foreground" >{message}</p>
 
         {/* Actions */}
         <div className="flex gap-3 justify-end">

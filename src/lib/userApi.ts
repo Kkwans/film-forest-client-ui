@@ -46,7 +46,11 @@ export interface User {
   username: string;
   nickname?: string;
   email?: string;
+  phone?: string;
   avatar?: string;
+  avatarUrl?: string;
+  status?: number;
+  createdAt?: string;
 }
 
 export interface UserList {

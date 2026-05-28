@@ -234,12 +234,6 @@ function SearchContent() {
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
   const { showToast } = useToast();
 
-  // Get all displayed movie IDs for status check
-  const displayedMovieIds = useMemo(() => {
-    const filtered = typeFilter ? results.filter(r => r.type === typeFilter) : results;
-    return filtered.map(r => r.id);
-  }, [results, typeFilter]);
-
   // Group items by type for accurate status queries (search returns mixed types)
   const typeGroups = useMemo(() => {
     const filtered = typeFilter ? results.filter(r => r.type === typeFilter) : results;
@@ -253,15 +247,8 @@ function SearchContent() {
     return groups;
   }, [results, typeFilter]);
 
-  // Use a single contentType for status check (works correctly when typeFilter is set)
-  const statusContentType = useMemo(() => {
-    const filtered = typeFilter ? results.filter(r => r.type === typeFilter) : results;
-    if (filtered.length > 0) return filtered[0].type === 'short_drama' ? 'short_drama' : filtered[0].type;
-    return 'movie';
-  }, [results, typeFilter]);
-
-  // When no type filter, we need to query each type separately
-  const statusMapFiltered = useMovieStatuses(displayedMovieIds, typeFilter ? statusContentType : 'movie');
+  // Query each content type separately for accurate status lookups
+  const statusMapMovie = useMovieStatuses(typeGroups.get('movie') || [], 'movie');
   const statusMapDrama = useMovieStatuses(typeGroups.get('drama') || [], 'drama');
   const statusMapVariety = useMovieStatuses(typeGroups.get('variety') || [], 'variety');
   const statusMapAnime = useMovieStatuses(typeGroups.get('anime') || [], 'anime');
@@ -269,9 +256,8 @@ function SearchContent() {
 
   // Merge all status maps
   const statusMap = useMemo(() => {
-    if (typeFilter) return statusMapFiltered;
-    return { ...statusMapFiltered, ...statusMapDrama, ...statusMapVariety, ...statusMapAnime, ...statusMapShort };
-  }, [typeFilter, statusMapFiltered, statusMapDrama, statusMapVariety, statusMapAnime, statusMapShort]);
+    return { ...statusMapMovie, ...statusMapDrama, ...statusMapVariety, ...statusMapAnime, ...statusMapShort };
+  }, [statusMapMovie, statusMapDrama, statusMapVariety, statusMapAnime, statusMapShort]);
 
   // Build the flat list of all suggestion items for keyboard nav
   const allSuggestItems = useMemo(() => {
@@ -325,6 +311,15 @@ function SearchContent() {
     searchApi.hot().then(res => {
       setHotItems(res.data?.data || []);
     }).catch(() => {});
+  }, []);
+
+  // Cleanup suggest timer on unmount
+  useEffect(() => {
+    return () => {
+      if (suggestTimerRef.current) {
+        clearTimeout(suggestTimerRef.current);
+      }
+    };
   }, []);
 
   // Re-search when sort changes
@@ -511,6 +506,7 @@ function SearchContent() {
                 style={{ color: 'var(--text-muted)' }}
                 onMouseEnter={e => { e.currentTarget.style.backgroundColor = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                 onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                aria-label="清除搜索"
                 title="清除"
               >
                 <ClearIcon />

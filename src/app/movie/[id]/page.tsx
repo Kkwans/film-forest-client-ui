@@ -6,9 +6,11 @@ import { getDetailMetadata } from '@/lib/metadata';
 // ISR: 电影详情页每小时重新验证
 export const revalidate = 3600;
 
+const BASE_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
 async function fetchMovie(id: number) {
   try {
-    const res = await fetch(`http://localhost:8080/api/movies/${id}`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${BASE_URL}/api/movies/${id}`, { next: { revalidate: 3600 } });
     const data = await res.json();
     const m = data?.data;
     if (!m || !m.id) return null;
@@ -38,9 +40,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 async function fetchResources(type: string, contentId: number) {
   try {
     const [magnetRes, cloudRes, onlineRes] = await Promise.all([
-      fetch(`http://localhost:8080/api/resources/magnet?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
-      fetch(`http://localhost:8080/api/resources/cloud?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
-      fetch(`http://localhost:8080/api/resources/online?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
+      fetch(`${BASE_URL}/api/resources/magnet?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
+      fetch(`${BASE_URL}/api/resources/cloud?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
+      fetch(`${BASE_URL}/api/resources/online?contentType=${type}&contentId=${contentId}`, { next: { revalidate: 3600 } }),
     ]);
     const magnetData = await magnetRes.json();
     const cloudData = await cloudRes.json();

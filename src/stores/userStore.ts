@@ -64,7 +64,12 @@ export const useUserStore = create<UserState>()(
         set({ isLoading: true });
         try {
           const res = await userApi.me();
-          const user = (res.data as unknown) as User | null;
+          const body = (res.data as unknown) as { code?: number; data?: User };
+          const user = body?.data ?? (res.data as unknown as User | null);
+          // Normalize avatar: backend returns avatarUrl, frontend uses avatar
+          if (user && user.avatarUrl && !user.avatar) {
+            user.avatar = user.avatarUrl;
+          }
           set({ user: user ?? null, isAuthenticated: true, isLoading: false });
         } catch {
           localStorage.removeItem('ff_token');

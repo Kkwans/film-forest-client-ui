@@ -28,7 +28,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
   };
 
   return (
-    <div className="flex items-center justify-center gap-1.5 mt-8">
+    <nav className="flex items-center justify-center gap-1.5 mt-8" aria-label="分页导航">
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
@@ -38,6 +38,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
           color: 'var(--text-secondary)',
           backgroundColor: 'var(--bg-card)',
         }}
+        aria-label="上一页"
       >
         上一页
       </button>
@@ -53,6 +54,8 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
               color: page === currentPage ? 'white' : 'var(--text-secondary)',
               border: page === currentPage ? 'none' : '1px solid var(--border-color)',
             }}
+            aria-label={`第 ${page} 页`}
+            aria-current={page === currentPage ? 'page' : undefined}
           >
             {page}
           </button>
@@ -72,9 +75,10 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
           color: 'var(--text-secondary)',
           backgroundColor: 'var(--bg-card)',
         }}
+        aria-label="下一页"
       >
         下一页
       </button>
-    </div>
+    </nav>
   );
 }

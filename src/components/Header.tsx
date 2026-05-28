@@ -33,6 +33,7 @@ export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestLoading, setSuggestLoading] = useState(false);
   const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -76,13 +77,15 @@ export default function Header() {
     if (!value.trim()) {
       setSuggestions([]);
       setShowSuggestions(false);
+      setSuggestLoading(false);
       return;
     }
+    setSuggestLoading(true);
     suggestTimerRef.current = setTimeout(() => {
       searchApi.suggest(value.trim()).then(res => {
         setSuggestions(res.data?.data || []);
         setShowSuggestions(true);
-      }).catch(() => setSuggestions([]));
+      }).catch(() => setSuggestions([])).finally(() => setSuggestLoading(false));
     }, 300);
   };
 
@@ -184,6 +187,7 @@ export default function Header() {
                     onClick={() => { setKeyword(''); setSuggestions([]); setShowSuggestions(false); }}
                     className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full transition-colors"
                     style={{ color: 'var(--text-muted)' }}
+                    aria-label="清除搜索"
                     title="清除"
                   >
                     <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -192,7 +196,7 @@ export default function Header() {
                     </svg>
                   </button>
                 )}
-                {showSuggestions && suggestions.length > 0 && (
+                {showSuggestions && (suggestions.length > 0 || suggestLoading) && (
                   <div
                     className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-lg py-1 z-50 max-h-60 overflow-y-auto"
                     style={{
@@ -200,7 +204,12 @@ export default function Header() {
                       borderColor: 'var(--border-color)',
                     }}
                   >
-                    {suggestions.map((s, i) => (
+                    {suggestLoading && (
+                      <div className="flex items-center justify-center py-3">
+                        <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent)' }} />
+                      </div>
+                    )}
+                    {!suggestLoading && suggestions.map((s, i) => (
                       <button
                         key={i}
                         className="w-full text-left px-3 py-1.5 text-sm hover:opacity-80 transition-colors"
@@ -232,6 +241,7 @@ export default function Header() {
                 borderColor: 'var(--border-color)',
                 color: 'var(--text-secondary)',
               }}
+              aria-label={isDark ? '切换为浅色模式' : '切换为深色模式'}
               title="切换深色模式"
             >
               {mounted ? (isDark ? '☀️' : '🌙') : '🌙'}
@@ -275,15 +285,19 @@ export default function Header() {
                     <Link
                       href="/profile"
                       onClick={() => setUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm transition-colors hover:opacity-80"
-
+                      className="block px-4 py-2 text-sm transition-colors rounded-md mx-1"
+                      style={{ color: 'var(--text-primary)' }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--accent-light)'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                       我的
                     </Link>
                     <button
                       onClick={() => { setUserMenuOpen(false); logout(); router.push('/'); }}
-                      className="block w-full text-left px-4 py-2 text-sm transition-colors hover:opacity-80"
-
+                      className="block w-full text-left px-4 py-2 text-sm transition-colors rounded-md mx-1"
+                      style={{ color: 'var(--danger, #ef4444)' }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--danger-bg, rgba(239,68,68,0.1))'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                       退出登录
                     </button>
@@ -312,6 +326,7 @@ export default function Header() {
                 borderColor: 'var(--border-color)',
                 color: 'var(--text-secondary)',
               }}
+              aria-label={isDark ? '切换为浅色模式' : '切换为深色模式'}
             >
               {mounted ? (isDark ? '☀️' : '🌙') : '🌙'}
             </button>
@@ -322,6 +337,8 @@ export default function Header() {
                 borderColor: 'var(--border-color)',
                 color: 'var(--text-secondary)',
               }}
+              aria-label={menuOpen ? '关闭菜单' : '打开菜单'}
+              aria-expanded={menuOpen}
             >
               {menuOpen ? '✕' : '☰'}
             </button>

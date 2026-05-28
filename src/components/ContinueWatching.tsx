@@ -126,14 +126,14 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
         </div>
       </div>
 
-      {/* 删除按钮 */}
+      {/* 删除按钮 - bottom-right to avoid overlapping episode badge */}
       <button
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onRemove();
         }}
-        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 text-white/80 hover:bg-red-500 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
+        className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-black/60 text-white/80 hover:bg-red-500 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
         title="移除记录"
       >
         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
