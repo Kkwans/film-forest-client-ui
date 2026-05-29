@@ -42,6 +42,8 @@ export default function MobileBottomNav() {
   return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 md:hidden border-t"
+      role="navigation"
+      aria-label="移动端导航"
       style={{
         backgroundColor: 'var(--bg-secondary)',
         borderColor: 'var(--border-color)',

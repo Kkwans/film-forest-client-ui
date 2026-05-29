@@ -51,7 +51,7 @@ export default function DetailButtons({
             type="button"
             onClick={() => onCollectOpen()}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-            title="选择片单"
+            aria-label="收藏到片单"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
@@ -62,7 +62,7 @@ export default function DetailButtons({
             type="button"
             onClick={onWatchedClick}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-            title="点击查看评价"
+            aria-label="查看我的评价"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -94,6 +94,7 @@ export default function DetailButtons({
             type="button"
             onClick={() => onCollectOpen()}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
+            aria-label="选择片单收藏"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -101,7 +102,9 @@ export default function DetailButtons({
             </svg>
             <span>在看</span>
           </button>
-          <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all">
+          <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all"
+            aria-label="标记为已看过"
+          >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
             </svg>
@@ -119,13 +122,16 @@ export default function DetailButtons({
       <>
         <div className="flex items-center gap-2 animate-fade-in-up stagger-5">
           <button type="button" onClick={onWantButtonClick} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-            title="单击取消想看，双击选择片单">
+            aria-label="已想看，单击取消，双击选择片单"
+          >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
             <span>已想看</span>
           </button>
-          <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all">
+          <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all"
+            aria-label="标记为已看过"
+          >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
             </svg>
@@ -143,13 +149,16 @@ export default function DetailButtons({
     <>
       <div className="flex items-center gap-2 animate-fade-in-up stagger-5">
         <button type="button" onClick={onWantButtonClick} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-          title="单击加入想看，双击选择片单">
+          aria-label="单击加入想看，双击选择片单"
+        >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
           <span>想看</span>
         </button>
-        <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all">
+        <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all"
+          aria-label="标记为已看过"
+        >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
           </svg>

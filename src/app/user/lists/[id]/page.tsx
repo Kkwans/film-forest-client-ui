@@ -196,6 +196,10 @@ export default function ListDetailPage() {
       setNoteReadOnly(true);
       // 更新 noteEdit 中的数据以反映最新保存的内容
       setNoteEdit(prev => prev ? { ...prev, item: { ...prev.item, note: note || prev.item.note, userRating: rating ?? prev.item.userRating } } : null);
+      // 通知全局状态刷新（首页 MovieCard 等）
+      window.dispatchEvent(new CustomEvent('movie-status-changed', {
+        detail: { movieId: noteEdit.item.movieId, contentType: noteEdit.item.contentType, action: 'updated' }
+      }));
     } catch (err) {
       console.warn('Update item failed:', err);
       showToast('更新失败，请稍后再试', 'error');

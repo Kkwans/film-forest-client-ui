@@ -55,7 +55,12 @@ export const useUserStore = create<UserState>()(
 
       logout: () => {
         localStorage.removeItem('ff_token');
+        localStorage.removeItem('ff_user');
+        localStorage.removeItem('search_history');
+        // Signal to authClient interceptor: skip 401 redirect during logout
+        (window as Window & { __ffLogoutFlag?: boolean }).__ffLogoutFlag = true;
         set({ user: null, token: null, isAuthenticated: false });
+        setTimeout(() => { (window as Window & { __ffLogoutFlag?: boolean }).__ffLogoutFlag = false; }, 500);
       },
 
       fetchMe: async () => {

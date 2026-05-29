@@ -165,7 +165,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} role="button" aria-label="关闭弹窗" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }} />
       <div className="relative w-full sm:max-w-md max-h-[70vh] rounded-t-2xl sm:rounded-2xl border flex flex-col"
         >
 

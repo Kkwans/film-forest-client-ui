@@ -28,9 +28,9 @@ authClient.interceptors.response.use(
   (res: AxiosResponse) => res,
   (err: AxiosError) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
+      if ((window as Window & { __ffLogoutFlag?: boolean }).__ffLogoutFlag) return Promise.reject(err);
       localStorage.removeItem('ff_token');
       localStorage.removeItem('ff_user');
-      // Redirect to login if not already there
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
       }
