@@ -3,7 +3,6 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { useUserStore } from '@/stores/userStore';
 import { useToast } from '@/components/Toast';
 import { Suspense } from 'react';
@@ -160,10 +159,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-sm mt-6 text-muted-foreground" >
-          还没有账号？{' '}
-          <Link href="/register" className="font-medium hover:underline text-accent" >
-            注册
-          </Link>
+          账号由管理员创建，或通过管理员发送的一次性邀请开通。
         </p>
       </form>
     </div>

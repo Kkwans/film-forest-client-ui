@@ -83,9 +83,6 @@ export interface UserListItem {
 
 // ---- Auth API ----
 export const userApi = {
-  register: (data: { username: string; password: string; email?: string }) =>
-    authClient.post<Result<unknown>>('/api/auth/register', data),
-
   login: (data: { username: string; password: string }) =>
     authClient.post<Result<unknown>>('/api/auth/login', data),
 
