@@ -1,61 +1,10 @@
-import HomeClient from './HomeClient';
-import { parseRegion, parseGenre } from '@/lib/utils';
+import HomeClient, { type HomeContentItem } from './HomeClient';
 import { getListMetadata } from '@/lib/metadata';
+import { parseGenre, parseRegion } from '@/lib/utils';
 
 export const metadata = getListMetadata('home');
-
-// ISR: 首页每 10 分钟重新验证
 export const revalidate = 600;
 
-interface ContentItem {
-  id: number;
-  title: string;
-  cover: string;
-  year: number;
-  region: string | string[];
-  rating?: number;
-  genre?: string[];
-  status?: string;
-  episodes?: number;
-  duration?: number;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapItem(m: any, type: string): ContentItem {
-  return {
-    id: m.id as number,
-    title: m.title as string,
-    cover: (m.posterUrl || m.cover || '') as string,
-    year: (m.year || 0) as number,
-    region: parseRegion(m.region),
-    rating: (m.scoreDouban || m.scoreImdb || undefined) as number | undefined,
-    genre: parseGenre(m.genre),
-    status: m.status === 1 ? '在映' : undefined,
-    episodes: (m.totalEpisode || m.episodes || undefined) as number | undefined,
-    duration: (m.duration || undefined) as number | undefined,
-  };
-}
-
-interface FetchResult {
-  items: ContentItem[];
-  error: boolean;
-}
-
-const BASE_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-
-async function fetchItems(url: string): Promise<FetchResult> {
-  try {
-    const res = await fetch(url, { next: { revalidate: 600 } });
-    if (!res.ok) return { items: [], error: true };
-    const data = await res.json();
-    const raw = data?.data?.records || data?.data || [];
-    return { items: raw.map((m: any) => mapItem(m, '')), error: false };  // eslint-disable-line @typescript-eslint/no-explicit-any
-  } catch {
-    return { items: [], error: true };
-  }
-}
-
-/** 推荐数据类型 */
 interface RecommendItem {
   id: number;
   type: string;
@@ -73,68 +22,36 @@ interface RecommendData {
   latest: Record<string, RecommendItem[]>;
 }
 
-function mapRecommendItem(m: RecommendItem): ContentItem {
-  return {
-    id: m.id,
-    title: m.title,
-    cover: m.posterUrl || '',
-    year: m.year || 0,
-    region: parseRegion(m.region),
-    rating: m.scoreDouban || undefined,
-    genre: parseGenre(m.genre),
-    episodes: m.totalEpisode || undefined,
-  };
+const BASE_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+function mapGroup(group: Record<string, RecommendItem[]> | undefined): Record<string, HomeContentItem[]> {
+  return Object.fromEntries(Object.entries(group || {}).map(([type, items]) => [
+    type,
+    items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      cover: item.posterUrl || '',
+      year: item.year || 0,
+      region: parseRegion(item.region),
+      rating: item.scoreDouban || undefined,
+      genre: parseGenre(item.genre),
+      episodes: item.totalEpisode || undefined,
+    })),
+  ]));
 }
 
-async function fetchRecommend(): Promise<{ hot: Record<string, ContentItem[]>; latest: Record<string, ContentItem[]>; error: boolean }> {
+async function fetchHome(): Promise<{ hot: Record<string, HomeContentItem[]>; latest: Record<string, HomeContentItem[]>; error: boolean }> {
   try {
-    const res = await fetch(`${BASE_URL}/api/recommend?topN=6`, { next: { revalidate: 600 } });
-    if (!res.ok) return { hot: {}, latest: {}, error: true };
-    const json = await res.json();
-    const data: RecommendData = json?.data;
-    if (!data) return { hot: {}, latest: {}, error: true };
-
-    const mapGroup = (group: Record<string, RecommendItem[]>): Record<string, ContentItem[]> => {
-      const result: Record<string, ContentItem[]> = {};
-      for (const [type, items] of Object.entries(group)) {
-        result[type] = items.map(mapRecommendItem);
-      }
-      return result;
-    };
-
-    return { hot: mapGroup(data.hot), latest: mapGroup(data.latest), error: false };
+    const response = await fetch(`${BASE_URL}/api/recommend?topN=12`, { next: { revalidate: 600 } });
+    if (!response.ok) throw new Error(`首页聚合请求失败: ${response.status}`);
+    const payload = await response.json() as { data?: RecommendData };
+    return { hot: mapGroup(payload.data?.hot), latest: mapGroup(payload.data?.latest), error: false };
   } catch {
     return { hot: {}, latest: {}, error: true };
   }
 }
 
 export default async function HomePage() {
-  const [movies, dramas, varieties, animes, shorts, recommend] = await Promise.all([
-    fetchItems(`${BASE_URL}/api/movies?page=1&size=12`),
-    fetchItems(`${BASE_URL}/api/dramas?page=1&size=12`),
-    fetchItems(`${BASE_URL}/api/varieties?page=1&size=12`),
-    fetchItems(`${BASE_URL}/api/animes?page=1&size=12`),
-    fetchItems(`${BASE_URL}/api/short-dramas?page=1&size=12`),
-    fetchRecommend(),
-  ]);
-
-  return (
-    <HomeClient
-      initialMovies={movies.items}
-      initialDramas={dramas.items}
-      initialVarieties={varieties.items}
-      initialAnimes={animes.items}
-      initialShorts={shorts.items}
-      recommendHot={recommend.hot}
-      recommendLatest={recommend.latest}
-      errors={{
-        movies: movies.error,
-        dramas: dramas.error,
-        varieties: varieties.error,
-        animes: animes.error,
-        shorts: shorts.error,
-        recommend: recommend.error,
-      }}
-    />
-  );
+  const home = await fetchHome();
+  return <HomeClient hot={home.hot} latest={home.latest} error={home.error} />;
 }

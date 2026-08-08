@@ -1,89 +1,80 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { normalizeContentType } from '@/lib/contentConstants';
+import { statusApi, type ContentStatusQuery, type StatusListEntry } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
-import { statusApi } from '@/lib/userApi';
 
 export interface MovieStatusInfo {
   listType: string;
   listName: string;
 }
 
-/** API 返回的片单状态条目 */
-interface StatusListEntry {
-  added: boolean;
-  type: string;
-  listName?: string;
+function preferredStatus(statuses: StatusListEntry[]): MovieStatusInfo | null {
+  const added = statuses.filter((status) => status.added);
+  const selected = ['watched', 'watching', 'want_to_watch']
+    .map((type) => added.find((status) => status.type === type))
+    .find(Boolean) || added.find((status) => status.type === 'custom') || added[0];
+  return selected ? { listType: selected.type, listName: selected.listName || selected.type } : null;
 }
 
-/**
- * Hook to fetch movie statuses for a batch of movies.
- * Returns a map of movieId → { listType, listName } with priority: watched > watching > want_to_watch > custom
- */
-export function useMovieStatuses(movieIds: number[], contentType: string) {
-  const [statusMap, setStatusMap] = useState<Record<number, MovieStatusInfo | null>>({});
-  const isAuthenticated = useUserStore((s) => s.isAuthenticated);
-  const fetchedRef = useRef<string>('');
+export function contentStatusKey(contentType: string, contentId: number): string {
+  return `${normalizeContentType(contentType)}:${contentId}`;
+}
+
+/** 一次 POST 查询首页、搜索等异构结果的用户状态。 */
+export function useContentStatuses(queries: ContentStatusQuery[]) {
+  const [statusMap, setStatusMap] = useState<Record<string, MovieStatusInfo | null>>({});
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const fetchedRef = useRef('');
+  const normalized = useMemo(() => {
+    const unique = new Map<string, ContentStatusQuery>();
+    for (const query of queries) {
+      const contentType = normalizeContentType(query.contentType);
+      unique.set(contentStatusKey(contentType, query.contentId), { contentType, contentId: query.contentId });
+    }
+    return [...unique.values()];
+  }, [queries]);
+  const requestKey = useMemo(
+    () => normalized.map((query) => contentStatusKey(query.contentType, query.contentId)).sort().join(','),
+    [normalized],
+  );
 
   const fetchStatuses = useCallback(async () => {
-    if (!isAuthenticated || movieIds.length === 0) return;
-
-    const key = movieIds.sort().join(',') + ':' + contentType;
-    if (key === fetchedRef.current) return;
-    fetchedRef.current = key;
-
+    if (!isAuthenticated || normalized.length === 0 || requestKey === fetchedRef.current) return;
+    fetchedRef.current = requestKey;
     try {
-      const res = await statusApi.batch(movieIds, contentType);
-      const rawData = res.data.data || res.data;
-      const data = (rawData || {}) as Record<number, StatusListEntry[]>;
-
-      const result: Record<number, MovieStatusInfo | null> = {};
-      // Priority: watched > watching > want_to_watch > custom
-      const priority = ['watched', 'watching', 'want_to_watch'];
-
-      for (const movieId of movieIds) {
-        const lists = data[movieId] || [];
-        const addedLists = Array.isArray(lists) ? lists.filter((l: StatusListEntry) => l.added) : [];
-
-        if (addedLists.length === 0) {
-          result[movieId] = null;
-          continue;
-        }
-
-        // Find highest priority default list
-        let matched: StatusListEntry | null = null;
-        for (const p of priority) {
-          const found = addedLists.find((l: StatusListEntry) => l.type === p);
-          if (found) { matched = found; break; }
-        }
-
-        // If not in any default list, check custom lists
-        if (!matched) {
-          matched = addedLists.find((l: StatusListEntry) => l.type === 'custom') || addedLists[0];
-        }
-
-        result[movieId] = matched ? { listType: matched.type, listName: matched.listName || matched.type } : null;
+      const response = await statusApi.batch(normalized);
+      const next: Record<string, MovieStatusInfo | null> = {};
+      for (const result of response.data.data || []) {
+        next[contentStatusKey(result.contentType, result.contentId)] = preferredStatus(result.statuses || []);
       }
-
-      setStatusMap(result);
-    } catch (err) {
-      // On error, leave statusMap empty
-      console.warn('[useMovieStatuses] Failed to fetch statuses:', err);
+      setStatusMap(next);
+    } catch (error) {
+      fetchedRef.current = '';
+      console.warn('[useContentStatuses] Failed to fetch statuses:', error);
     }
-  }, [isAuthenticated, movieIds, contentType]);
+  }, [isAuthenticated, normalized, requestKey]);
 
   useEffect(() => {
-    fetchStatuses();
-
-    // Listen for status changes
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail?.movieId && movieIds.includes(detail.movieId)) {
-        fetchedRef.current = ''; // force re-fetch
-        fetchStatuses();
-      }
+    void fetchStatuses();
+    const handler = () => {
+      fetchedRef.current = '';
+      void fetchStatuses();
     };
     window.addEventListener('movie-status-changed', handler);
     return () => window.removeEventListener('movie-status-changed', handler);
-  }, [fetchStatuses, movieIds]);
+  }, [fetchStatuses]);
 
   return statusMap;
+}
+
+/** 兼容同类型列表页，内部仍复用异构批量契约。 */
+export function useMovieStatuses(movieIds: number[], contentType: string) {
+  const queries = useMemo(
+    () => movieIds.map((contentId) => ({ contentType, contentId })),
+    [movieIds, contentType],
+  );
+  const mixed = useContentStatuses(queries);
+  return useMemo(() => Object.fromEntries(
+    movieIds.map((id) => [id, mixed[contentStatusKey(contentType, id)] || null]),
+  ) as Record<number, MovieStatusInfo | null>, [movieIds, mixed, contentType]);
 }
