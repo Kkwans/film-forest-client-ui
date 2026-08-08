@@ -1,10 +1,9 @@
-import MovieListClient from '../movie/MovieListClient';
-import { fetchContentList } from '@/lib/serverFetch';
+import ContentListPage from '@/components/ContentListPage';
 import { getListMetadata } from '@/lib/metadata';
+import type { RawSearchParams } from '@/lib/serverFetch';
 
 export const metadata = getListMetadata('short');
 
-export default async function ShortPage() {
-  const { items, total } = await fetchContentList('/api/short-dramas');
-  return <MovieListClient initialItems={items} initialTotal={total} contentType="short" apiBase="/api/short-dramas" />;
+export default function ShortPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+  return <ContentListPage contentType="short_drama" searchParams={searchParams} />;
 }

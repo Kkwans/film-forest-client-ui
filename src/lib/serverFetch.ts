@@ -1,7 +1,14 @@
-// 服务端数据获取工具 - 统一列表页 SSR 数据加载逻辑
-// 所有列表页（movie/drama/variety/anime/short）共用此函数
+import 'server-only';
 
-import { parseRegion, parseGenre } from './utils';
+import { getContentTypeConfig, type ContentType } from './contentConstants';
+import {
+  toContentListSearchParams,
+  type ContentListQuery,
+} from './contentListQuery';
+import { parseGenre, parseRegion } from './utils';
+
+export { parseContentListQuery } from './contentListQuery';
+export type { ContentListQuery, RawSearchParams } from './contentListQuery';
 
 export interface ContentItem {
   id: number;
@@ -18,41 +25,40 @@ export interface ContentItem {
 export interface FetchResult {
   items: ContentItem[];
   total: number;
+  error: boolean;
 }
 
-/**
- * 服务端获取内容列表（SSR）
- * @param apiPath API 路径，如 '/api/movies'
- * @param options 可选参数
- */
 export async function fetchContentList(
-  apiPath: string,
-  options?: { size?: number }
+  contentType: ContentType,
+  query: ContentListQuery,
 ): Promise<FetchResult> {
-  const size = options?.size ?? 24;
+  const baseUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  const config = getContentTypeConfig(contentType);
   try {
-    const baseUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-    const res = await fetch(
-      `${baseUrl}${apiPath}?page=1&size=${size}`,
-      { next: { revalidate: 300 } }
+    const response = await fetch(
+      `${baseUrl}${config.apiPath}?${toContentListSearchParams(query).toString()}`,
+      { cache: 'no-store' },
     );
-    const data = await res.json();
-    const raw = data?.data?.records || [];
+    if (!response.ok) throw new Error(`内容列表请求失败: ${response.status}`);
+    const payload: unknown = await response.json();
+    const data = (payload as { data?: { records?: Record<string, unknown>[]; total?: number } })?.data;
+    const records = Array.isArray(data?.records) ? data.records : [];
     return {
-      items: raw.map((m: Record<string, unknown>) => ({
-        id: m.id,
-        title: m.title,
-        cover: m.posterUrl || m.cover || '',
-        year: m.year || 0,
-        region: parseRegion(m.region),
-        rating: m.scoreDouban || m.scoreImdb || undefined,
-        genre: parseGenre(m.genre),
-        duration: m.duration || undefined,
-        episodes: m.totalEpisode || m.currentEpisode || undefined,
+      items: records.map((item) => ({
+        id: Number(item.id),
+        title: String(item.title || ''),
+        cover: String(item.posterUrl || item.cover || ''),
+        year: Number(item.year || 0),
+        region: parseRegion(item.region as string).join(' / '),
+        rating: Number(item.scoreDouban || item.scoreImdb) || undefined,
+        genre: parseGenre(item.genre as string),
+        duration: Number(item.duration) || undefined,
+        episodes: Number(item.totalEpisode || item.currentEpisode) || undefined,
       })),
-      total: data?.data?.total || 0,
+      total: Number(data?.total || 0),
+      error: false,
     };
   } catch {
-    return { items: [], total: 0 };
+    return { items: [], total: 0, error: true };
   }
 }

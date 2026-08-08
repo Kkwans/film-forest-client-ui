@@ -1,10 +1,9 @@
-import MovieListClient from '../movie/MovieListClient';
-import { fetchContentList } from '@/lib/serverFetch';
+import ContentListPage from '@/components/ContentListPage';
 import { getListMetadata } from '@/lib/metadata';
+import type { RawSearchParams } from '@/lib/serverFetch';
 
 export const metadata = getListMetadata('variety');
 
-export default async function VarietyPage() {
-  const { items, total } = await fetchContentList('/api/varieties');
-  return <MovieListClient initialItems={items} initialTotal={total} contentType="variety" apiBase="/api/varieties" />;
+export default function VarietyPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+  return <ContentListPage contentType="variety" searchParams={searchParams} />;
 }

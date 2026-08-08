@@ -1,34 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useMemo, useTransition } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import CustomSelect from '@/components/CustomSelect';
+import FilterChip from '@/components/FilterChip';
 import MovieCard from '@/components/MovieCard';
 import Pagination from '@/components/Pagination';
-import CustomSelect from '@/components/CustomSelect';
 import SortDirButton from '@/components/SortDirButton';
-import FilterChip from '@/components/FilterChip';
 import TagFilter from '@/components/TagFilter';
-import { parseRegion, parseGenre } from '@/lib/utils';
-import { tagApi, type TagItem } from '@/lib/api';
+import { getContentTypeConfig, type ContentType } from '@/lib/contentConstants';
+import { parseContentListQuery } from '@/lib/contentListQuery';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
 
-const GENRES_MOVIE = ['全部', '剧情', '喜剧', '动作', '爱情', '科幻', '悬疑', '恐怖', '犯罪', '动画', '奇幻', '冒险'];
-const GENRES_DRAMA = ['全部', '剧情', '喜剧', '爱情', '悬疑', '犯罪', '古装', '都市', '战争', '家庭', '历史'];
-const GENRES_VARIETY = ['全部', '真人秀', '脱口秀', '选秀', '音乐', '美食', '旅行', '访谈'];
-const GENRES_ANIME = ['全部', '热血', '恋爱', '搞笑', '冒险', '科幻', '奇幻', '悬疑', '校园'];
-const GENRES_SHORT = ['全部', '甜宠', '复仇', '穿越', '逆袭', '豪门', '都市'];
+const GENRES: Record<ContentType, string[]> = {
+  movie: ['剧情', '喜剧', '动作', '爱情', '科幻', '悬疑', '恐怖', '犯罪', '动画', '奇幻', '冒险'],
+  drama: ['剧情', '喜剧', '爱情', '悬疑', '犯罪', '古装', '都市', '战争', '家庭', '历史'],
+  variety: ['真人秀', '脱口秀', '选秀', '音乐', '美食', '旅行', '访谈'],
+  anime: ['热血', '恋爱', '搞笑', '冒险', '科幻', '奇幻', '悬疑', '校园'],
+  short_drama: ['甜宠', '复仇', '穿越', '逆袭', '豪门', '都市'],
+};
 
-function getGenres(contentType: string) {
-  switch (contentType) {
-    case 'drama': return GENRES_DRAMA;
-    case 'variety': return GENRES_VARIETY;
-    case 'anime': return GENRES_ANIME;
-    case 'short': return GENRES_SHORT;
-    default: return GENRES_MOVIE;
-  }
-}
-
-const YEARS = ['全部', '2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018'];
-const REGIONS = ['全部', '大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国', '意大利', '西班牙', '加拿大', '澳大利亚'];
+const YEARS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
+const REGIONS = ['大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国', '意大利', '西班牙', '加拿大', '澳大利亚'];
 const SORT_OPTIONS = [
   { label: '最新更新', value: 'latest' },
   { label: '上映时间', value: 'year' },
@@ -37,250 +30,172 @@ const SORT_OPTIONS = [
   { label: '烂番茄评分', value: 'rt' },
 ];
 
-interface ContentItem { id: number; title: string; cover: string; year: number; region: string | string[]; rating?: number; genre?: string[]; duration?: number; episodes?: number; }
+interface ContentItem {
+  id: number;
+  title: string;
+  cover: string;
+  year: number;
+  region: string | string[];
+  rating?: number;
+  genre?: string[];
+  duration?: number;
+  episodes?: number;
+}
 
 interface Props {
   initialItems: ContentItem[];
   initialTotal: number;
-  contentType: string;
-  apiBase: string;
+  initialError: boolean;
+  contentType: ContentType;
 }
 
-export default function MovieListClient({ initialItems, initialTotal, contentType, apiBase }: Props) {
-  const [items, setItems] = useState<ContentItem[]>(initialItems);
-  const [total, setTotal] = useState(initialTotal);
-  const [loading, setLoading] = useState(false);
-  const [genre, setGenre] = useState('全部');
-  const [region, setRegion] = useState('全部');
-  const [year, setYear] = useState('全部');
-  const [yearFrom, setYearFrom] = useState('');
-  const [yearTo, setYearTo] = useState('');
-  const [sort, setSort] = useState('latest');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
-  const [initialized, setInitialized] = useState(false);
-  const [error, setError] = useState(false);
-  const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
-  const [tagContentIds, setTagContentIds] = useState<number[] | null>(null);
-  const [pageSize, setPageSize] = useState(24);
-  const [listDensity, setListDensity] = useState<'comfortable' | 'compact'>('comfortable');
+export default function MovieListClient({ initialItems, initialTotal, initialError, contentType }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+  const config = getContentTypeConfig(contentType);
+  const query = useMemo(
+    () => parseContentListQuery(Object.fromEntries(searchParams.entries())),
+    [searchParams],
+  );
 
-  // Read user preferences
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('ff-user-prefs');
-      if (stored) {
-        const prefs = JSON.parse(stored);
-        if (prefs.pageSize && typeof prefs.pageSize === 'number') {
-          setPageSize(prefs.pageSize);
-        }
-        if (prefs.listDensity === 'compact' || prefs.listDensity === 'comfortable') {
-          setListDensity(prefs.listDensity);
-        }
-      }
-    } catch { /* ignore */ }
-  }, []);
-
-  const fetchData = useCallback(async (p: number, g: string, r: string, y: string, s: string, yf?: string, yt?: string) => {
-    setLoading(true);
-    try {
-      setError(false);
-      const parts: string[] = [`page=${p}`, `size=${pageSize}`];
-      if (g !== '全部') parts.push(`genre=${encodeURIComponent(g)}`);
-      if (r !== '全部') parts.push(`region=${encodeURIComponent(r)}`);
-      if (y !== '全部' && y !== '自定义') parts.push(`year=${encodeURIComponent(y)}`);
-      if (y === '自定义' && yf && !yt) parts.push(`year=${encodeURIComponent(yf)}`);
-      if (y === '自定义' && yf && yt) { parts.push(`yearFrom=${encodeURIComponent(yf)}`); parts.push(`yearTo=${encodeURIComponent(yt)}`); }
-      if (s !== 'latest') parts.push(`sort=${encodeURIComponent(s)}`);
-      else parts.push('sort=latest');
-      if (sortDir === 'asc') parts.push('sortDir=asc');
-      const qs = parts.join('&');
-      const res = await fetch(`${apiBase}?${qs}`);
-      const data = await res.json();
-      const raw = data?.data?.records || data?.data || [];
-      setItems(raw.map((m: Record<string, unknown>) => ({
-        id: m.id as number,
-        title: m.title as string,
-        cover: (m.posterUrl || m.cover || '') as string,
-        year: (m.year || 0) as number,
-        region: parseRegion(m.region as string),
-        rating: (m.scoreDouban || m.scoreImdb || undefined) as number | undefined,
-        genre: parseGenre(m.genre as string),
-        duration: (m.duration || undefined) as number | undefined,
-        episodes: ((m.totalEpisode || m.currentEpisode) || undefined) as number | undefined,
-      })));
-      setTotal(data?.data?.total || 0);
-    } catch {
-      setItems([]);
-      setTotal(0);
-      setError(true);
-    } finally {
-      setLoading(false);
+  const updateUrl = (updates: Record<string, string | number | null>, resetPage = true) => {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null || value === '') next.delete(key);
+      else next.set(key, String(value));
     }
-  }, [apiBase, sortDir, pageSize]);
-
-  useEffect(() => {
-    if (initialized) {
-      fetchData(page, genre, region, year, sort, yearFrom, yearTo);
-    }
-  }, [page, genre, region, year, sort, sortDir, initialized, fetchData, yearFrom, yearTo]);
-
-  const handlePageChange = (p: number) => {
-    if (!initialized) setInitialized(true);
-    setPage(p);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (resetPage) next.set('page', '1');
+    startTransition(() => router.push(`${pathname}?${next.toString()}`, { scroll: false }));
   };
 
-  const updateFilter = (key: string, value: string) => {
-    if (!initialized) setInitialized(true);
-    setPage(1);
-    if (key === 'genre') setGenre(value);
-    else if (key === 'region') setRegion(value);
-    else if (key === 'year') { setYear(value); if (value !== '自定义') { setYearFrom(''); setYearTo(''); } }
-    else if (key === 'sort') setSort(value);
+  const resetFilters = () => {
+    const next = new URLSearchParams();
+    next.set('page', '1');
+    next.set('size', String(query.size));
+    next.set('sort', 'latest');
+    next.set('sortDir', 'desc');
+    startTransition(() => router.push(`${pathname}?${next.toString()}`, { scroll: false }));
   };
 
-  // Tag filtering: when a tag is selected, fetch content IDs and filter
-  useEffect(() => {
-    if (selectedTagId === null) {
-      setTagContentIds(null);
-      return;
-    }
-    // Fetch content IDs for this tag
-    tagApi.getContentByTag(selectedTagId, contentType, 500)
-      .then(res => {
-        const ids = (res.data?.data || []).map((item: { contentId: number }) => item.contentId);
-        setTagContentIds(ids);
-      })
-      .catch(() => setTagContentIds([]));
-  }, [selectedTagId, contentType]);
-
-  // Filter items by tag
-  const displayItems = useMemo(() => {
-    if (tagContentIds === null) return items;
-    const idSet = new Set(tagContentIds);
-    return items.filter(item => idSet.has(item.id));
-  }, [items, tagContentIds]);
-
-  const activeFilterCount = [
-    genre !== '全部',
-    region !== '全部',
-    year !== '全部',
-    selectedTagId !== null,
-  ].filter(Boolean).length;
-
-  const resetAllFilters = () => {
-    setGenre('全部');
-    setRegion('全部');
-    setYear('全部');
-    setYearFrom('');
-    setYearTo('');
-    setSort('latest');
-    setSortDir('desc');
-    setPage(1);
-    setSelectedTagId(null);
-    if (!initialized) setInitialized(true);
-  };
-
-  // Fetch movie statuses for collect button echo
-  const movieIds = useMemo(() => displayItems.map(i => i.id), [displayItems]);
+  const activeFilterCount = [query.genre, query.region, query.year, query.yearFrom, query.yearTo, query.tag]
+    .filter(Boolean).length;
+  const movieIds = useMemo(() => initialItems.map((item) => item.id), [initialItems]);
   const statusMap = useMovieStatuses(movieIds, contentType);
+  const totalPages = Math.ceil(initialTotal / query.size);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">
-          {contentType === 'movie' ? '电影' : contentType === 'drama' ? '电视剧' : contentType === 'variety' ? '综艺' : contentType === 'anime' ? '动漫' : '短剧'}
-        </h1>
+    <div className="flex flex-col gap-6" aria-busy={isPending}>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{config.label}</h1>
+          <p className="mt-1 text-xs text-muted-foreground">筛选条件已同步到地址栏，可复制、刷新或前进后退</p>
+        </div>
         {activeFilterCount > 0 && (
-          <button
-            type="button"
-            onClick={resetAllFilters}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-colors"
-            style={{ background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--accent)' }}
-          >
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          <button type="button" onClick={resetFilters} className="rounded-full border border-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--accent)]">
             清除筛选 ({activeFilterCount})
           </button>
         )}
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-2">
-        {getGenres(contentType).map(g => (
-          <FilterChip key={g} label={g} active={genre === g} onClick={() => updateFilter('genre', g)} />
+        <FilterChip label="全部类型" active={!query.genre} onClick={() => updateUrl({ genre: null })} />
+        {GENRES[contentType].map((genre) => (
+          <FilterChip key={genre} label={genre} active={query.genre === genre} onClick={() => updateUrl({ genre: query.genre === genre ? null : genre })} />
         ))}
       </div>
+
       <div className="flex flex-wrap gap-2">
-        {REGIONS.map(r => (
-          <FilterChip key={r} label={r} active={region === r} onClick={() => updateFilter('region', r)} />
+        <FilterChip label="全部地区" active={!query.region} onClick={() => updateUrl({ region: null })} />
+        {REGIONS.map((region) => (
+          <FilterChip key={region} label={region} active={query.region === region} onClick={() => updateUrl({ region: query.region === region ? null : region })} />
         ))}
       </div>
+
       <div className="flex flex-wrap items-center gap-2">
-        {YEARS.map(y => (
-          <FilterChip key={y} label={y} active={year === y} onClick={() => { setYear(y); setYearFrom(''); setYearTo(''); }} />
+        <FilterChip label="全部年份" active={!query.year && !query.yearFrom && !query.yearTo} onClick={() => updateUrl({ year: null, yearFrom: null, yearTo: null })} />
+        {YEARS.map((year) => (
+          <FilterChip key={year} label={String(year)} active={query.year === year} onClick={() => updateUrl({ year: query.year === year ? null : year, yearFrom: null, yearTo: null })} />
         ))}
-        <div className="flex items-center gap-1">
-          <input type="number" placeholder="起始年" value={yearFrom} onChange={e => { setYearFrom(e.target.value); setYear('自定义'); }} className="w-20 h-8 px-2 rounded-lg text-sm border outline-none bg-card border-border text-foreground"  />
-          <span className="text-sm text-muted-foreground" >-</span>
-          <input type="number" placeholder="结束年" value={yearTo} onChange={e => { setYearTo(e.target.value); setYear('自定义'); }} className="w-20 h-8 px-2 rounded-lg text-sm border outline-none bg-card border-border text-foreground"  />
-        </div>
+        <form
+          key={`${query.yearFrom || ''}-${query.yearTo || ''}`}
+          className="flex items-center gap-1"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            updateUrl({
+              year: null,
+              yearFrom: String(data.get('yearFrom') || ''),
+              yearTo: String(data.get('yearTo') || ''),
+            });
+          }}
+        >
+          <input name="yearFrom" type="number" min="1900" max="9999" defaultValue={query.yearFrom} placeholder="起始年" className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-sm text-foreground" />
+          <span className="text-sm text-muted-foreground">-</span>
+          <input name="yearTo" type="number" min="1900" max="9999" defaultValue={query.yearTo} placeholder="结束年" className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-sm text-foreground" />
+          <button type="submit" className="h-8 rounded-lg border border-border bg-card px-2.5 text-xs text-secondary-foreground">应用</button>
+        </form>
       </div>
-      <TagFilter selectedTagId={selectedTagId} onSelect={(id) => { setSelectedTagId(id); if (!initialized) setInitialized(true); }} />
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">{loading ? '加载中...' : error ? '加载失败' : `共 ${total} 部`}</span>
+
+      <TagFilter selectedTagId={query.tag || null} onSelect={(tag) => updateUrl({ tag })} />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm text-muted-foreground">
+          {isPending ? '加载中…' : initialError ? '加载失败' : `共 ${initialTotal} 部`}
+        </span>
         <div className="flex items-center gap-2">
-          <CustomSelect value={sort} options={SORT_OPTIONS} onChange={v => updateFilter('sort', v)} />
-          <SortDirButton direction={sortDir} onToggle={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')} />
+          <CustomSelect
+            value={String(query.size)}
+            options={[12, 24, 36, 48].map((size) => ({ label: `${size} / 页`, value: String(size) }))}
+            onChange={(value) => updateUrl({ size: value })}
+          />
+          <CustomSelect value={query.sort} options={SORT_OPTIONS} onChange={(value) => updateUrl({ sort: value })} />
+          <SortDirButton direction={query.sortDir} onToggle={() => updateUrl({ sortDir: query.sortDir === 'desc' ? 'asc' : 'desc' })} />
         </div>
       </div>
 
-      {/* Loading skeleton */}
-      {loading ? (
-        <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 ${listDensity === 'compact' ? 'gap-2 md:gap-3' : 'gap-3 md:gap-4'}`} style={{ minHeight: '60vh' }}>
-          {Array.from({ length: pageSize }).map((_, i) => (
-            <div key={i} className="flex flex-col gap-2 animate-pulse">
-              <div className="aspect-[2/3] rounded-xl bg-card"  />
-              <div className="h-4 w-3/4 rounded bg-card"  />
-              <div className="h-3 w-1/2 rounded bg-card"  />
-            </div>
-          ))}
+      {initialError ? (
+        <div className="py-16 text-center">
+          <p className="text-sm text-secondary-foreground">数据加载失败</p>
+          <button type="button" onClick={() => router.refresh()} className="mt-3 rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-medium text-white">重新加载</button>
+        </div>
+      ) : initialItems.length === 0 ? (
+        <div className="py-16 text-center">
+          <p className="text-sm text-secondary-foreground">暂无匹配内容</p>
+          <p className="mt-1 text-xs text-muted-foreground">可清除部分筛选条件后重试</p>
         </div>
       ) : (
-        <>
-          {/* Grid - mobile 2 columns, desktop responsive */}
-          <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 ${listDensity === 'compact' ? 'gap-2 md:gap-3' : 'gap-3 md:gap-4'}`} style={{ minHeight: '60vh' }}>
-            {displayItems.map((item) => (
-              <MovieCard key={item.id} id={item.id} title={item.title} cover={item.cover} year={item.year} region={item.region} rating={item.rating} genre={item.genre} type={contentType} duration={item.duration} episodes={item.episodes} href={`/${contentType}/${item.id}`} movieStatus={statusMap[item.id] || null} />
-            ))}
-          </div>
+        <div className={`grid min-h-[60vh] grid-cols-2 gap-3 transition-opacity sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+          {initialItems.map((item) => (
+            <MovieCard
+              key={item.id}
+              id={item.id}
+              title={item.title}
+              cover={item.cover}
+              year={item.year}
+              region={item.region}
+              rating={item.rating}
+              genre={item.genre}
+              type={contentType}
+              duration={item.duration}
+              episodes={item.episodes}
+              href={`/${config.route}/${item.id}`}
+              movieStatus={statusMap[item.id] || null}
+            />
+          ))}
+        </div>
+      )}
 
-          {displayItems.length === 0 && !error && (
-            <div className="text-center py-16">
-              <p className="text-4xl mb-3">🎬</p>
-              <p className="text-sm mb-1 text-secondary-foreground">暂无匹配的内容</p>
-              <p className="text-xs text-muted-foreground">试试调整筛选条件？</p>
-            </div>
-          )}
-
-          {displayItems.length === 0 && error && (
-            <div className="text-center py-16">
-              <p className="text-4xl mb-3">😵</p>
-              <p className="text-sm mb-1 text-secondary-foreground">数据加载失败</p>
-              <p className="text-xs text-muted-foreground mb-3">网络或服务异常，请稍后再试</p>
-              <button
-            type="button"
-                onClick={() => fetchData(page, genre, region, year, sort, yearFrom, yearTo)}
-                className="px-4 py-2 rounded-full text-xs font-medium cursor-pointer transition-colors"
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
-                重新加载
-              </button>
-            </div>
-          )}
-
-          {total > pageSize && <Pagination currentPage={page} totalPages={Math.ceil(total / pageSize)} onPageChange={handlePageChange} />}
-        </>
+      {!initialError && totalPages > 1 && (
+        <Pagination
+          currentPage={query.page}
+          totalPages={totalPages}
+          onPageChange={(page) => {
+            updateUrl({ page }, false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+        />
       )}
     </div>
   );
