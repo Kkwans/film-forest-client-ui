@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
 
   // 优化第三方包导入，减少 bundle 体积
   experimental: {
+    useTypeScriptCli: false,
     optimizePackageImports: [
       "lucide-react",
       "@base-ui/react",
