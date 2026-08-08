@@ -28,6 +28,10 @@ const emptySetting: PosterSetting = {
   validationStatus: 'not_configured', validationErrorCode: null, validatedAt: null,
 };
 
+function notifyPosterSettingChanged() {
+  window.dispatchEvent(new CustomEvent('poster-settings-changed'));
+}
+
 export default function PosterSettingsCard() {
   const { showToast } = useToast();
   const [setting, setSetting] = useState<PosterSetting>(emptySetting);
@@ -56,6 +60,7 @@ export default function PosterSettingsCard() {
     try {
       const response = await posterApi.savePreference(posterSource);
       setSetting(response.data.data);
+      notifyPosterSettingChanged();
       showToast(posterSource === 'tmdb' ? '已选择 TMDB 智能海报，失败时自动回退原图' : '已选择来源站原始海报', 'success');
     } catch {
       showToast('海报偏好保存失败', 'error');
@@ -74,6 +79,7 @@ export default function PosterSettingsCard() {
       const response = await posterApi.saveCredential(credentialType, credential.trim());
       setSetting(response.data.data);
       setCredential('');
+      notifyPosterSettingChanged();
       showToast(setting.configured ? 'TMDB 凭据已替换，请重新验证' : 'TMDB 凭据已加密保存，请执行连接验证', 'success');
     } catch {
       showToast('TMDB 凭据保存失败，未修改现有配置', 'error');
@@ -106,6 +112,7 @@ export default function PosterSettingsCard() {
       setSetting(response.data.data);
       setCredential('');
       setConfirmClear(false);
+      notifyPosterSettingChanged();
       showToast('TMDB 凭据已清除，海报模式已切回来源站原图', 'success');
     } catch {
       showToast('凭据清除失败', 'error');

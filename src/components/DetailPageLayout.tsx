@@ -23,6 +23,7 @@ import {
 import RelatedSection from '@/components/RelatedSection';
 import TagChips from '@/components/TagChips';
 import RatingDistribution from '@/components/detail/RatingDistribution';
+import { usePosterUrl } from '@/hooks/usePosterUrl';
 
 /** 在线播放资源 */
 interface OnlineResourceItem {
@@ -127,6 +128,7 @@ export default function DetailPageLayout({
   const [playerSourceId, setPlayerSourceId] = useState<number | null>(null);
 
   const ds = useDetailStatus(item.id, contentType);
+  const resolvedCover = usePosterUrl(contentType, item.id, item.cover, { enrich: true });
 
   // Fetch all resources when episode changes
   useEffect(() => {
@@ -180,7 +182,7 @@ export default function DetailPageLayout({
       />
 
       <div className="flex flex-col sm:flex-row gap-6 items-stretch animate-fade-in-up stagger-3">
-        <DetailCover src={item.cover} alt={item.title} seed={`${contentType[0]}${item.id}`} />
+        <DetailCover src={resolvedCover} alt={item.title} seed={`${contentType[0]}${item.id}`} />
         <div className="flex-1 flex flex-col gap-3 min-w-0">
           <DetailTitle title={item.title} year={item.year} />
 
@@ -269,7 +271,7 @@ export default function DetailPageLayout({
             title={item.title}
             contentId={item.id}
             contentType={contentType}
-            cover={item.cover}
+            cover={resolvedCover}
             episode={selectedEpisode ?? undefined}
             episodeLabel={episodeLabel}
             year={item.year}

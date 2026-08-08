@@ -94,6 +94,17 @@ export interface PosterSetting {
   validatedAt: string | null;
 }
 
+export interface PosterResolution {
+  contentType: string;
+  contentId: number;
+  posterUrl: string | null;
+  source: 'original' | 'tmdb';
+  matchStatus: string;
+  diagnosticCode: string | null;
+  confidence: number | null;
+  matchedAt: string | null;
+}
+
 export const posterApi = {
   getSettings: () => authClient.get<Result<PosterSetting>>('/api/poster/settings'),
   savePreference: (posterSource: 'original' | 'tmdb') =>
@@ -102,6 +113,10 @@ export const posterApi = {
     authClient.put<Result<PosterSetting>>('/api/poster/settings/credential', { credentialType, credential }),
   clearCredential: () => authClient.delete<Result<PosterSetting>>('/api/poster/settings/credential'),
   validateCredential: () => authClient.post<Result<PosterSetting>>('/api/poster/settings/credential/validate'),
+  resolve: (items: { contentType: string; contentId: number }[]) =>
+    authClient.post<Result<PosterResolution[]>>('/api/poster/resolve', { items }),
+  enrich: (contentType: string, contentId: number) =>
+    authClient.post<Result<PosterResolution>>('/api/poster/enrich', { contentType, contentId }),
 };
 
 export const listApi = {

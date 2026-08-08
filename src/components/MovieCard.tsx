@@ -10,6 +10,7 @@ import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import dynamic from 'next/dynamic';
 import LazyImage from '@/components/ui/lazy-image';
+import { usePosterUrl } from '@/hooks/usePosterUrl';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
 
@@ -61,6 +62,7 @@ export default function MovieCard({
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
   const { showToast } = useToast();
   const contentType = type || 'movie';
+  const resolvedCover = usePosterUrl(contentType, id, cover);
   const clickTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup clickTimer on unmount to prevent memory leaks
@@ -185,7 +187,7 @@ export default function MovieCard({
         {/* Poster */}
         <div className="relative aspect-[2/3] overflow-hidden poster-gradient">
           <LazyImage
-            src={cover || fallbackCover}
+            src={resolvedCover || fallbackCover}
             alt={title}
             className="rounded-none"
             imgClassName="img-zoom"
