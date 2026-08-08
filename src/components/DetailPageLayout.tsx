@@ -130,7 +130,6 @@ export default function DetailPageLayout({
 
   // Fetch all resources when episode changes
   useEffect(() => {
-    if (!hasEpisodes) return;
     setLoadingResources(true);
     setResourceError(false);
     setPlayerSrc(undefined);
@@ -253,14 +252,16 @@ export default function DetailPageLayout({
         <RatingDistribution douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
       </div>
 
-      {hasEpisodes && item.totalEpisode && item.totalEpisode > 0 && (
+      {(
         <>
-          <EpisodeGrid
-            total={item.totalEpisode}
-            selected={selectedEpisode}
-            onSelect={setSelectedEpisode}
-            label={episodeLabel}
-          />
+          {hasEpisodes && item.totalEpisode && item.totalEpisode > 0 && (
+            <EpisodeGrid
+              total={item.totalEpisode}
+              selected={selectedEpisode}
+              onSelect={setSelectedEpisode}
+              label={episodeLabel}
+            />
+          )}
 
           {/* 视频播放器 */}
           <VideoPlayer
