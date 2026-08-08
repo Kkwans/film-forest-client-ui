@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { posterApi, type PosterSetting } from '@/lib/userApi';
+import { posterApi, type PosterEnrichmentJob, type PosterSetting } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 
 const statusText: Record<PosterSetting['validationStatus'], string> = {
@@ -21,7 +21,22 @@ const errorText: Record<string, string> = {
   network_error: 'NAS 无法连接 TMDB，当前仍会使用来源站原图。',
   interrupted: '验证请求已中断，请重试。',
   request_rejected: 'TMDB 拒绝了验证请求。',
+  service_restarted: '服务重启时任务被安全中断，可手动重新开始。',
+  worker_interrupted: '任务执行线程已中断，可手动重新开始。',
+  internal_error: '任务遇到内部错误并已停止。',
+  credential_not_configured: 'TMDB 凭据已清除，任务已停止。',
 };
+
+const jobStatusText: Record<PosterEnrichmentJob['status'], string> = {
+  queued: '等待执行', running: '正在补全', cancel_requested: '正在取消', success: '已完成',
+  partial_success: '部分完成', failed: '执行失败', cancelled: '已取消', interrupted: '已中断',
+};
+
+const jobTypeOptions = [
+  { value: '', label: '全部内容' }, { value: 'movie', label: '电影' }, { value: 'drama', label: '电视剧' },
+  { value: 'variety', label: '综艺' }, { value: 'anime', label: '动漫' },
+  { value: 'short_drama', label: '短剧' },
+];
 
 const emptySetting: PosterSetting = {
   posterSource: 'original', configured: false, credentialType: null, maskedHint: null,
@@ -38,8 +53,11 @@ export default function PosterSettingsCard() {
   const [credentialType, setCredentialType] = useState<'api_key' | 'read_access_token'>('api_key');
   const [credential, setCredential] = useState('');
   const [loading, setLoading] = useState(true);
-  const [action, setAction] = useState<'save' | 'validate' | 'clear' | 'preference' | null>(null);
+  const [action, setAction] = useState<'save' | 'validate' | 'clear' | 'preference' | 'job' | 'cancel_job' | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [job, setJob] = useState<PosterEnrichmentJob | null>(null);
+  const [jobType, setJobType] = useState('');
+  const [jobError, setJobError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +72,41 @@ export default function PosterSettingsCard() {
     });
     return () => { cancelled = true; };
   }, [showToast]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const load = async () => {
+      try {
+        const response = await posterApi.latestJob();
+        if (!cancelled) {
+          setJob(response.data.data);
+          setJobError(null);
+        }
+      } catch {
+        if (!cancelled) setJobError('任务状态暂时无法读取');
+      }
+      if (!cancelled && job?.active) {
+        timer = setTimeout(load, document.hidden ? 15000 : 4000);
+      }
+    };
+
+    if (job?.active) timer = setTimeout(load, document.hidden ? 15000 : 4000);
+    else if (job === null) void load();
+    const onVisibility = () => {
+      if (!document.hidden && job?.active) {
+        if (timer) clearTimeout(timer);
+        void load();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [job]);
 
   const updatePreference = async (posterSource: 'original' | 'tmdb') => {
     setAction('preference');
@@ -108,6 +161,7 @@ export default function PosterSettingsCard() {
     }
     setAction('clear');
     try {
+      if (job?.active) await posterApi.cancelJob(job.id).catch(() => undefined);
       const response = await posterApi.clearCredential();
       setSetting(response.data.data);
       setCredential('');
@@ -121,9 +175,41 @@ export default function PosterSettingsCard() {
     }
   };
 
+  const startJob = async () => {
+    setAction('job');
+    try {
+      const response = await posterApi.startJob(jobType || undefined);
+      setJob(response.data.data);
+      setJobError(null);
+      showToast('海报补全任务已进入队列', 'success');
+    } catch {
+      setJobError('任务启动失败，请确认 TMDB 模式和凭据状态');
+      showToast('海报补全任务启动失败', 'error');
+    } finally {
+      setAction(null);
+    }
+  };
+
+  const cancelJob = async () => {
+    if (!job?.active) return;
+    setAction('cancel_job');
+    try {
+      const response = await posterApi.cancelJob(job.id);
+      setJob(response.data.data);
+      setJobError(null);
+      showToast('已请求取消海报补全任务', 'success');
+    } catch {
+      setJobError('任务取消请求失败，请重试');
+    } finally {
+      setAction(null);
+    }
+  };
+
   const validationMessage = setting.validationErrorCode
     ? errorText[setting.validationErrorCode] || '验证未通过，当前仍会使用来源站原图。'
     : null;
+  const progress = job && job.totalCount > 0
+    ? Math.min(100, Math.round((job.processedCount / job.totalCount) * 100)) : 0;
 
   return (
     <section className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
@@ -162,6 +248,31 @@ export default function PosterSettingsCard() {
               {setting.configured && <button onClick={() => void clearCredential()} disabled={action !== null} className="rounded-lg border px-3 py-2 text-xs font-medium disabled:opacity-50" style={{ borderColor: '#ef4444', color: '#ef4444' }}>{action === 'clear' ? '清除中...' : confirmClear ? '再次点击确认清除' : '清除凭据'}</button>}
               {confirmClear && <button onClick={() => setConfirmClear(false)} className="rounded-lg px-3 py-2 text-xs text-muted-foreground">取消</button>}
             </div>
+          </div>
+
+          <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-primary)' }}>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div><p className="text-sm font-medium text-foreground">后台批量补全</p><p className="mt-0.5 text-xs text-muted-foreground">仅由你手动启动，不会建立周期任务；列表展示仍会在失败时回退原图。</p></div>
+              {job && <span className="rounded-full px-2 py-1 text-xs font-medium" style={{ backgroundColor: 'var(--bg-card)', color: job.active ? 'var(--accent)' : 'var(--text-secondary)' }}>{jobStatusText[job.status]}</span>}
+            </div>
+
+            {job && (
+              <div className="mt-3 rounded-lg border p-3" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+                <div className="flex items-center justify-between text-xs text-muted-foreground"><span>进度 {job.processedCount} / {job.totalCount}</span><span>{progress}%</span></div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full" style={{ backgroundColor: 'var(--border-color)' }}><div className="h-full rounded-full transition-[width]" style={{ width: `${progress}%`, backgroundColor: 'var(--accent)' }} /></div>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs"><span className="rounded-md px-2 py-1 text-muted-foreground" style={{ backgroundColor: 'var(--bg-primary)' }}>匹配 {job.matchedCount}</span><span className="rounded-md px-2 py-1 text-muted-foreground" style={{ backgroundColor: 'var(--bg-primary)' }}>待确认 {job.pendingCount}</span><span className="rounded-md px-2 py-1 text-muted-foreground" style={{ backgroundColor: 'var(--bg-primary)' }}>失败 {job.failedCount}</span></div>
+                {job.currentContentType && <p className="mt-2 text-xs text-muted-foreground">当前：{job.currentContentType} #{job.currentContentId}</p>}
+                {job.errorSummary && <p className="mt-2 text-xs" style={{ color: '#b45309' }}>{errorText[job.errorSummary] || `任务停止原因：${job.errorSummary}`}</p>}
+              </div>
+            )}
+            {jobError && <p className="mt-2 text-xs" style={{ color: '#b45309' }}>{jobError}</p>}
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <select value={jobType} onChange={event => setJobType(event.target.value)} disabled={job?.active || action !== null} className="h-9 rounded-lg border px-3 text-xs outline-none disabled:opacity-50" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>{jobTypeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+              <button onClick={() => void startJob()} disabled={setting.posterSource !== 'tmdb' || !setting.configured || job?.active || action !== null} className="h-9 rounded-lg px-3 text-xs font-medium text-white disabled:opacity-50" style={{ backgroundColor: 'var(--accent)' }}>{action === 'job' ? '启动中...' : '开始补全'}</button>
+              {job?.active && <button onClick={() => void cancelJob()} disabled={action !== null || job.status === 'cancel_requested'} className="h-9 rounded-lg border px-3 text-xs font-medium disabled:opacity-50" style={{ borderColor: '#ef4444', color: '#ef4444' }}>{action === 'cancel_job' ? '取消中...' : '取消任务'}</button>}
+            </div>
+            {setting.posterSource !== 'tmdb' && <p className="mt-2 text-xs text-muted-foreground">选择“TMDB 智能识别”后才能启动。</p>}
           </div>
         </div>
       )}

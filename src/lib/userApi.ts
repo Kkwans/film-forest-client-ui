@@ -105,6 +105,26 @@ export interface PosterResolution {
   matchedAt: string | null;
 }
 
+export interface PosterEnrichmentJob {
+  id: number;
+  status: 'queued' | 'running' | 'cancel_requested' | 'success' | 'partial_success' | 'failed' | 'cancelled' | 'interrupted';
+  cancelRequested: boolean;
+  contentType: string | null;
+  totalCount: number;
+  processedCount: number;
+  matchedCount: number;
+  pendingCount: number;
+  failedCount: number;
+  currentContentType: string | null;
+  currentContentId: number | null;
+  errorSummary: string | null;
+  queuedAt: string;
+  startedAt: string | null;
+  heartbeatAt: string | null;
+  finishedAt: string | null;
+  active: boolean;
+}
+
 export const posterApi = {
   getSettings: () => authClient.get<Result<PosterSetting>>('/api/poster/settings'),
   savePreference: (posterSource: 'original' | 'tmdb') =>
@@ -117,6 +137,11 @@ export const posterApi = {
     authClient.post<Result<PosterResolution[]>>('/api/poster/resolve', { items }),
   enrich: (contentType: string, contentId: number) =>
     authClient.post<Result<PosterResolution>>('/api/poster/enrich', { contentType, contentId }),
+  latestJob: () => authClient.get<Result<PosterEnrichmentJob | null>>('/api/poster/enrichment-jobs/latest'),
+  startJob: (contentType?: string) =>
+    authClient.post<Result<PosterEnrichmentJob>>('/api/poster/enrichment-jobs', contentType ? { contentType } : {}),
+  cancelJob: (jobId: number) =>
+    authClient.post<Result<PosterEnrichmentJob>>(`/api/poster/enrichment-jobs/${jobId}/cancel`),
 };
 
 export const listApi = {
