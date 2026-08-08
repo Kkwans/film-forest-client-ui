@@ -1,12 +1,4 @@
-/**
- * 内容展示共享常量和工具函数
- * 从 MovieCard / SearchPage / ListDetailPage 等多处提取的重复代码
- */
-
-/* ============================================================
- * 1. 观看状态图标配置
- * 用于：MovieCard、SearchPage、ListDetailPage 等所有展示"想看/在看/看过"状态的场景
- * ============================================================ */
+/** 五类内容、观看状态与脏 JSON 字段的共享定义。 */
 
 export interface StatusIconConfig {
   icon: string;
@@ -42,44 +34,68 @@ export const STATUS_ICONS: Record<string, StatusIconConfig> = {
   },
 };
 
-/** 根据 listType 获取状态图标配置 */
 export function getStatusConfig(listType: string | undefined): StatusIconConfig | null {
   if (!listType) return null;
   return STATUS_ICONS[listType] || STATUS_ICONS.custom;
 }
 
-/* ============================================================
- * 2. 内容类型标签映射
- * 用于：SearchPage、ListDetailPage 等展示内容类型的场景
- * ============================================================ */
+export const CONTENT_TYPE_REGISTRY = {
+  movie: {
+    code: 'movie', route: 'movie', apiPath: '/api/movies', label: '电影', metadataKey: 'movie',
+  },
+  drama: {
+    code: 'drama', route: 'drama', apiPath: '/api/dramas', label: '电视剧', metadataKey: 'drama',
+  },
+  variety: {
+    code: 'variety', route: 'variety', apiPath: '/api/varieties', label: '综艺', metadataKey: 'variety',
+  },
+  anime: {
+    code: 'anime', route: 'anime', apiPath: '/api/animes', label: '动漫', metadataKey: 'anime',
+  },
+  short_drama: {
+    code: 'short_drama', route: 'short', apiPath: '/api/short-dramas', label: '短剧', metadataKey: 'short',
+  },
+} as const;
 
-export const TYPE_LABELS: Record<string, string> = {
-  movie: '电影',
-  drama: '电视剧',
-  variety: '综艺',
-  anime: '动漫',
-  short_drama: '短剧',
+export type ContentType = keyof typeof CONTENT_TYPE_REGISTRY;
+export type ContentTypeConfig = (typeof CONTENT_TYPE_REGISTRY)[ContentType];
+
+const CONTENT_TYPE_ALIASES: Record<string, ContentType> = {
+  movie: 'movie',
+  drama: 'drama',
+  variety: 'variety',
+  anime: 'anime',
+  short: 'short_drama',
+  short_drama: 'short_drama',
+  'short-drama': 'short_drama',
 };
 
-export const TYPE_HREFS: Record<string, string> = {
-  movie: '/movie',
-  drama: '/drama',
-  variety: '/variety',
-  anime: '/anime',
-  short_drama: '/short',
-};
+export function normalizeContentType(value: string): ContentType {
+  return CONTENT_TYPE_ALIASES[value] || 'movie';
+}
 
-/* ============================================================
- * 3. JSON 数组解析工具
- * 用于：解析后端返回的 JSON 字符串数组字段（genre/director/actor/region 等）
- * ============================================================ */
+export function getContentTypeConfig(value: string): ContentTypeConfig {
+  return CONTENT_TYPE_REGISTRY[normalizeContentType(value)];
+}
 
-export function parseJsonArr(val: string | string[] | undefined): string[] {
+/** 兼容现有展示组件；值由 registry 派生，不再维护第二份映射。 */
+export const TYPE_LABELS: Record<string, string> = Object.fromEntries(
+  Object.values(CONTENT_TYPE_REGISTRY).map((config) => [config.code, config.label]),
+);
+
+export const TYPE_HREFS: Record<string, string> = Object.fromEntries(
+  Object.values(CONTENT_TYPE_REGISTRY).map((config) => [config.code, `/${config.route}`]),
+);
+
+/** 容忍后端历史脏字段：合法数组直接返回，JSON 非数组或损坏时安全降级为空。 */
+export function parseJsonArr(val: string | string[] | undefined | null): string[] {
   if (!val) return [];
-  if (Array.isArray(val)) return val;
+  if (Array.isArray(val)) return val.filter((item): item is string => typeof item === 'string');
   try {
-    const parsed = JSON.parse(val);
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed: unknown = JSON.parse(val);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string')
+      : [];
   } catch {
     return [];
   }
