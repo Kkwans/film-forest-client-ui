@@ -44,11 +44,11 @@ export function DetailCover({ src, alt, seed }: { src?: string; alt: string; see
     <div className="w-full sm:w-48 md:w-56 lg:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px] animate-fade-in-up stagger-2">
       <div className="relative group">
         <LazyImage
-          src={src || `https://picsum.photos/seed/${seed}/400/600`}
+          src={src || '/poster-placeholder.svg'}
           alt={alt}
           className="rounded-xl shadow-lg"
           placeholder="skeleton"
-          fallbackSrc={`https://picsum.photos/seed/${seed}/400/600`}
+          fallbackSrc={'/poster-placeholder.svg'}
           lazy={false}
         />
         {/* Decorative glow behind cover */}

@@ -261,7 +261,7 @@ export default function ListDetailPage() {
   if (!hasStoredToken()) return null;
 
   const isWatchedList = listType === 'watched';
-  const fallbackCover = (id: number) => `https://picsum.photos/seed/${id}/120/180`;
+  const fallbackCover = (id: number) => '/poster-placeholder.svg';
 
   return (
     <div className="flex flex-col gap-6">

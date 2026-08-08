@@ -80,13 +80,13 @@ export default function RelatedSection({
                 {/* 海报 */}
                 <div className="relative aspect-[2/3] overflow-hidden">
                   <LazyImage
-                    src={item.posterUrl || `https://picsum.photos/seed/r${item.id}/300/450`}
+                    src={item.posterUrl || '/poster-placeholder.svg'}
                     alt={item.title}
                     className="rounded-none"
                     imgClassName="img-zoom"
                     placeholder="blur"
                     aspectRatio={null}
-                    fallbackSrc={`https://picsum.photos/seed/r${item.id}/300/450`}
+                    fallbackSrc={'/poster-placeholder.svg'}
                     rootMargin="300px"
                   />
                   {item.scoreDouban != null && item.scoreDouban > 0 && (

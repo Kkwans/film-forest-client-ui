@@ -54,11 +54,11 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
         {/* 封面 */}
         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-card shadow-sm hover:shadow-md transition-shadow">
           <LazyImage
-            src={item.cover || `https://picsum.photos/seed/cw${item.contentId}/300/450`}
+            src={item.cover || '/poster-placeholder.svg'}
             alt={item.title}
             className="w-full h-full object-cover"
             placeholder="skeleton"
-            fallbackSrc={`https://picsum.photos/seed/cw${item.contentId}/300/450`}
+            fallbackSrc={'/poster-placeholder.svg'}
           />
           {/* 播放图标覆盖层 */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">

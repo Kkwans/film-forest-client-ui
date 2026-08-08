@@ -367,11 +367,11 @@ function HistoryTab() {
                 {/* 封面 */}
                 <div className="relative w-[60px] h-[84px] rounded-lg overflow-hidden shrink-0">
                   <LazyImage
-                    src={item.cover || `https://picsum.photos/seed/${item.movieId}/120/168`}
+                    src={item.cover || '/poster-placeholder.svg'}
                     alt={item.title || ''}
                     className="rounded-lg"
                     aspectRatio={null}
-                    fallbackSrc={`https://picsum.photos/seed/${item.movieId}/120/168`}
+                    fallbackSrc={'/poster-placeholder.svg'}
                     rootMargin="100px"
                   />
                   {item.rating != null && Number(item.rating) > 0 && (

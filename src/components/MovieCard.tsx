@@ -128,7 +128,7 @@ export default function MovieCard({
   const genreArr = parseGenre(genre);
   const regionDisplay = regionArr.length > 0 ? regionArr[0] : '';
   const cleanTitle = cleanTitleUtil(title);
-  const fallbackCover = `https://picsum.photos/seed/${id}/300/450`;
+  const fallbackCover = '/poster-placeholder.svg';
 
   let badgeText = '';
   if (type === 'movie' && duration) {
@@ -191,7 +191,7 @@ export default function MovieCard({
             imgClassName="img-zoom"
             placeholder="blur"
             aspectRatio={null}
-            fallbackSrc={`https://picsum.photos/seed/${id}/300/450`}
+            fallbackSrc={'/poster-placeholder.svg'}
             rootMargin="300px"
           />
           {/* Rating badge - enhanced */}

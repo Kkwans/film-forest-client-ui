@@ -714,12 +714,12 @@ function SearchContent() {
                   {/* Poster */}
                   <div className="shrink-0 w-[80px] md:w-[110px] aspect-[2/3] rounded-lg overflow-hidden">
                     <LazyImage
-                      src={item.cover || `https://picsum.photos/seed/${item.id}/110/165`}
+                      src={item.cover || '/poster-placeholder.svg'}
                       alt={item.title}
                       className="rounded-lg"
                       imgClassName="img-zoom"
                       aspectRatio={null}
-                      fallbackSrc={`https://picsum.photos/seed/${item.id}/110/165`}
+                      fallbackSrc={'/poster-placeholder.svg'}
                       rootMargin="200px"
                     />
                   </div>
