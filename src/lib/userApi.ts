@@ -84,6 +84,26 @@ export const userApi = {
   me: () => authClient.get<Result<unknown>>('/api/auth/me'),
 };
 
+export interface PosterSetting {
+  posterSource: 'original' | 'tmdb';
+  configured: boolean;
+  credentialType: 'api_key' | 'read_access_token' | null;
+  maskedHint: string | null;
+  validationStatus: 'not_configured' | 'unverified' | 'valid' | 'invalid' | 'rate_limited' | 'unavailable';
+  validationErrorCode: string | null;
+  validatedAt: string | null;
+}
+
+export const posterApi = {
+  getSettings: () => authClient.get<Result<PosterSetting>>('/api/poster/settings'),
+  savePreference: (posterSource: 'original' | 'tmdb') =>
+    authClient.put<Result<PosterSetting>>('/api/poster/settings/preference', { posterSource }),
+  saveCredential: (credentialType: 'api_key' | 'read_access_token', credential: string) =>
+    authClient.put<Result<PosterSetting>>('/api/poster/settings/credential', { credentialType, credential }),
+  clearCredential: () => authClient.delete<Result<PosterSetting>>('/api/poster/settings/credential'),
+  validateCredential: () => authClient.post<Result<PosterSetting>>('/api/poster/settings/credential/validate'),
+};
+
 export const listApi = {
   getAll: () => authClient.get<Result<unknown>>('/api/user/lists'),
   create: (data: { name: string; description?: string }) => authClient.post<Result<unknown>>('/api/user/lists', data),

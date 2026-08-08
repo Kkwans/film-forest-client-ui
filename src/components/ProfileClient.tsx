@@ -11,6 +11,7 @@ import { cleanTitle as cleanTitleUtil, formatRelativeTime } from '@/lib/utils';
 import { parseJsonArr } from '@/lib/contentConstants';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
+import PosterSettingsCard from '@/components/PosterSettingsCard';
 
 // ─── Tab 定义 ───
 const TABS = [
@@ -646,6 +647,8 @@ function SettingsTab() {
         </div>
       </section>
 
+      <PosterSettingsCard />
+
       {/* 数据管理 */}
       <section className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
         <h3 className="text-sm font-bold text-foreground mb-3">数据管理</h3>
@@ -673,8 +676,12 @@ function SettingsTab() {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">技术栈</span>
-            <span className="text-xs text-muted-foreground">Next.js 15 + SpringBoot 3</span>
+            <span className="text-xs text-muted-foreground">Next.js 16 + Spring Boot 3</span>
           </div>
+          <Link href="/about" className="flex items-center justify-between rounded-lg py-1 no-underline">
+            <span className="text-sm text-muted-foreground">项目与数据署名</span>
+            <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>查看 →</span>
+          </Link>
         </div>
       </section>
 
