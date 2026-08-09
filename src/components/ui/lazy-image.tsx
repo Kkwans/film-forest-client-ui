@@ -34,6 +34,12 @@ interface LazyImageProps {
  * - Skeleton placeholder option
  */
 export default function LazyImage({
+  ...props
+}: LazyImageProps) {
+  return <LazyImageSource key={props.src} {...props} />;
+}
+
+function LazyImageSource({
   src,
   alt,
   className = '',
@@ -102,15 +108,16 @@ export default function LazyImage({
     >
       {/* Skeleton placeholder */}
       {placeholder === 'skeleton' && !loaded && (
-        <div className="absolute inset-0 animate-pulse bg-muted" />
+        <div className="absolute inset-0 animate-pulse bg-muted" aria-hidden />
       )}
 
       {/* Blur placeholder */}
       {placeholder === 'blur' && !loaded && (
         <div
           className="absolute inset-0 transition-opacity duration-500"
+          aria-hidden
           style={{
-            backgroundColor: 'var(--bg-card)',
+            background: 'linear-gradient(135deg, var(--bg-card), var(--bg-primary))',
             opacity: loaded ? 0 : 1,
           }}
         />
@@ -118,12 +125,12 @@ export default function LazyImage({
 
       {/* Actual image */}
       {inView && (
+        // Source adapters may return arbitrary public hosts, so Next/Image cannot use a safe static remote allowlist here.
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={imgSrc}
           alt={alt}
-          className={`w-full h-full object-cover transition-opacity duration-500 ${
-            loaded ? 'opacity-100' : 'opacity-0'
-          } ${imgClassName || ''}`}
+          className={`relative h-full w-full object-cover ${imgClassName || ''}`}
           onLoad={handleLoad}
           onError={handleError}
           loading={lazy ? 'lazy' : 'eager'}
