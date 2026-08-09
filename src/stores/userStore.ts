@@ -39,6 +39,7 @@ export const useUserStore = create<UserState>()(
 
       logout: () => {
         localStorage.removeItem('ff_token');
+        localStorage.removeItem('ff-user');
         localStorage.removeItem('ff_user');
         localStorage.removeItem('search_history');
         // Signal to authClient interceptor: skip 401 redirect during logout

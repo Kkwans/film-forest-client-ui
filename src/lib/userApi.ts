@@ -1,4 +1,4 @@
-import axios, { type InternalAxiosRequestConfig, type AxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
+import axios, { AxiosError, type InternalAxiosRequestConfig, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -23,21 +23,42 @@ authClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 authClient.interceptors.response.use(
-  (res: AxiosResponse) => res,
+  (res: AxiosResponse) => {
+    const payload = res.data as { code?: number; message?: string } | null;
+    if (payload && typeof payload.code === 'number' && payload.code !== 200) {
+      if (payload.code === 401 && !res.config.url?.includes('/api/auth/login')) {
+        clearExpiredSession();
+      }
+      return Promise.reject(new AxiosError(
+        payload.message || '请求失败',
+        'ERR_BAD_RESPONSE',
+        res.config,
+        res.request,
+        res,
+      ));
+    }
+    return res;
+  },
   (err: AxiosError) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
-      if ((window as Window & { __ffLogoutFlag?: boolean }).__ffLogoutFlag) return Promise.reject(err);
-      localStorage.removeItem('ff_token');
-      localStorage.removeItem('ff_user');
-      if (!window.location.pathname.startsWith('/login')) {
-        // Axios interceptors run outside React, so a hard navigation is required to leave a stale protected tree.
-        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-        window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
-      }
+      clearExpiredSession();
     }
     return Promise.reject(err);
   },
 );
+
+function clearExpiredSession() {
+  if (typeof window === 'undefined') return;
+  if ((window as Window & { __ffLogoutFlag?: boolean }).__ffLogoutFlag) return;
+  localStorage.removeItem('ff_token');
+  localStorage.removeItem('ff-user');
+  localStorage.removeItem('ff_user');
+  if (!window.location.pathname.startsWith('/login')) {
+    // Axios interceptors run outside React, so a hard navigation is required to leave a stale protected tree.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
+  }
+}
 
 export interface User {
   id: number;
