@@ -151,7 +151,7 @@ export const listApi = {
   create: (data: { name: string; description?: string }) => authClient.post<Result<UserList>>('/api/user/lists', data),
   update: (id: number, data: { name?: string; description?: string }) => authClient.put<Result<unknown>>(`/api/user/lists/${id}`, data),
   remove: (id: number) => authClient.delete<Result<unknown>>(`/api/user/lists/${id}`),
-  getItems: (id: number, params?: { page?: number; size?: number; sort?: string; sortDir?: string }, config?: AxiosRequestConfig) =>
+  getItems: (id: number, params?: { page?: number; size?: number; sort?: string; sortDir?: string; contentType?: string }, config?: AxiosRequestConfig) =>
     authClient.get<Result<unknown>>(`/api/user/lists/${id}/items`, { ...config, params }),
   addItem: (id: number, data: { movieId: number; contentType: string; rating?: number; note?: string }) =>
     authClient.post<Result<unknown>>(`/api/user/lists/${id}/items`, data),
