@@ -20,10 +20,12 @@ import {
   Monitor,
   Moon,
   Palette,
+  Pencil,
   RefreshCw,
   SearchX,
   Settings,
   Sun,
+  Trash2,
 } from 'lucide-react';
 import { useUserStore, hasStoredToken } from '@/stores/userStore';
 import { listApi, type UserList } from '@/lib/userApi';
@@ -34,6 +36,8 @@ import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import PosterSettingsCard from '@/components/PosterSettingsCard';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { Modal } from '@/components/ui/modal';
+import Dialog from '@/components/Dialog';
 
 interface TabDefinition {
   key: 'lists' | 'history' | 'settings';
@@ -102,6 +106,12 @@ function ListsTab() {
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [creating, setCreating] = useState(false);
+  const [editingList, setEditingList] = useState<UserList | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [updating, setUpdating] = useState(false);
+  const [deletingList, setDeletingList] = useState<UserList | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadLists = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -145,6 +155,47 @@ function ListsTab() {
       showToast('创建失败，请稍后再试', 'error');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const openEditor = (list: UserList) => {
+    setEditingList(list);
+    setEditName(list.name);
+    setEditDesc(list.description || '');
+  };
+
+  const handleUpdate = async () => {
+    const name = editName.trim();
+    if (!editingList || !name || updating) return;
+    if (name.length > 30 || editDesc.trim().length > 200) {
+      showToast('片单名称最多 30 字，描述最多 200 字', 'warning');
+      return;
+    }
+    setUpdating(true);
+    try {
+      await listApi.update(editingList.id, { name, description: editDesc.trim() });
+      setEditingList(null);
+      await loadLists();
+      showToast('片单已更新', 'success');
+    } catch {
+      showToast('片单更新失败，请重试', 'error');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingList || deleting) return;
+    setDeleting(true);
+    try {
+      await listApi.remove(deletingList.id);
+      setDeletingList(null);
+      await loadLists();
+      showToast('片单已删除', 'success');
+    } catch {
+      showToast('片单删除失败，请重试', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -220,18 +271,58 @@ function ListsTab() {
         ) : (
           <div className="mt-4 grid gap-2">
             {customLists.map((list) => (
-              <Link key={list.id} href={`/user/lists/${list.id}`} prefetch={false} className="flex min-h-16 items-center justify-between gap-4 rounded-xl border border-border bg-card p-4 no-underline transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{list.name}</p>
-                  {list.description && <p className="mt-0.5 truncate text-xs text-muted-foreground">{list.description}</p>}
+              <div key={list.id} className="flex items-stretch overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
+                <Link href={`/user/lists/${list.id}`} prefetch={false} className="flex min-h-16 min-w-0 flex-1 items-center gap-3 p-4 no-underline">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{list.name}</p>
+                    {list.description && <p className="mt-0.5 truncate text-xs text-muted-foreground">{list.description}</p>}
+                  </div>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{list.itemCount} 部</span>
+                  <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </Link>
+                <div className="flex shrink-0 items-center border-l border-border px-1.5" aria-label={`${list.name}片单操作`}>
+                  <button type="button" onClick={() => openEditor(list)} className="grid size-10 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`编辑片单“${list.name}”`} title="编辑片单"><Pencil aria-hidden className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => setDeletingList(list)} className="grid size-10 place-items-center rounded-xl text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={`删除片单“${list.name}”`} title="删除片单"><Trash2 aria-hidden className="h-4 w-4" /></button>
                 </div>
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{list.itemCount} 部</span>
-                <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </Link>
+              </div>
             ))}
           </div>
         )}
       </section>
+
+      <Modal
+        open={Boolean(editingList)}
+        onClose={() => { if (!updating) setEditingList(null); }}
+        title="编辑片单"
+        description={editingList?.name}
+        width="sm"
+        footer={(
+          <>
+            <button type="button" onClick={() => setEditingList(null)} disabled={updating} className="min-h-10 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">取消</button>
+            <button type="button" onClick={() => void handleUpdate()} disabled={updating || !editName.trim()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:opacity-50">
+              {updating && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}{updating ? '保存中' : '保存修改'}
+            </button>
+          </>
+        )}
+      >
+        <form onSubmit={(event) => { event.preventDefault(); void handleUpdate(); }}>
+          <label htmlFor="edit-list-name" className="text-sm font-medium text-foreground">片单名称</label>
+          <input id="edit-list-name" value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={30} className={`mt-2 h-10 ${inputClassName}`} autoFocus />
+          <label htmlFor="edit-list-description" className="mt-4 block text-sm font-medium text-foreground">片单描述 <span className="font-normal text-muted-foreground">（可选）</span></label>
+          <textarea id="edit-list-description" value={editDesc} onChange={(event) => setEditDesc(event.target.value)} maxLength={200} rows={4} className={`mt-2 resize-y py-2.5 ${inputClassName}`} />
+        </form>
+      </Modal>
+
+      <Dialog
+        open={Boolean(deletingList)}
+        onClose={() => { if (!deleting) setDeletingList(null); }}
+        onConfirm={handleDelete}
+        title="删除自定义片单"
+        message={`确定删除“${deletingList?.name || ''}”及其中的收藏关系吗？内容本身不会被删除。`}
+        confirmText="删除片单"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 }
