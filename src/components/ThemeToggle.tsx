@@ -2,6 +2,7 @@
 
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useEffect, useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,13 @@ const THEME_LABELS: Record<Theme, string> = {
 
 export default function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const currentTheme: Theme = theme === 'light' || theme === 'dark' ? theme : 'system';
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  // next-themes cannot know the persisted client preference during SSR. Keep the
+  // server and first client render identical, then reveal the resolved setting.
+  const currentTheme: Theme = mounted && (theme === 'light' || theme === 'dark') ? theme : 'system';
   const ResolvedIcon = currentTheme === 'system' ? Monitor : resolvedTheme === 'dark' ? Moon : Sun;
 
   return (
