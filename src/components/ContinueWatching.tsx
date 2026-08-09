@@ -2,13 +2,15 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { Play, X } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
 import Dialog from '@/components/Dialog';
 import { usePlayHistoryStore, type PlayHistoryItem } from '@/stores/playHistoryStore';
 import { formatRelativeTime } from '@/lib/utils';
+import { usePosterUrl } from '@/hooks/usePosterUrl';
 
 /** 格式化进度 */
-function formatProgress(progress?: number, duration?: number): string {
+function formatProgress(progress?: number): string {
   if (!progress) return '';
   const min = Math.floor(progress / 60);
   const sec = Math.floor(progress % 60);
@@ -43,6 +45,7 @@ function getTypeName(type: string): string {
 /** 单个播放记录卡片 */
 function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () => void }) {
   const detailPath = getDetailPath(item);
+  const posterUrl = usePosterUrl(item.contentType, item.contentId, item.cover);
   const progressPercent =
     item.progress && item.duration && item.duration > 0
       ? Math.min((item.progress / item.duration) * 100, 100)
@@ -50,11 +53,11 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
 
   return (
     <div className="group relative shrink-0 w-40 sm:w-48 animate-fade-in-up">
-      <Link href={detailPath} className="block">
+      <Link href={detailPath} prefetch={false} className="block" aria-label={`继续观看《${item.title}》`}>
         {/* 封面 */}
         <div className="relative aspect-[2/3] rounded-xl overflow-hidden bg-card shadow-sm hover:shadow-md transition-shadow">
           <LazyImage
-            src={item.cover || '/poster-placeholder.svg'}
+            src={posterUrl}
             alt={item.title}
             className="w-full h-full object-cover"
             placeholder="skeleton"
@@ -62,10 +65,8 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
           />
           {/* 播放图标覆盖层 */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-            <div className="w-10 h-10 rounded-full bg-accent/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-              <svg className="w-5 h-5 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/90 opacity-100 shadow-lg transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+              <Play aria-hidden className="ml-0.5 h-5 w-5 fill-white text-white" />
             </div>
           </div>
 
@@ -85,7 +86,7 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
           {progressPercent > 0 && (
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30">
               <div
-                className="h-full bg-accent transition-all"
+                className="h-full bg-accent transition-[width]"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -95,7 +96,7 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
 
       {/* 信息区 */}
       <div className="mt-2 px-0.5">
-        <Link href={detailPath} className="block">
+        <Link href={detailPath} prefetch={false} className="block">
           <h3 className="text-sm font-medium text-foreground truncate hover:text-accent transition-colors">
             {item.title}
           </h3>
@@ -106,26 +107,25 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
           </p>
           {item.progress && item.progress > 0 && (
             <p className="text-xs text-muted-foreground">
-              看到 {formatProgress(item.progress, item.duration)}
+              看到 {formatProgress(item.progress)}
             </p>
           )}
         </div>
       </div>
 
-      {/* 删除按钮 - bottom-right to avoid overlapping episode badge */}
+      {/* 删除按钮放在右下角，避免与右上角集数标签重叠。 */}
       <button
+        type="button"
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           onRemove();
         }}
-        className="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-black/60 text-white/80 hover:bg-red-500 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10"
+        className="absolute bottom-2 right-2 z-10 flex size-8 items-center justify-center rounded-full bg-black/70 text-white transition-[background-color,opacity] hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
         title="移除记录"
+        aria-label={`移除《${item.title}》的播放记录`}
       >
-        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+        <X aria-hidden className="h-4 w-4" />
       </button>
     </div>
   );
@@ -148,8 +148,9 @@ export default function ContinueWatching() {
           继续观看
         </h2>
         <button
+          type="button"
           onClick={() => setClearDialogOpen(true)}
-          className="text-xs text-muted-foreground hover:text-accent transition-colors"
+          className="min-h-9 rounded-lg px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-accent"
         >
           清空记录
         </button>
