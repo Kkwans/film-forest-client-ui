@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
+import { CirclePlay, Inbox } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
 import { getPlaybackSourceMode } from '@/lib/playbackSource';
 
@@ -40,7 +41,7 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
  * 2. 封面海报
  * ============================================================ */
 
-export function DetailCover({ src, alt, seed }: { src?: string; alt: string; seed: string }) {
+export function DetailCover({ src, alt }: { src?: string; alt: string }) {
   return (
     <div className="w-full sm:w-48 md:w-56 lg:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px] animate-fade-in-up stagger-2">
       <div className="relative group">
@@ -257,22 +258,22 @@ interface OnlineResource {
   sourceUrl?: string;
 }
 
-/** 平台名称到图标/颜色的映射 */
-const PLATFORM_STYLES: Record<string, { icon: string; color: string }> = {
-  '优酷': { icon: '▶️', color: '#00BEFF' },
-  '腾讯视频': { icon: '▶️', color: '#FF6A00' },
-  '爱奇艺': { icon: '▶️', color: '#00BE06' },
-  '芒果TV': { icon: '▶️', color: '#FF7F00' },
-  'bilibili': { icon: '▶️', color: '#FB7299' },
-  '哔哩哔哩': { icon: '▶️', color: '#FB7299' },
-  '搜狐视频': { icon: '▶️', color: '#EE2F2F' },
-  'PPTV': { icon: '▶️', color: '#0099FF' },
-  '乐视': { icon: '▶️', color: '#E60012' },
+/** 平台名称到品牌颜色的映射 */
+const PLATFORM_STYLES: Record<string, { color: string }> = {
+  '优酷': { color: '#00BEFF' },
+  '腾讯视频': { color: '#FF6A00' },
+  '爱奇艺': { color: '#00BE06' },
+  '芒果TV': { color: '#FF7F00' },
+  'bilibili': { color: '#FB7299' },
+  '哔哩哔哩': { color: '#FB7299' },
+  '搜狐视频': { color: '#EE2F2F' },
+  'PPTV': { color: '#0099FF' },
+  '乐视': { color: '#E60012' },
 };
 
 function getPlatformStyle(name: string) {
   const key = Object.keys(PLATFORM_STYLES).find(k => name.includes(k));
-  return key ? PLATFORM_STYLES[key] : { icon: '🎬', color: 'var(--accent)' };
+  return key ? PLATFORM_STYLES[key] : { color: 'var(--accent)' };
 }
 
 export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在线播放资源', selectedEpisode, episodeLabel = '集', onPlay, activeSourceId }: {
@@ -326,7 +327,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
             return (
               <div key={platformName}>
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-base">{style.icon}</span>
+                  <CirclePlay aria-hidden className="h-4 w-4" style={{ color: style.color }} />
                   <span className="text-sm font-semibold text-foreground">{platformName}</span>
                   <span className="text-xs text-muted-foreground">({items.length}条线路)</span>
                 </div>
@@ -402,14 +403,14 @@ interface CopyableResource {
 export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyText }: {
   resources: CopyableResource[];
   copiedId: number | null;
-  onCopy: (url: string, id: number) => void;
-  icon: string;
+  onCopy: (url: string, id: number) => void | Promise<void>;
+  icon: React.ReactNode;
   emptyText: string;
 }) {
   if (resources.length === 0) {
     return (
       <div className="text-center py-10">
-        <p className="text-3xl mb-2">📭</p>
+        <Inbox aria-hidden className="mx-auto mb-2 h-8 w-8 text-muted-foreground/70" />
         <p className="text-sm text-muted-foreground">{emptyText}</p>
       </div>
     );
@@ -423,7 +424,7 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
           className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-lg border hover:border-accent/30 hover:bg-accent/5 transition-all group"
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="text-lg shrink-0 group-hover:scale-110 transition-transform">{icon}</span>
+            <span className="shrink-0 text-accent transition-transform group-hover:scale-105">{icon}</span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium break-all sm:truncate text-foreground">
                 {r.resolution && (
@@ -439,10 +440,13 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
             </div>
           </div>
           <button
+            type="button"
             onClick={() => onCopy(r.url || '', r.id)}
+            disabled={!r.url}
+            aria-label={`复制${r.title || '资源'}链接`}
             className={`shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white transition-all active:scale-95 ${
               copiedId === r.id ? 'bg-copied' : 'bg-accent hover:bg-accent-hover shadow-sm'
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-50`}
           >
             {copiedId === r.id ? '已复制 ✓' : '复制链接'}
           </button>

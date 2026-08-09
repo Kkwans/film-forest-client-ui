@@ -157,14 +157,23 @@ export const searchApi = {
 };
 
 export const resourceApi = {
-  online: (contentType: string, contentId: number, episodeNumber?: number) =>
-    client.get<Result<unknown>>('/api/resources/online', { params: { contentType, contentId, episodeNumber } }),
+  online: (contentType: string, contentId: number, episodeNumber?: number, config?: AxiosRequestConfig) =>
+    client.get<Result<unknown>>('/api/resources/online', {
+      ...config,
+      params: { contentType, contentId, episodeNumber },
+    }),
 
-  magnet: (contentType: string, contentId: number, episodeNumber?: number) =>
-    client.get<Result<unknown>>('/api/resources/magnet', { params: { contentType, contentId, episodeNumber } }),
+  magnet: (contentType: string, contentId: number, episodeNumber?: number, config?: AxiosRequestConfig) =>
+    client.get<Result<unknown>>('/api/resources/magnet', {
+      ...config,
+      params: { contentType, contentId, episodeNumber },
+    }),
 
-  cloud: (contentType: string, contentId: number, episodeNumber?: number) =>
-    client.get<Result<unknown>>('/api/resources/cloud', { params: { contentType, contentId, episodeNumber } }),
+  cloud: (contentType: string, contentId: number, episodeNumber?: number, config?: AxiosRequestConfig) =>
+    client.get<Result<unknown>>('/api/resources/cloud', {
+      ...config,
+      params: { contentType, contentId, episodeNumber },
+    }),
 };
 
 export interface RecommendItem {

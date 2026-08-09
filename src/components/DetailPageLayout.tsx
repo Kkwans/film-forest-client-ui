@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { CloudDownload, Magnet, RefreshCw, TriangleAlert } from 'lucide-react';
 import { resourceApi } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
 import { useDetailStatus } from '@/hooks/useDetailStatus';
@@ -23,6 +24,7 @@ import RelatedSection from '@/components/RelatedSection';
 import TagChips from '@/components/TagChips';
 import RatingDistribution from '@/components/detail/RatingDistribution';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { useToast } from '@/components/Toast';
 
 /** 在线播放资源 */
 interface OnlineResourceItem {
@@ -46,6 +48,19 @@ interface CloudResourceItem {
   title: string;
   shareUrl: string;
   storageName?: string;
+}
+
+type ResourceKind = 'online' | 'magnet' | 'cloud';
+
+const RESOURCE_KIND_LABELS: Record<ResourceKind, string> = {
+  online: '在线播放',
+  magnet: '磁力链接',
+  cloud: '网盘资源',
+};
+
+function resourceItems<T>(response: { data?: { data?: unknown } }): T[] {
+  const data = response.data?.data;
+  return Array.isArray(data) ? data as T[] : [];
 }
 
 /** 加载骨架屏（别名） */
@@ -120,7 +135,8 @@ export default function DetailPageLayout({
   const [magnetResources, setMagnetResources] = useState<MagnetResourceItem[]>([]);
   const [cloudResources, setCloudResources] = useState<CloudResourceItem[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
-  const [resourceError, setResourceError] = useState(false);
+  const [resourceErrors, setResourceErrors] = useState<ResourceKind[]>([]);
+  const [resourceReloadKey, setResourceReloadKey] = useState(0);
   const [downloadTab, setDownloadTab] = useState<'magnet' | 'cloud'>('magnet');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [playerSrc, setPlayerSrc] = useState<string | undefined>(undefined);
@@ -128,37 +144,76 @@ export default function DetailPageLayout({
 
   const ds = useDetailStatus(item.id, contentType);
   const resolvedCover = usePosterUrl(contentType, item.id, item.cover, { enrich: true });
+  const { showToast } = useToast();
 
   // Fetch all resources when episode changes
   useEffect(() => {
+    const controller = new AbortController();
     setLoadingResources(true);
-    setResourceError(false);
+    setResourceErrors([]);
     setPlayerSrc(undefined);
     setPlayerSourceId(null);
+    setOnlineResources([]);
+    setMagnetResources([]);
+    setCloudResources([]);
     const ep = selectedEpisode ?? undefined;
 
-    Promise.all([
-      resourceApi.online(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: OnlineResourceItem[] } | undefined)?.data; setOnlineResources(Array.isArray(d) ? d : []); return d; }),
-      resourceApi.magnet(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: MagnetResourceItem[] } | undefined)?.data; setMagnetResources(Array.isArray(d) ? d : []); return d; }),
-      resourceApi.cloud(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: CloudResourceItem[] } | undefined)?.data; setCloudResources(Array.isArray(d) ? d : []); return d; }),
-    ])
-      .catch(e => {
-        console.warn('加载在线资源失败', e);
-        setOnlineResources([]);
-        setMagnetResources([]);
-        setCloudResources([]);
-        setResourceError(true);
-      })
-      .finally(() => setLoadingResources(false));
-  }, [contentType, item.id, selectedEpisode, hasEpisodes]);
+    const requests = [
+      { kind: 'online' as const, request: resourceApi.online(contentType, item.id, ep, { signal: controller.signal }) },
+      { kind: 'magnet' as const, request: resourceApi.magnet(contentType, item.id, ep, { signal: controller.signal }) },
+      { kind: 'cloud' as const, request: resourceApi.cloud(contentType, item.id, ep, { signal: controller.signal }) },
+    ];
 
-  const copyLink = (url: string, resId: number) => {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(url).then(() => { setCopiedId(resId); setTimeout(() => setCopiedId(null), 2000); });
-    } else {
-      const ta = document.createElement('textarea'); ta.value = url; ta.style.position = 'fixed'; ta.style.left = '-9999px';
-      document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); setCopiedId(resId); setTimeout(() => setCopiedId(null), 2000); } catch {} document.body.removeChild(ta);
+    void Promise.allSettled(requests.map(({ request }) => request))
+      .then((results) => {
+        if (controller.signal.aborted) return;
+
+        const failed: ResourceKind[] = [];
+        results.forEach((result, index) => {
+          const kind = requests[index].kind;
+          if (result.status === 'rejected') {
+            failed.push(kind);
+            return;
+          }
+
+          if (kind === 'online') setOnlineResources(resourceItems<OnlineResourceItem>(result.value));
+          if (kind === 'magnet') setMagnetResources(resourceItems<MagnetResourceItem>(result.value));
+          if (kind === 'cloud') setCloudResources(resourceItems<CloudResourceItem>(result.value));
+        });
+        setResourceErrors(failed);
+
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingResources(false);
+      });
+
+    return () => controller.abort();
+  }, [contentType, item.id, resourceReloadKey, selectedEpisode]);
+
+  const copyLink = async (url: string, resId: number) => {
+    if (!url) return;
+
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = url;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-9999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          if (!document.execCommand('copy')) throw new Error('clipboard command rejected');
+        } finally {
+          textArea.remove();
+        }
+      }
+      setCopiedId(resId);
+      window.setTimeout(() => setCopiedId(null), 2000);
+      showToast('资源链接已复制', 'success');
+    } catch {
+      showToast('复制失败，请长按或手动选择链接', 'error');
     }
   };
 
@@ -173,7 +228,7 @@ export default function DetailPageLayout({
       />
 
       <div className="flex flex-col sm:flex-row gap-6 items-stretch animate-fade-in-up stagger-3">
-        <DetailCover src={resolvedCover} alt={item.title} seed={`${contentType[0]}${item.id}`} />
+        <DetailCover src={resolvedCover} alt={item.title} />
         <div className="flex-1 flex flex-col gap-3 min-w-0">
           <DetailTitle title={item.title} year={item.year} />
 
@@ -281,78 +336,77 @@ export default function DetailPageLayout({
             loading={loadingResources}
           />
 
-          {resourceError ? (
-            <section className="rounded-xl p-5 border animate-fade-in-up stagger-8">
-              <div className="text-center py-8">
-                <p className="text-3xl mb-2">😵</p>
-                <p className="text-sm text-muted-foreground">资源加载失败</p>
-                <button
-                  onClick={() => {
-                    const ep = selectedEpisode ?? undefined;
-                    setLoadingResources(true);
-                    setResourceError(false);
-                    Promise.all([
-                      resourceApi.online(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: OnlineResourceItem[] } | undefined)?.data; setOnlineResources(Array.isArray(d) ? d : []); return d; }),
-                      resourceApi.magnet(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: MagnetResourceItem[] } | undefined)?.data; setMagnetResources(Array.isArray(d) ? d : []); return d; }),
-                      resourceApi.cloud(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: CloudResourceItem[] } | undefined)?.data; setCloudResources(Array.isArray(d) ? d : []); return d; }),
-                    ]).catch(() => setResourceError(true)).finally(() => setLoadingResources(false));
-                  }}
-                  className="mt-3 text-sm font-medium text-accent active:opacity-70"
-                >
-                  重新加载
-                </button>
+          {resourceErrors.length > 0 && !loadingResources && (
+            <div
+              role="alert"
+              className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <TriangleAlert aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">部分资源暂时加载失败</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {resourceErrors.map((kind) => RESOURCE_KIND_LABELS[kind]).join('、')} 未能载入，其他可用资源仍可正常使用。
+                  </p>
+                </div>
               </div>
-            </section>
-          ) : (
-            <>
-              <OnlineResourceGrid
-                resources={onlineResources}
-                loading={loadingResources}
-                selectedEpisode={selectedEpisode}
-                episodeLabel={episodeLabel}
-                onPlay={(r) => {
-                  if (r.sourceUrl) {
-                    setPlayerSrc(r.sourceUrl);
-                    setPlayerSourceId(r.id);
-                  }
-                }}
-                activeSourceId={playerSourceId}
-              />
-
-              <ResourceTabs
-                tabs={[
-                  { key: 'magnet', label: '磁力链接', count: magnetResources.length },
-                  { key: 'cloud', label: '网盘资源', count: cloudResources.length },
-                ]}
-                activeTab={downloadTab}
-                onTabChange={(key) => setDownloadTab(key as 'magnet' | 'cloud')}
+              <button
+                type="button"
+                onClick={() => setResourceReloadKey((key) => key + 1)}
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:border-accent/40 hover:text-accent"
               >
-                {loadingResources ? (
-                  <div className="space-y-2">
-                    {[1, 2].map(i => (
-                      <div key={i} className="h-14 rounded-lg animate-pulse bg-background" />
-                    ))}
-                  </div>
-                ) : downloadTab === 'magnet' ? (
-                  <CopyableResourceList
-                    resources={magnetResources.map((r: MagnetResourceItem) => ({ id: r.id, title: r.title, url: r.magnetUrl, resolution: r.resolution }))}
-                    copiedId={copiedId}
-                    onCopy={copyLink}
-                    icon="🧲"
-                    emptyText={selectedEpisode ? `该${episodeLabel}暂无磁力链接` : '暂无磁力链接'}
-                  />
-                ) : (
-                  <CopyableResourceList
-                    resources={cloudResources.map((r: CloudResourceItem) => ({ id: r.id, title: r.title, url: r.shareUrl, storageName: r.storageName }))}
-                    copiedId={copiedId}
-                    onCopy={copyLink}
-                    icon="☁️"
-                    emptyText={selectedEpisode ? `该${episodeLabel}暂无网盘资源` : '暂无网盘资源'}
-                  />
-                )}
-              </ResourceTabs>
-            </>
+                <RefreshCw aria-hidden className="h-4 w-4" />
+                重新加载资源
+              </button>
+            </div>
           )}
+
+          <OnlineResourceGrid
+            resources={onlineResources}
+            loading={loadingResources}
+            selectedEpisode={selectedEpisode}
+            episodeLabel={episodeLabel}
+            onPlay={(r) => {
+              if (r.sourceUrl) {
+                setPlayerSrc(r.sourceUrl);
+                setPlayerSourceId(r.id);
+              }
+            }}
+            activeSourceId={playerSourceId}
+          />
+
+          <ResourceTabs
+            tabs={[
+              { key: 'magnet', label: '磁力链接', count: magnetResources.length },
+              { key: 'cloud', label: '网盘资源', count: cloudResources.length },
+            ]}
+            activeTab={downloadTab}
+            onTabChange={(key) => setDownloadTab(key as 'magnet' | 'cloud')}
+          >
+            {loadingResources ? (
+              <div className="space-y-2">
+                {[1, 2].map(i => (
+                  <div key={i} className="h-14 rounded-lg animate-pulse bg-background" />
+                ))}
+              </div>
+            ) : downloadTab === 'magnet' ? (
+              <CopyableResourceList
+                resources={magnetResources.map((r: MagnetResourceItem) => ({ id: r.id, title: r.title, url: r.magnetUrl, resolution: r.resolution }))}
+                copiedId={copiedId}
+                onCopy={copyLink}
+                icon={<Magnet aria-hidden className="h-5 w-5" />}
+                emptyText={selectedEpisode ? `该${episodeLabel}暂无磁力链接` : '暂无磁力链接'}
+              />
+            ) : (
+              <CopyableResourceList
+                resources={cloudResources.map((r: CloudResourceItem) => ({ id: r.id, title: r.title, url: r.shareUrl, storageName: r.storageName }))}
+                copiedId={copiedId}
+                onCopy={copyLink}
+                icon={<CloudDownload aria-hidden className="h-5 w-5" />}
+                emptyText={selectedEpisode ? `该${episodeLabel}暂无网盘资源` : '暂无网盘资源'}
+              />
+            )}
+          </ResourceTabs>
         </>
       )}
 
