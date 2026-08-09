@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { SlidersHorizontal, X } from 'lucide-react';
 import CustomSelect from '@/components/CustomSelect';
 import FilterChip from '@/components/FilterChip';
 import MovieCard from '@/components/MovieCard';
@@ -11,14 +12,6 @@ import TagFilter from '@/components/TagFilter';
 import { getContentTypeConfig, type ContentType } from '@/lib/contentConstants';
 import { parseContentListQuery } from '@/lib/contentListQuery';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
-
-const GENRES: Record<ContentType, string[]> = {
-  movie: ['剧情', '喜剧', '动作', '爱情', '科幻', '悬疑', '恐怖', '犯罪', '动画', '奇幻', '冒险'],
-  drama: ['剧情', '喜剧', '爱情', '悬疑', '犯罪', '古装', '都市', '战争', '家庭', '历史'],
-  variety: ['真人秀', '脱口秀', '选秀', '音乐', '美食', '旅行', '访谈'],
-  anime: ['热血', '恋爱', '搞笑', '冒险', '科幻', '奇幻', '悬疑', '校园'],
-  short_drama: ['甜宠', '复仇', '穿越', '逆袭', '豪门', '都市'],
-};
 
 const YEARS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
 const REGIONS = ['大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国', '意大利', '西班牙', '加拿大', '澳大利亚'];
@@ -81,64 +74,81 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
 
   const activeFilterCount = [query.genre, query.region, query.year, query.yearFrom, query.yearTo, query.tag]
     .filter(Boolean).length;
+  const [filtersOpen, setFiltersOpen] = useState(activeFilterCount > 0);
   const movieIds = useMemo(() => initialItems.map((item) => item.id), [initialItems]);
   const statusMap = useMovieStatuses(movieIds, contentType);
   const totalPages = Math.ceil(initialTotal / query.size);
 
   return (
     <div className="flex flex-col gap-6" aria-busy={isPending}>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{config.label}</h1>
           <p className="mt-1 text-xs text-muted-foreground">筛选条件已同步到地址栏，可复制、刷新或前进后退</p>
         </div>
-        {activeFilterCount > 0 && (
-          <button type="button" onClick={resetFilters} className="rounded-full border border-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--accent)]">
-            清除筛选 ({activeFilterCount})
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((open) => !open)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-secondary-foreground lg:hidden"
+            aria-expanded={filtersOpen}
+            aria-controls="content-filters"
+          >
+            {filtersOpen ? <X className="size-3.5" aria-hidden /> : <SlidersHorizontal className="size-3.5" aria-hidden />}
+            筛选{activeFilterCount > 0 ? ` ${activeFilterCount}` : ''}
           </button>
-        )}
+          {activeFilterCount > 0 && (
+            <button type="button" onClick={resetFilters} className="h-9 rounded-xl border border-[var(--accent)] px-3 text-xs font-semibold text-[var(--accent)]">
+              清除筛选
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <FilterChip label="全部类型" active={!query.genre} onClick={() => updateUrl({ genre: null })} />
-        {GENRES[contentType].map((genre) => (
-          <FilterChip key={genre} label={genre} active={query.genre === genre} onClick={() => updateUrl({ genre: query.genre === genre ? null : genre })} />
-        ))}
-      </div>
+      <section id="content-filters" className={`${filtersOpen ? 'grid' : 'hidden'} gap-4 rounded-2xl border border-border bg-card/70 p-4 lg:grid`} aria-label="内容筛选">
+        <div className="grid gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">题材</span>
+          <TagFilter contentType={contentType} selectedTagId={query.tag || null} onSelect={(tag) => updateUrl({ tag, genre: null })} />
+        </div>
 
-      <div className="flex flex-wrap gap-2">
-        <FilterChip label="全部地区" active={!query.region} onClick={() => updateUrl({ region: null })} />
-        {REGIONS.map((region) => (
-          <FilterChip key={region} label={region} active={query.region === region} onClick={() => updateUrl({ region: query.region === region ? null : region })} />
-        ))}
-      </div>
+        <div className="grid gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">地区</span>
+          <div className="filter-scroll-row">
+            <FilterChip label="全部地区" active={!query.region} onClick={() => updateUrl({ region: null })} />
+            {REGIONS.map((region) => (
+              <FilterChip key={region} label={region} active={query.region === region} onClick={() => updateUrl({ region: query.region === region ? null : region })} />
+            ))}
+          </div>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <FilterChip label="全部年份" active={!query.year && !query.yearFrom && !query.yearTo} onClick={() => updateUrl({ year: null, yearFrom: null, yearTo: null })} />
-        {YEARS.map((year) => (
-          <FilterChip key={year} label={String(year)} active={query.year === year} onClick={() => updateUrl({ year: query.year === year ? null : year, yearFrom: null, yearTo: null })} />
-        ))}
-        <form
-          key={`${query.yearFrom || ''}-${query.yearTo || ''}`}
-          className="flex items-center gap-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            updateUrl({
-              year: null,
-              yearFrom: String(data.get('yearFrom') || ''),
-              yearTo: String(data.get('yearTo') || ''),
-            });
-          }}
-        >
-          <input name="yearFrom" type="number" min="1900" max="9999" defaultValue={query.yearFrom} placeholder="起始年" className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-sm text-foreground" />
-          <span className="text-sm text-muted-foreground">-</span>
-          <input name="yearTo" type="number" min="1900" max="9999" defaultValue={query.yearTo} placeholder="结束年" className="h-8 w-20 rounded-lg border border-border bg-card px-2 text-sm text-foreground" />
-          <button type="submit" className="h-8 rounded-lg border border-border bg-card px-2.5 text-xs text-secondary-foreground">应用</button>
-        </form>
-      </div>
-
-      <TagFilter selectedTagId={query.tag || null} onSelect={(tag) => updateUrl({ tag })} />
+        <div className="grid gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">年份</span>
+          <div className="filter-scroll-row items-center">
+            <FilterChip label="全部年份" active={!query.year && !query.yearFrom && !query.yearTo} onClick={() => updateUrl({ year: null, yearFrom: null, yearTo: null })} />
+            {YEARS.map((year) => (
+              <FilterChip key={year} label={String(year)} active={query.year === year} onClick={() => updateUrl({ year: query.year === year ? null : year, yearFrom: null, yearTo: null })} />
+            ))}
+            <form
+              key={`${query.yearFrom || ''}-${query.yearTo || ''}`}
+              className="flex shrink-0 items-center gap-1"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const data = new FormData(event.currentTarget);
+                updateUrl({
+                  year: null,
+                  yearFrom: String(data.get('yearFrom') || ''),
+                  yearTo: String(data.get('yearTo') || ''),
+                });
+              }}
+            >
+              <input aria-label="起始年份" name="yearFrom" type="number" min="1900" max="9999" defaultValue={query.yearFrom} placeholder="起始年" className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground" />
+              <span className="text-sm text-muted-foreground">—</span>
+              <input aria-label="结束年份" name="yearTo" type="number" min="1900" max="9999" defaultValue={query.yearTo} placeholder="结束年" className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground" />
+              <button type="submit" className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-secondary-foreground">应用</button>
+            </form>
+          </div>
+        </div>
+      </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground">

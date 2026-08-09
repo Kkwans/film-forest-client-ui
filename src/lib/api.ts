@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -217,11 +217,24 @@ export interface TagItem {
   usageCount?: number;
 }
 
+export interface GenreOption {
+  id: number;
+  code: string;
+  name: string;
+  color?: string;
+}
+
 export const tagApi = {
   /** 获取所有标签 */
   getAll: () => client.get<Result<TagItem[]>>('/api/tags'),
   /** 获取热门标签 */
   getHot: (limit?: number) => client.get<Result<TagItem[]>>('/api/tags/hot', { params: { limit } }),
+  /** 获取指定内容类型适用的系统标准题材 */
+  getGenres: (contentType: string, config?: AxiosRequestConfig) =>
+    client.get<Result<GenreOption[]>>('/api/tags/genres', {
+      ...config,
+      params: { ...config?.params, contentType },
+    }),
   /** 获取内容的标签 */
   getContentTags: (contentType: string, contentId: number) =>
     client.get<Result<TagItem[]>>(`/api/tags/content/${contentType}/${contentId}`),

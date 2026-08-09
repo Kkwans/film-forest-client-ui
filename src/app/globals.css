@@ -187,6 +187,28 @@ body {
   scrollbar-width: none;
 }
 
+.filter-scroll-row {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+}
+.filter-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+.filter-scroll-row > * {
+  flex-shrink: 0;
+}
+
+@media (min-width: 64rem) {
+  .filter-scroll-row {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+}
+
 /* Custom scrollbar for dark mode */
 .dark ::-webkit-scrollbar {
   width: 6px;

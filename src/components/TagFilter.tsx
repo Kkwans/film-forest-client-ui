@@ -1,71 +1,76 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { tagApi, type TagItem } from '@/lib/api';
+import { RotateCcw } from 'lucide-react';
+import { tagApi, type GenreOption } from '@/lib/api';
+import type { ContentType } from '@/lib/contentConstants';
+import FilterChip from '@/components/FilterChip';
 
 interface TagFilterProps {
-  /** 当前选中的标签ID */
+  contentType: ContentType;
   selectedTagId: number | null;
-  /** 选择标签回调 */
   onSelect: (tagId: number | null) => void;
 }
 
-/**
- * 标签筛选组件
- * 展示热门标签列表，支持点击筛选
- */
-export default function TagFilter({ selectedTagId, onSelect }: TagFilterProps) {
-  const [tags, setTags] = useState<TagItem[]>([]);
+export default function TagFilter({ contentType, selectedTagId, onSelect }: TagFilterProps) {
+  const [genres, setGenres] = useState<GenreOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
-    tagApi
-      .getHot(20)
-      .then((res) => {
-        const data = res.data?.data;
-        setTags(Array.isArray(data) ? data : []);
+    const controller = new AbortController();
+    setLoading(true);
+    setFailed(false);
+    tagApi.getGenres(contentType, { signal: controller.signal })
+      .then((response) => {
+        const data = response.data?.data;
+        setGenres(Array.isArray(data) ? data : []);
       })
-      .catch(() => setTags([]))
-      .then(() => setLoading(false));
-  }, []);
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setGenres([]);
+        setFailed(true);
+        console.warn('[TagFilter] 标准题材加载失败', error);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [contentType, requestVersion]);
 
-  if (loading || tags.length === 0) return null;
+  if (loading) {
+    return (
+      <div className="flex gap-2 overflow-hidden" aria-label="正在加载标准题材">
+        {Array.from({ length: 6 }, (_, index) => (
+          <span key={index} className="h-8 w-16 shrink-0 animate-pulse rounded-full bg-muted" aria-hidden />
+        ))}
+      </div>
+    );
+  }
+
+  if (failed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setRequestVersion((version) => version + 1)}
+        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-secondary-foreground hover:text-foreground"
+      >
+        <RotateCcw className="size-3.5" aria-hidden />题材加载失败，重试
+      </button>
+    );
+  }
 
   return (
-    <div className="flex flex-wrap gap-1.5">
-      <button
-        onClick={() => onSelect(null)}
-        className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-        style={{
-          backgroundColor: selectedTagId === null ? 'var(--accent)' : 'var(--bg-card)',
-          color: selectedTagId === null ? '#fff' : 'var(--text-secondary)',
-          border: selectedTagId === null ? 'none' : '1px solid var(--border-color)',
-        }}
-      >
-        全部标签
-      </button>
-      {tags.map((tag) => (
-        <button
-          key={tag.id}
-          onClick={() => onSelect(selectedTagId === tag.id ? null : tag.id)}
-          className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-          style={{
-            backgroundColor:
-              selectedTagId === tag.id
-                ? tag.color || 'var(--accent)'
-                : 'var(--bg-card)',
-            color: selectedTagId === tag.id ? '#fff' : 'var(--text-secondary)',
-            border:
-              selectedTagId === tag.id
-                ? 'none'
-                : `1px solid ${tag.color || 'var(--border-color)'}40`,
-          }}
-        >
-          {tag.name}
-          {tag.usageCount != null && tag.usageCount > 0 && (
-            <span className="ml-1 opacity-60">{tag.usageCount}</span>
-          )}
-        </button>
+    <div className="filter-scroll-row" aria-label="标准题材筛选">
+      <FilterChip label="全部题材" active={selectedTagId === null} onClick={() => onSelect(null)} />
+      {genres.map((genre) => (
+        <FilterChip
+          key={genre.id}
+          label={genre.name}
+          active={selectedTagId === genre.id}
+          onClick={() => onSelect(selectedTagId === genre.id ? null : genre.id)}
+        />
       ))}
     </div>
   );
