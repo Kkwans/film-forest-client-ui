@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import Hls from 'hls.js';
 import { CircleAlert, Clapperboard, Star } from 'lucide-react';
 import { usePlayHistoryStore } from '@/stores/playHistoryStore';
 import { getPlaybackSourceMode } from '@/lib/playbackSource';
@@ -10,6 +11,8 @@ export interface PlayerSource {
   id: number;
   sourceName?: string;
   sourceUrl?: string;
+  sourcePageUrl?: string;
+  playbackType?: string;
 }
 
 /** 播放器 Props */
@@ -67,26 +70,33 @@ export default function VideoPlayer({
   loading = false,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const iframeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSourcePanel, setShowSourcePanel] = useState(false);
   const [showEpisodePanel, setShowEpisodePanel] = useState(false);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [iframeError, setIframeError] = useState(false);
-  const [iframeReloadKey, setIframeReloadKey] = useState(0);
+  const [playerLoaded, setPlayerLoaded] = useState(false);
+  const [playerError, setPlayerError] = useState(false);
+  const [playerReloadKey, setPlayerReloadKey] = useState(0);
   const addOrUpdate = usePlayHistoryStore((s) => s.addOrUpdate);
-  const sourceMode = getPlaybackSourceMode(src);
+  const activeSource = useMemo(
+    () => sources.find((source) => source.sourceUrl === src),
+    [sources, src],
+  );
+  const sourceMode = getPlaybackSourceMode(src, activeSource?.playbackType);
+  const isPlayable = sourceMode === 'hls' || sourceMode === 'video' || sourceMode === 'embed';
+  const fallbackUrl = activeSource?.sourcePageUrl || src;
 
-  const clearIframeTimeout = useCallback(() => {
-    if (iframeTimeoutRef.current) {
-      clearTimeout(iframeTimeoutRef.current);
-      iframeTimeoutRef.current = null;
+  const clearPlayerTimeout = useCallback(() => {
+    if (playerTimeoutRef.current) {
+      clearTimeout(playerTimeoutRef.current);
+      playerTimeoutRef.current = null;
     }
   }, []);
 
   // 记录播放历史
   useEffect(() => {
-    if (src && sourceMode === 'embed') {
+    if (src && isPlayable) {
       addOrUpdate({
         contentId,
         contentType,
@@ -99,24 +109,79 @@ export default function VideoPlayer({
         genres,
         region,
         sourceUrl: src,
-        sourceName: sources.find((s) => s.sourceUrl === src)?.sourceName,
+        sourceName: activeSource?.sourceName,
       });
     }
-  }, [src, sourceMode, contentId, contentType, title, cover, episode, episodeLabel, year, rating, genres, region, sources, addOrUpdate]);
+  }, [src, isPlayable, contentId, contentType, title, cover, episode, episodeLabel, year, rating, genres, region, activeSource, addOrUpdate]);
 
-  // iframe 加载状态
+  // 播放器加载状态。超时后保留来源页作为明确降级路径。
   useEffect(() => {
-    clearIframeTimeout();
-    if (src && sourceMode === 'embed') {
-      setIframeLoaded(false);
-      setIframeError(false);
-      iframeTimeoutRef.current = setTimeout(() => {
-        setIframeLoaded(true);
-        setIframeError(true);
-      }, 15000);
+    clearPlayerTimeout();
+    if (src && isPlayable) {
+      setPlayerLoaded(false);
+      setPlayerError(false);
+      playerTimeoutRef.current = setTimeout(() => {
+        setPlayerLoaded(true);
+        setPlayerError(true);
+      }, 20000);
     }
-    return clearIframeTimeout;
-  }, [clearIframeTimeout, iframeReloadKey, src, sourceMode]);
+    return clearPlayerTimeout;
+  }, [clearPlayerTimeout, isPlayable, playerReloadKey, src]);
+
+  // Safari 使用原生 HLS；其他现代浏览器通过 hls.js + Media Source 播放。
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !src || (sourceMode !== 'hls' && sourceMode !== 'video')) return;
+
+    let hls: Hls | null = null;
+    const handleReady = () => {
+      clearPlayerTimeout();
+      setPlayerLoaded(true);
+      setPlayerError(false);
+    };
+    const handleError = () => {
+      clearPlayerTimeout();
+      setPlayerLoaded(true);
+      setPlayerError(true);
+    };
+
+    video.addEventListener('loadedmetadata', handleReady);
+    video.addEventListener('canplay', handleReady);
+    video.addEventListener('error', handleError);
+
+    if (sourceMode === 'hls') {
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+      } else if (Hls.isSupported()) {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+          backBufferLength: 60,
+        });
+        hls.on(Hls.Events.MANIFEST_PARSED, handleReady);
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) handleError();
+        });
+        hls.loadSource(src);
+        hls.attachMedia(video);
+      } else {
+        handleError();
+      }
+    } else {
+      video.src = src;
+    }
+    video.load();
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleReady);
+      video.removeEventListener('canplay', handleReady);
+      video.removeEventListener('error', handleError);
+      hls?.destroy();
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
+  }, [clearPlayerTimeout, playerReloadKey, sourceMode, src]);
 
   // 全屏切换
   const toggleFullscreen = useCallback(() => {
@@ -163,7 +228,7 @@ export default function VideoPlayer({
       setShowSourcePanel(false);
       return;
     }
-    if ((event.key === 'f' || event.key === 'F') && sourceMode === 'embed') {
+    if ((event.key === 'f' || event.key === 'F') && isPlayable) {
       event.preventDefault();
       toggleFullscreen();
     }
@@ -188,7 +253,7 @@ export default function VideoPlayer({
       {/* 播放器容器 */}
       <div
         ref={containerRef}
-        tabIndex={sourceMode === 'embed' ? 0 : -1}
+        tabIndex={isPlayable ? 0 : -1}
         onKeyDown={handlePlayerKeyDown}
         role="region"
         aria-label={`${displayTitle} 播放器`}
@@ -216,7 +281,7 @@ export default function VideoPlayer({
                 <h3 className="text-base font-semibold text-white">该播放源需在来源网站打开</h3>
                 <p className="text-sm leading-6 text-white/65">来源页面禁止站内嵌入，点击后将在新标签页打开。</p>
                 <a
-                  href={src}
+                  href={fallbackUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-1 inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -236,7 +301,7 @@ export default function VideoPlayer({
           ) : (
             <>
             {/* 加载状态 */}
-            {(!iframeLoaded || loading) && (
+            {(!playerLoaded || loading) && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-10">
                 {cover && (
                   <div
@@ -251,44 +316,68 @@ export default function VideoPlayer({
               </div>
             )}
 
-            {/* iframe */}
-            <iframe
-              key={`${src}-${iframeReloadKey}`}
-              src={src}
-              title={`${displayTitle} 在线播放`}
-              className="w-full h-full border-0"
-              allowFullScreen
-              allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              onLoad={() => {
-                clearIframeTimeout();
-                setIframeLoaded(true);
-                setIframeError(false);
-              }}
-              onError={() => {
-                clearIframeTimeout();
-                setIframeLoaded(true);
-                setIframeError(true);
-              }}
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
+            {sourceMode === 'hls' || sourceMode === 'video' ? (
+              <video
+                key={`${src}-${playerReloadKey}`}
+                ref={videoRef}
+                controls
+                playsInline
+                preload="metadata"
+                poster={cover}
+                className="h-full w-full bg-black object-contain"
+                aria-label={`${displayTitle} 在线播放`}
+              />
+            ) : (
+              <iframe
+                key={`${src}-${playerReloadKey}`}
+                src={src}
+                title={`${displayTitle} 在线播放`}
+                className="h-full w-full border-0"
+                allowFullScreen
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                onLoad={() => {
+                  clearPlayerTimeout();
+                  setPlayerLoaded(true);
+                  setPlayerError(false);
+                }}
+                onError={() => {
+                  clearPlayerTimeout();
+                  setPlayerLoaded(true);
+                  setPlayerError(true);
+                }}
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            )}
 
             {/* 加载失败 */}
-            {iframeError && (
+            {playerError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20">
                 <CircleAlert aria-hidden className="mb-3 h-9 w-9 text-white/70" />
-                <p className="text-sm text-white/70 mb-3">播放源加载失败</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIframeError(false);
-                    setIframeLoaded(false);
-                    setIframeReloadKey((key) => key + 1);
-                  }}
-                  className="px-4 py-2 text-sm rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
-                >
-                  重新加载
-                </button>
+                <p className="mb-3 text-sm text-white/70">播放源加载失败，可重试或返回来源页。</p>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlayerError(false);
+                      setPlayerLoaded(false);
+                      setPlayerReloadKey((key) => key + 1);
+                    }}
+                    className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
+                  >
+                    重新加载
+                  </button>
+                  {fallbackUrl && (
+                    <a
+                      href={fallbackUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg border border-white/25 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                    >
+                      打开来源页
+                    </a>
+                  )}
+                </div>
               </div>
             )}
 
@@ -474,7 +563,7 @@ export default function VideoPlayer({
       </div>
 
       {/* 快捷键提示 */}
-      {src && sourceMode === 'embed' && (
+      {src && isPlayable && (
         <div className="mt-2 hidden items-center justify-center gap-4 text-xs text-muted-foreground sm:flex">
           <span>聚焦播放器后 <kbd className="px-1.5 py-0.5 rounded border text-[10px] font-mono">F</kbd> 全屏</span>
           {totalEpisodes && totalEpisodes > 1 && (

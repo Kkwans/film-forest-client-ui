@@ -31,6 +31,8 @@ interface OnlineResourceItem {
   id: number;
   sourceName: string;
   sourceUrl: string;
+  sourcePageUrl?: string;
+  playbackType?: string;
   sort?: number;
 }
 
@@ -394,6 +396,8 @@ export default function DetailPageLayout({
               id: r.id,
               sourceName: r.sourceName,
               sourceUrl: r.sourceUrl,
+              sourcePageUrl: r.sourcePageUrl,
+              playbackType: r.playbackType,
             }))}
             onEpisodeChange={setSelectedEpisode}
             onSourceChange={(s) => {
