@@ -1,111 +1,110 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshCw, Sparkles } from 'lucide-react';
 import MovieCard from '@/components/MovieCard';
 import { usePlayHistoryStore } from '@/stores/playHistoryStore';
 import { recommendApi, type RecommendItem } from '@/lib/api';
 import { parseGenre } from '@/lib/utils';
 
+function topValues(values: string[], limit: number) {
+  const counts = new Map<string, number>();
+  values.filter(Boolean).forEach((value) => counts.set(value, (counts.get(value) || 0) + 1));
+  return Array.from(counts.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], 'zh-CN'))
+    .slice(0, limit)
+    .map(([value]) => value);
+}
 
-/**
- * 个性化推荐组件
- * 基于用户播放历史的类型偏好推荐相关内容
- */
 export default function PersonalizedRecommend() {
-  const history = usePlayHistoryStore((s) => s.history);
+  const history = usePlayHistoryStore((state) => state.history);
   const [items, setItems] = useState<RecommendItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
-  // 从历史中提取已看过的 ID 用于排除
-  const excludeIds = useMemo(() => {
-    const ids = new Set<number>();
-    for (const h of history) {
-      ids.add(h.contentId);
-    }
-    return Array.from(ids).join(',');
+  const preferences = useMemo(() => {
+    const genres = topValues(history.flatMap((item) => item.genres || []), 3);
+    const regions = topValues(history.map((item) => item.region || ''), 1);
+    const excludeKeys = Array.from(new Set(history.map((item) => `${item.contentType}:${item.contentId}`))).join(',');
+    return { genres, region: regions[0], excludeKeys };
   }, [history]);
 
   useEffect(() => {
     if (history.length < 3) {
+      setItems([]);
+      setLoadError(false);
       setLoading(false);
       return;
     }
 
+    const controller = new AbortController();
     setLoading(true);
-    recommendApi
-      .personalized({ excludeIds, limit: 12 })
-      .then((res) => setItems(Array.isArray(res.data?.data) ? res.data.data : []))
-      .catch(() => setItems([]))
-      .then(() => setLoading(false));
-  }, [excludeIds]);
+    setLoadError(false);
+    void recommendApi.personalized({
+      genres: preferences.genres.length > 0 ? preferences.genres.join(',') : undefined,
+      region: preferences.region,
+      excludeKeys: preferences.excludeKeys,
+      limit: 12,
+    }, { signal: controller.signal }).then((response) => {
+      if (!controller.signal.aborted) setItems(Array.isArray(response.data.data) ? response.data.data : []);
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setItems([]);
+        setLoadError(true);
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
 
-  if (!loading && items.length === 0) return null;
+    return () => controller.abort();
+  }, [history.length, preferences, retryKey]);
+
+  if (!loading && !loadError && items.length === 0) return null;
 
   return (
-    <section className="animate-fade-in-up">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xl">✨</span>
-          <h2 className="text-xl font-bold text-foreground section-accent-line pb-2">
-            猜你喜欢
-          </h2>
+    <section className="animate-fade-in-up" aria-labelledby="personalized-title">
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <Sparkles aria-hidden className="h-5 w-5 text-accent" />
+            <h2 id="personalized-title" className="text-xl font-bold text-foreground">猜你喜欢</h2>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {preferences.genres.length > 0 ? `偏好题材：${preferences.genres.join('、')}` : '根据你的最近观看与高分内容推荐'}
+          </p>
         </div>
-        <span className="text-xs text-muted-foreground">基于你的观影偏好</span>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="flex flex-col gap-2 animate-pulse">
-              <div className="aspect-[2/3] rounded-xl bg-muted" />
-              <div className="h-3 w-3/4 rounded bg-muted" />
-              <div className="h-2 w-1/2 rounded bg-muted" />
-            </div>
+      {loadError ? (
+        <div role="alert" className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center">
+          <div>
+            <p className="text-sm font-semibold text-foreground">个性化推荐加载失败</p>
+            <p className="mt-1 text-xs text-muted-foreground">其他首页内容不受影响，可以单独重试。</p>
+          </div>
+          <button type="button" onClick={() => setRetryKey((key) => key + 1)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:border-accent/40 hover:text-accent"><RefreshCw aria-hidden className="h-4 w-4" />重新加载</button>
+        </div>
+      ) : loading ? (
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6" aria-label="正在加载个性化推荐">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div key={index} className="flex animate-pulse flex-col gap-2"><div className="aspect-[2/3] rounded-xl bg-muted" /><div className="h-3 w-3/4 rounded bg-muted" /><div className="h-2 w-1/2 rounded bg-muted" /></div>
           ))}
         </div>
       ) : (
         <>
-          {/* PC: grid */}
-          <div className="hidden md:grid grid-cols-6 gap-3.5">
-            {items.map((item, idx) => (
-              <div key={`personalized-${item.type}-${item.id}`} className={`animate-fade-in-up stagger-${Math.min(idx + 1, 12)}`}>
-                <MovieCard
-                  id={item.id}
-                  title={item.title}
-                  cover={item.posterUrl || ''}
-                  year={item.year || 0}
-                  region={item.region || ''}
-                  rating={item.scoreDouban || undefined}
-                  genre={item.genre ? parseGenre(item.genre) : undefined}
-                  type={item.type}
-                  episodes={item.totalEpisode || undefined}
-                  href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`}
-                />
-              </div>
+          <div className="hidden grid-cols-6 gap-3.5 md:grid">
+            {items.map((item) => (
+              <MovieCard key={`personalized-${item.type}-${item.id}`} id={item.id} title={item.title} cover={item.posterUrl || ''} year={item.year || 0} region={item.region || ''} rating={item.scoreDouban || undefined} genre={item.genre ? parseGenre(item.genre) : undefined} type={item.type} episodes={item.totalEpisode || undefined} href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`} />
             ))}
           </div>
-
-          {/* Mobile: horizontal scroll */}
-          <div className="md:hidden relative">
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="relative md:hidden">
+            <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {items.map((item) => (
-                <div key={`personalized-m-${item.type}-${item.id}`} className="flex-shrink-0 w-[120px] snap-start">
-                  <MovieCard
-                    id={item.id}
-                    title={item.title}
-                    cover={item.posterUrl || ''}
-                    year={item.year || 0}
-                    region={item.region || ''}
-                    rating={item.scoreDouban || undefined}
-                    genre={item.genre ? parseGenre(item.genre) : undefined}
-                    type={item.type}
-                    episodes={item.totalEpisode || undefined}
-                    href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`}
-                  />
+                <div key={`personalized-mobile-${item.type}-${item.id}`} className="w-[124px] flex-shrink-0 snap-start">
+                  <MovieCard id={item.id} title={item.title} cover={item.posterUrl || ''} year={item.year || 0} region={item.region || ''} rating={item.scoreDouban || undefined} genre={item.genre ? parseGenre(item.genre) : undefined} type={item.type} episodes={item.totalEpisode || undefined} href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`} />
                 </div>
               ))}
             </div>
-            <div className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none" style={{ background: 'linear-gradient(to right, transparent, var(--bg-primary))' }} />
           </div>
         </>
       )}

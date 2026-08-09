@@ -323,6 +323,8 @@ export default function DetailPageLayout({
             episodeLabel={episodeLabel}
             year={item.year}
             rating={item.rating}
+            genres={item.genre}
+            region={item.region}
             totalEpisodes={item.totalEpisode}
             sources={onlineResources.map((r) => ({
               id: r.id,

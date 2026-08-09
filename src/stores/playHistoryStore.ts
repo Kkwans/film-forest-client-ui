@@ -29,6 +29,10 @@ export interface PlayHistoryItem {
   year?: number;
   /** 评分 */
   rating?: number;
+  /** 标准题材快照，用于本地个性化推荐 */
+  genres?: string[];
+  /** 地区快照，用于本地个性化推荐 */
+  region?: string;
 }
 
 interface PlayHistoryState {

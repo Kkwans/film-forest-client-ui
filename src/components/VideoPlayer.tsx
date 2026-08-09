@@ -32,6 +32,10 @@ interface VideoPlayerProps {
   year?: number;
   /** 评分 */
   rating?: number;
+  /** 标准题材 */
+  genres?: string[];
+  /** 地区 */
+  region?: string;
   /** 总集数 */
   totalEpisodes?: number;
   /** 可用播放源列表 */
@@ -54,6 +58,8 @@ export default function VideoPlayer({
   episodeLabel = '集',
   year,
   rating,
+  genres,
+  region,
   totalEpisodes,
   sources = [],
   onEpisodeChange,
@@ -90,11 +96,13 @@ export default function VideoPlayer({
         episodeLabel,
         year,
         rating,
+        genres,
+        region,
         sourceUrl: src,
         sourceName: sources.find((s) => s.sourceUrl === src)?.sourceName,
       });
     }
-  }, [src, sourceMode, contentId, contentType, title, cover, episode, episodeLabel, year, rating, sources, addOrUpdate]);
+  }, [src, sourceMode, contentId, contentType, title, cover, episode, episodeLabel, year, rating, genres, region, sources, addOrUpdate]);
 
   // iframe 加载状态
   useEffect(() => {
