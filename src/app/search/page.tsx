@@ -46,11 +46,15 @@ interface HotSearchItem {
 }
 
 const SORT_OPTIONS = [
-  { label: '最新更新', value: 'latest' },
-  { label: '上映时间', value: 'year' },
-  { label: '豆瓣评分', value: 'douban' },
-  { label: 'IMDB评分', value: 'imdb' },
-  { label: '烂番茄评分', value: 'rt' },
+  { label: '最相关', value: 'relevance' },
+  { label: '最近更新', value: 'latest' },
+  { label: '评分最高', value: 'rating' },
+];
+const REGIONS = ['大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国'];
+const RESOURCE_OPTIONS = [
+  { label: '全部资源状态', value: 'all' },
+  { label: '有可用资源', value: 'true' },
+  { label: '暂无可用资源', value: 'false' },
 ];
 
 function Highlight({ text, keyword }: { text: string; keyword: string }) {
@@ -88,7 +92,13 @@ function SearchContent() {
   const selectedContentType = isContentType(typeFilter) ? typeFilter : null;
   const rawTagId = Number(searchParams.get('tagId'));
   const tagId = selectedContentType && Number.isSafeInteger(rawTagId) && rawTagId > 0 ? rawTagId : null;
-  const sort = searchParams.get('sort') || 'latest';
+  const rawYear = Number(searchParams.get('year'));
+  const year = Number.isSafeInteger(rawYear) && rawYear >= 1888 && rawYear <= 9999 ? rawYear : null;
+  const region = searchParams.get('region')?.trim() || '';
+  const rawResourceFilter = searchParams.get('hasResource');
+  const hasResource = rawResourceFilter === 'true' || rawResourceFilter === 'false' ? rawResourceFilter : 'all';
+  const rawSort = searchParams.get('sort');
+  const sort = SORT_OPTIONS.some((option) => option.value === rawSort) ? rawSort! : 'relevance';
   const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const size = Math.min(100, Math.max(1, Number(searchParams.get('size')) || 20));
@@ -175,6 +185,9 @@ function SearchContent() {
     const params = new URLSearchParams({ keyword: q, page: String(page), size: String(size), sort, sortDir });
     if (selectedContentType) params.set('typeFilter', selectedContentType);
     if (tagId) params.set('tagId', String(tagId));
+    if (year) params.set('year', String(year));
+    if (region) params.set('region', region);
+    if (hasResource !== 'all') params.set('hasResource', hasResource);
     fetch(`/api/search?${params}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`搜索请求失败: ${response.status}`);
@@ -182,6 +195,7 @@ function SearchContent() {
       })
       .then((payload) => {
         if (currentRequest !== requestId.current) return;
+        if (payload?.code !== 200) throw new Error(payload?.message || '搜索请求失败');
         const next = payload?.data || {};
         setData({
           records: Array.isArray(next.records) ? next.records : [],
@@ -198,7 +212,7 @@ function SearchContent() {
       })
       .finally(() => { if (currentRequest === requestId.current) setLoading(false); });
     return () => controller.abort();
-  }, [q, selectedContentType, tagId, sort, sortDir, page, size, requestVersion]);
+  }, [q, selectedContentType, tagId, year, region, hasResource, sort, sortDir, page, size, requestVersion]);
 
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
@@ -219,6 +233,8 @@ function SearchContent() {
     [data.records],
   );
   const statuses = useContentStatuses(statusQueries);
+  const activeFilterCount = [selectedContentType, tagId, year, region, hasResource === 'all' ? null : hasResource]
+    .filter(Boolean).length;
 
   const submit = (keyword: string) => {
     const normalized = keyword.trim();
@@ -234,7 +250,7 @@ function SearchContent() {
     <div className="mx-auto flex max-w-6xl flex-col gap-6" aria-busy={loading || isPending}>
       <div>
         <h1 className="text-2xl font-bold text-foreground">全站搜索</h1>
-        <p className="mt-1 text-sm text-muted-foreground">支持五类内容、服务端排序与真实分页</p>
+        <p className="mt-1 text-sm text-muted-foreground">按标题、别名、主创、年份、题材和内容类型查找五类影视</p>
       </div>
 
       <div className="relative">
@@ -251,7 +267,7 @@ function SearchContent() {
               if (event.key === 'Enter' && activeSuggestion >= 0) { event.preventDefault(); submit(visibleSuggestions[activeSuggestion]); }
               if (event.key === 'Escape') { setSuggestions([]); setActiveSuggestion(-1); inputRef.current?.blur(); }
             }}
-            placeholder="片名、演员或导演（按 / 快速聚焦）"
+            placeholder="片名、别名、主创、年份或题材（按 / 快速聚焦）"
             className="h-12 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/15"
             role="combobox"
             aria-autocomplete="list"
@@ -288,8 +304,48 @@ function SearchContent() {
             options={[{ label: '全部类型', value: 'all' }, ...Object.values(CONTENT_TYPE_REGISTRY).map((config) => ({ label: config.label, value: config.code }))]}
             onChange={(value) => navigate({ typeFilter: value === 'all' ? null : value, tagId: null, page: 1 })}
           />
-          <CustomSelect value={sort} options={SORT_OPTIONS} onChange={(value) => navigate({ sort: value, page: 1 })} />
-          <SortDirButton direction={sortDir} onToggle={() => navigate({ sortDir: sortDir === 'desc' ? 'asc' : 'desc', page: 1 })} />
+          <form
+            key={year || 'all-years'}
+            className="flex h-8 overflow-hidden rounded-lg border border-border bg-card"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const value = new FormData(event.currentTarget).get('year');
+              navigate({ year: value ? String(value) : null, page: 1 });
+            }}
+          >
+            <input
+              aria-label="上映年份"
+              name="year"
+              type="number"
+              min="1888"
+              max="9999"
+              defaultValue={year || ''}
+              placeholder="年份"
+              className="w-[4.75rem] bg-transparent px-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <button type="submit" className="border-l border-border px-2 text-xs font-medium text-secondary-foreground hover:text-accent">应用</button>
+          </form>
+          <CustomSelect
+            value={region || 'all'}
+            options={[{ label: '全部地区', value: 'all' }, ...REGIONS.map((item) => ({ label: item, value: item }))]}
+            onChange={(value) => navigate({ region: value === 'all' ? null : value, page: 1 })}
+          />
+          <CustomSelect
+            value={hasResource}
+            options={RESOURCE_OPTIONS}
+            onChange={(value) => navigate({ hasResource: value === 'all' ? null : value, page: 1 })}
+          />
+          <CustomSelect value={sort} options={SORT_OPTIONS} onChange={(value) => navigate({ sort: value, sortDir: value === 'relevance' ? 'desc' : sortDir, page: 1 })} />
+          {sort !== 'relevance' && <SortDirButton direction={sortDir} onToggle={() => navigate({ sortDir: sortDir === 'desc' ? 'asc' : 'desc', page: 1 })} />}
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, hasResource: null, page: 1 })}
+              className="h-8 rounded-lg border border-border px-3 text-xs font-medium text-secondary-foreground hover:border-accent hover:text-accent"
+            >
+              清除筛选 · {activeFilterCount}
+            </button>
+          )}
           {q && <span className="ml-auto text-sm tabular-nums text-muted-foreground" aria-live="polite">{loading ? '搜索中…' : error ? '搜索失败' : `找到 ${data.total} 条`}</span>}
         </div>
         {selectedContentType && (
@@ -325,7 +381,7 @@ function SearchContent() {
           <p className="mt-2 text-xs text-muted-foreground">可尝试缩短关键词或减少筛选条件</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {tagId && <button type="button" onClick={() => navigate({ tagId: null, page: 1 })} className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-secondary-foreground">清除题材</button>}
-            {selectedContentType && <button type="button" onClick={() => navigate({ typeFilter: null, tagId: null, page: 1 })} className="rounded-xl border border-accent px-4 py-2 text-xs font-medium text-accent">搜索全部类型</button>}
+            {activeFilterCount > 0 && <button type="button" onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, hasResource: null, page: 1 })} className="rounded-xl border border-accent px-4 py-2 text-xs font-medium text-accent">清除全部筛选</button>}
           </div>
         </div>
       ) : (
