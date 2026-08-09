@@ -67,7 +67,7 @@ export default function TagFilter({ contentType, selectedTagId, onSelect }: TagF
       {genres.map((genre) => (
         <FilterChip
           key={genre.id}
-          label={genre.name}
+          label={`${genre.name} ${genre.contentCount}`}
           active={selectedTagId === genre.id}
           onClick={() => onSelect(selectedTagId === genre.id ? null : genre.id)}
         />

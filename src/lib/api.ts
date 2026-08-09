@@ -234,6 +234,7 @@ export interface GenreOption {
   code: string;
   name: string;
   color?: string;
+  contentCount: number;
 }
 
 export const tagApi = {
