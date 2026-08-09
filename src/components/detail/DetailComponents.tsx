@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { CirclePlay, Inbox } from 'lucide-react';
+import { CirclePlay, Clock3, Copy, ExternalLink, Inbox } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
 import { getPlaybackSourceMode } from '@/lib/playbackSource';
 
@@ -396,8 +396,9 @@ interface CopyableResource {
   id: number;
   title?: string;
   url?: string;
-  resolution?: string;
-  storageName?: string;
+  badges?: string[];
+  timeLabel?: string;
+  openLabel?: string;
 }
 
 export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyText }: {
@@ -421,35 +422,47 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
       {resources.map(r => (
         <div
           key={r.id}
-          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 p-3 rounded-lg border hover:border-accent/30 hover:bg-accent/5 transition-all group"
+          className="group grid gap-3 rounded-2xl border border-border bg-background/55 p-3.5 transition-[border-color,background-color,box-shadow] hover:border-accent/30 hover:bg-accent/5 hover:shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
         >
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="shrink-0 text-accent transition-transform group-hover:scale-105">{icon}</span>
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">{icon}</span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium break-all sm:truncate text-foreground">
-                {r.resolution && (
-                  <span className="inline-block px-1.5 py-0.5 rounded text-xs font-medium mr-2 bg-accent/10 text-accent">
-                    {r.resolution}
+              <p className="line-clamp-2 break-all text-sm font-medium leading-5 text-foreground">{r.title || '资源链接'}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {r.badges?.filter(Boolean).map((badge) => (
+                  <span key={badge} className="rounded-md bg-accent/10 px-2 py-1 text-[11px] font-semibold text-accent">{badge}</span>
+                ))}
+                {r.timeLabel && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                    <Clock3 aria-hidden className="size-3" />{r.timeLabel}
                   </span>
                 )}
-                {r.title || '资源链接'}
-              </p>
-              {r.storageName && (
-                <p className="text-xs mt-0.5 text-muted-foreground">{r.storageName}</p>
-              )}
+              </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => onCopy(r.url || '', r.id)}
-            disabled={!r.url}
-            aria-label={`复制${r.title || '资源'}链接`}
-            className={`shrink-0 px-4 py-1.5 rounded-lg text-xs font-medium text-white transition-all active:scale-95 ${
-              copiedId === r.id ? 'bg-copied' : 'bg-accent hover:bg-accent-hover shadow-sm'
-            } disabled:cursor-not-allowed disabled:opacity-50`}
-          >
-            {copiedId === r.id ? '已复制 ✓' : '复制链接'}
-          </button>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+            {r.openLabel && r.url && (
+              <a
+                href={r.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-[border-color,color] hover:border-accent/45 hover:text-accent"
+              >
+                <ExternalLink aria-hidden className="size-3.5" />{r.openLabel}
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => onCopy(r.url || '', r.id)}
+              disabled={!r.url}
+              aria-label={`复制${r.title || '资源'}链接`}
+              className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition-colors ${
+                copiedId === r.id ? 'bg-copied' : 'bg-accent hover:bg-accent-hover'
+              } disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              <Copy aria-hidden className="size-3.5" />{copiedId === r.id ? '已复制' : '复制链接'}
+            </button>
+          </div>
         </div>
       ))}
     </div>
@@ -467,11 +480,11 @@ export function ResourceTabs({ tabs, activeTab, onTabChange, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl p-5 border animate-fade-in-up stagger-9">
-      <h2 className="text-lg font-bold mb-4 text-foreground flex items-center gap-2">
-        <span className="w-1 h-5 bg-accent rounded-full" />
-        下载资源
-      </h2>
+    <section className="rounded-3xl border border-border bg-card p-4 animate-fade-in-up stagger-9 sm:p-6">
+      <div className="mb-5">
+        <h2 className="text-lg font-bold text-foreground">下载资源</h2>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">按画质与字幕版本精确筛选；网盘资源可直接打开或复制链接。</p>
+      </div>
       <DetailTabBar
         tabs={tabs}
         active={activeTab}

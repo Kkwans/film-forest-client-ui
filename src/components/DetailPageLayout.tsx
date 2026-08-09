@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CloudDownload, Magnet, RefreshCw, TriangleAlert } from 'lucide-react';
 import { resourceApi } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
@@ -40,14 +40,21 @@ interface MagnetResourceItem {
   title: string;
   magnetUrl: string;
   resolution?: string;
+  hasSubtitle: boolean;
+  specialSubtitle: boolean;
+  qualityCategory: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /** 网盘资源 */
 interface CloudResourceItem {
   id: number;
   title: string;
-  shareUrl: string;
-  storageName?: string;
+  url: string;
+  diskType?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 type ResourceKind = 'online' | 'magnet' | 'cloud';
@@ -57,6 +64,46 @@ const RESOURCE_KIND_LABELS: Record<ResourceKind, string> = {
   magnet: '磁力链接',
   cloud: '网盘资源',
 };
+
+const QUALITY_ORDER = [
+  '4K', '中字4K', '特效4K',
+  '1080p', '中字1080p', '特效1080p',
+  '720p', '中字720p', '特效720p',
+  '480p', '中字480p', '特效480p',
+  '未知',
+];
+
+const DISK_LABELS: Record<string, string> = {
+  quark: '夸克网盘',
+  baidu: '百度网盘',
+  xunlei: '迅雷云盘',
+  ali: '阿里云盘',
+  uc: 'UC 网盘',
+  lanzou: '蓝奏云',
+  '123': '123 云盘',
+};
+
+const SOURCE_TIME_SUFFIX = /\s+(今天|昨天|\d+\s*(?:分钟|小时|天|个月|年)前)$/u;
+
+function resourcePresentation(title: string, timestamp?: string) {
+  const match = title.match(SOURCE_TIME_SUFFIX);
+  const cleanTitle = match ? title.slice(0, match.index).trim() : title;
+  if (match) return { title: cleanTitle, timeLabel: match[1] };
+  if (!timestamp) return { title: cleanTitle };
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return { title: cleanTitle };
+  return {
+    title: cleanTitle,
+    timeLabel: `入库 ${new Intl.DateTimeFormat('zh-CN', {
+      timeZone: 'Asia/Shanghai',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(date)}`,
+  };
+}
 
 function resourceItems<T>(response: { data?: { data?: unknown } }): T[] {
   const data = response.data?.data;
@@ -138,6 +185,7 @@ export default function DetailPageLayout({
   const [resourceErrors, setResourceErrors] = useState<ResourceKind[]>([]);
   const [resourceReloadKey, setResourceReloadKey] = useState(0);
   const [downloadTab, setDownloadTab] = useState<'magnet' | 'cloud'>('magnet');
+  const [magnetQuality, setMagnetQuality] = useState('全部');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [playerSrc, setPlayerSrc] = useState<string | undefined>(undefined);
   const [playerSourceId, setPlayerSourceId] = useState<number | null>(null);
@@ -145,6 +193,22 @@ export default function DetailPageLayout({
   const ds = useDetailStatus(item.id, contentType);
   const resolvedCover = usePosterUrl(contentType, item.id, item.cover, { enrich: true });
   const { showToast } = useToast();
+  const magnetCategories = useMemo(() => Array.from(new Set(
+    magnetResources.map((resource) => resource.qualityCategory || '未知'),
+  )).sort((left, right) => {
+    const leftIndex = QUALITY_ORDER.indexOf(left);
+    const rightIndex = QUALITY_ORDER.indexOf(right);
+    if (leftIndex === -1 && rightIndex === -1) return left.localeCompare(right, 'zh-CN');
+    if (leftIndex === -1) return 1;
+    if (rightIndex === -1) return -1;
+    return leftIndex - rightIndex;
+  }), [magnetResources]);
+  const activeMagnetQuality = magnetQuality === '全部' || magnetCategories.includes(magnetQuality)
+    ? magnetQuality
+    : '全部';
+  const visibleMagnets = activeMagnetQuality === '全部'
+    ? magnetResources
+    : magnetResources.filter((resource) => resource.qualityCategory === activeMagnetQuality);
 
   // Fetch all resources when episode changes
   useEffect(() => {
@@ -393,16 +457,62 @@ export default function DetailPageLayout({
                 ))}
               </div>
             ) : downloadTab === 'magnet' ? (
-              <CopyableResourceList
-                resources={magnetResources.map((r: MagnetResourceItem) => ({ id: r.id, title: r.title, url: r.magnetUrl, resolution: r.resolution }))}
-                copiedId={copiedId}
-                onCopy={copyLink}
-                icon={<Magnet aria-hidden className="h-5 w-5" />}
-                emptyText={selectedEpisode ? `该${episodeLabel}暂无磁力链接` : '暂无磁力链接'}
-              />
+              <div className="space-y-4">
+                {magnetResources.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="磁力资源画质筛选">
+                    {['全部', ...magnetCategories].map((category) => {
+                      const count = category === '全部'
+                        ? magnetResources.length
+                        : magnetResources.filter((resource) => resource.qualityCategory === category).length;
+                      const active = activeMagnetQuality === category;
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setMagnetQuality(category)}
+                          aria-pressed={active}
+                          className={`min-h-9 shrink-0 rounded-full border px-3 text-xs font-semibold transition-[color,background-color,border-color] ${
+                            active
+                              ? 'border-accent bg-accent text-white'
+                              : 'border-border bg-background text-secondary-foreground hover:border-accent/45'
+                          }`}
+                        >
+                          {category} <span className={active ? 'text-white/75' : 'text-muted-foreground'}>{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <CopyableResourceList
+                  resources={visibleMagnets.map((resource) => {
+                    const presentation = resourcePresentation(resource.title, resource.updatedAt || resource.createdAt);
+                    return {
+                      id: resource.id,
+                      title: presentation.title,
+                      url: resource.magnetUrl,
+                      badges: [resource.qualityCategory || '未知'],
+                      timeLabel: presentation.timeLabel,
+                    };
+                  })}
+                  copiedId={copiedId}
+                  onCopy={copyLink}
+                  icon={<Magnet aria-hidden className="h-5 w-5" />}
+                  emptyText={selectedEpisode ? `该${episodeLabel}暂无磁力链接` : '暂无磁力链接'}
+                />
+              </div>
             ) : (
               <CopyableResourceList
-                resources={cloudResources.map((r: CloudResourceItem) => ({ id: r.id, title: r.title, url: r.shareUrl, storageName: r.storageName }))}
+                resources={cloudResources.map((resource) => {
+                  const presentation = resourcePresentation(resource.title, resource.updatedAt || resource.createdAt);
+                  return {
+                    id: resource.id,
+                    title: presentation.title,
+                    url: resource.url,
+                    badges: [DISK_LABELS[resource.diskType || ''] || resource.diskType || '网盘'],
+                    timeLabel: presentation.timeLabel,
+                    openLabel: '打开网盘',
+                  };
+                })}
                 copiedId={copiedId}
                 onCopy={copyLink}
                 icon={<CloudDownload aria-hidden className="h-5 w-5" />}
