@@ -1,13 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
-import { getStatusConfig } from '@/lib/contentConstants';
 import { StatusIconButton, GenreTags } from '@/components/ContentShared';
-import { useUserStore } from '@/stores/userStore';
-import { listApi, type UserList } from '@/lib/userApi';
-import { useToast } from '@/components/Toast';
 import dynamic from 'next/dynamic';
 import LazyImage from '@/components/ui/lazy-image';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
@@ -58,73 +54,14 @@ export default function MovieCard({
 }: MovieCardProps) {
   const [navigating, setNavigating] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
-  const [toggling, setToggling] = useState(false);
-  const isAuthenticated = useUserStore((s) => s.isAuthenticated);
-  const { showToast } = useToast();
   const contentType = type || 'movie';
   const resolvedCover = usePosterUrl(contentType, id, cover);
-  const clickTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup clickTimer on unmount to prevent memory leaks
-  useEffect(() => {
-    return () => {
-      if (clickTimer.current) {
-        clearTimeout(clickTimer.current);
-        clickTimer.current = null;
-      }
-    };
-  }, []);
-
-  const statusConfig = movieStatus?.listType ? getStatusConfig(movieStatus.listType) : null;
-
-  const handleSingleClick = useCallback(async (e: React.MouseEvent) => {
+  const handleCollectClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isAuthenticated || toggling) return;
-
-    if (movieStatus?.listType === 'watching' || movieStatus?.listType === 'watched') {
-      showToast(`该影片已被标记为${movieStatus.listName}`, 'warning');
-      return;
-    }
-
-    setToggling(true);
-    try {
-      const res = await listApi.getAll();
-      const lists = res.data.data || res.data;
-      const wantList = Array.isArray(lists) ? lists.find((l: UserList) => l.type === 'want_to_watch') : null;
-      if (!wantList) { setToggling(false); return; }
-
-      if (movieStatus?.listType === 'want_to_watch') {
-        await listApi.removeItem(wantList.id, { movieId: id, contentType });
-        showToast('已从想看移除', 'error');
-      } else {
-        await listApi.addItem(wantList.id, { movieId: id, contentType });
-        showToast('已加入想看', 'success');
-      }
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: id } }));
-      }
-    } catch (err) {
-      console.warn('[MovieCard] Failed to toggle status:', err);
-    } finally {
-      setToggling(false);
-    }
-  }, [isAuthenticated, toggling, id, contentType, movieStatus, showToast]);
-
-  const handleCollectClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (clickTimer.current) {
-      clearTimeout(clickTimer.current);
-      clickTimer.current = null;
-      setCollectOpen(true);
-    } else {
-      clickTimer.current = setTimeout(() => {
-        clickTimer.current = null;
-        handleSingleClick(e);
-      }, 250);
-    }
-  }, [handleSingleClick]);
+    setCollectOpen(true);
+  };
 
   const regionArr = parseRegion(region);
   const genreArr = parseGenre(genre);
@@ -139,7 +76,7 @@ export default function MovieCard({
     badgeText = `${episodes}集`;
   }
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     setNavigating(true);
   };
 
@@ -149,10 +86,8 @@ export default function MovieCard({
       <StatusIconButton
         listType={movieStatus?.listType || null}
         onClick={handleCollectClick}
-        onDoubleClick={handleCollectClick}
         size="sm"
         className="absolute top-1.5 left-1.5 z-10"
-        loading={toggling}
       />
     );
   };
@@ -161,7 +96,7 @@ export default function MovieCard({
     <>
     <Link
       href={href}
-      prefetch={true}
+      prefetch={false}
       onClick={handleClick}
       className="group block no-underline"
       style={{
@@ -256,7 +191,7 @@ export default function MovieCard({
         </div>
       </div>
     </Link>
-    {showCollect && (
+    {showCollect && collectOpen && (
       <CollectModal
         open={collectOpen}
         onClose={() => setCollectOpen(false)}

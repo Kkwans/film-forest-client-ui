@@ -5,7 +5,7 @@
  * 从 MovieCard / SearchPage / ListDetailPage 等多处提取的重复渲染逻辑
  */
 
-import { getStatusConfig, TYPE_LABELS, type StatusIconConfig } from '@/lib/contentConstants';
+import { getStatusConfig, TYPE_LABELS } from '@/lib/contentConstants';
 
 /* ============================================================
  * 1. 状态图标按钮（想看/在看/看过/收藏）
@@ -15,10 +15,8 @@ import { getStatusConfig, TYPE_LABELS, type StatusIconConfig } from '@/lib/conte
 interface StatusIconButtonProps {
   /** 当前状态（listType），null 表示未收藏 */
   listType: string | null | undefined;
-  /** 点击事件（单击：切换想看） */
+  /** 打开片单管理 */
   onClick: (e: React.MouseEvent) => void;
-  /** 双击事件（打开片单选择） */
-  onDoubleClick?: (e: React.MouseEvent) => void;
   /** 按钮大小 */
   size?: 'sm' | 'md';
   /** 额外 class */
@@ -32,7 +30,6 @@ interface StatusIconButtonProps {
 export function StatusIconButton({
   listType,
   onClick,
-  onDoubleClick,
   size = 'sm',
   className = '',
   title,
@@ -42,20 +39,20 @@ export function StatusIconButton({
   const sizeClass = size === 'sm' ? 'w-5 h-5' : 'w-6 h-6 md:w-7 md:h-7';
   const iconClass = size === 'sm' ? 'w-3 h-3' : 'w-3 h-3 md:w-4 md:h-4';
 
-  const defaultTitle = config
-    ? `${config.label}（单击提示，双击选择片单）`
-    : '想看（单击加入，双击选择片单）';
+  const defaultTitle = config ? `${config.label} · 管理片单` : '添加到片单';
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      onDoubleClick={onDoubleClick}
       className={`${sizeClass} rounded-full flex items-center justify-center backdrop-blur-sm transition-colors hover:scale-110 ${className}`}
       style={{
         backgroundColor: config ? `${config.color}cc` : 'rgba(0,0,0,0.4)',
         color: '#fff',
       }}
       title={title || defaultTitle}
+      aria-label={title || defaultTitle}
+      aria-haspopup="dialog"
     >
       {loading ? (
         <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
