@@ -18,6 +18,6 @@ export default function PageTransition() {
   if (!loading) return null;
 
   return (
-    <div className="page-loading" />
+    <div className="page-loading" role="progressbar" aria-label="页面加载中" />
   );
 }

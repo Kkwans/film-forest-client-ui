@@ -7,6 +7,8 @@
   --color-foreground: var(--text-primary);
   --color-card: var(--bg-card);
   --color-card-foreground: var(--text-primary);
+  --color-popover: var(--bg-card);
+  --color-popover-foreground: var(--text-primary);
   --color-secondary: var(--bg-secondary);
   --color-secondary-foreground: var(--text-secondary);
   --color-muted: var(--border-color);
@@ -23,10 +25,14 @@
   --color-status-want: var(--status-want);
   --color-status-custom: var(--status-custom);
   --color-copied: var(--copied-bg);
+  --color-ring: var(--accent);
+  --font-sans: var(--font-ui);
 }
 
 /* Light theme (default) */
 :root {
+  color-scheme: light;
+  --font-ui: "Avenir Next", "Segoe UI Variable", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --bg-primary: #f8f7f4;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
@@ -73,6 +79,7 @@
 
 /* Dark theme */
 .dark {
+  color-scheme: dark;
   --bg-primary: #09090b;
   --bg-secondary: #18181b;
   --bg-card: #27272a;
@@ -123,12 +130,45 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+  font-family: var(--font-ui);
+  text-rendering: optimizeLegibility;
 }
 
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   margin: 0;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.app-shell {
+  background:
+    radial-gradient(circle at 82% -8%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 34rem),
+    var(--bg-primary);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 70;
+  transform: translateY(-200%);
+  border-radius: 0.75rem;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
 }
 
 /* Scrollbar styling for recommendation sections */
@@ -206,6 +246,13 @@ body {
 @media (max-width: 767px) {
   .pb-safe-bottom {
     padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-dock {
+    border-top: 1px solid color-mix(in srgb, var(--border-color) 82%, transparent);
+    background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+    box-shadow: 0 -10px 32px color-mix(in srgb, var(--text-primary) 8%, transparent);
+    backdrop-filter: blur(18px);
   }
 }
 
@@ -393,16 +440,22 @@ a, button, [role="button"], input[type="submit"] {
   outline-offset: 2px;
 }
 
-/* Remove default focus ring on mobile tap */
-@media (hover: none) {
-  :focus {
-    outline: none !important;
-    box-shadow: none !important;
-  }
-}
-
-
 /* Remove underline from links (used by MovieCard, MobileBottomNav, ProfileClient, RelatedSection) */
 .no-underline {
   text-decoration: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

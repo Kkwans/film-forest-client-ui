@@ -16,7 +16,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 };
 
 export default function RootLayout({
@@ -27,17 +26,18 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body
-        className="min-h-screen flex flex-col"
+        className="app-shell min-h-screen flex flex-col"
         style={{
           backgroundColor: "var(--bg-primary)",
           color: "var(--text-primary)",
         }}
       >
         <ThemeProvider>
+          <a className="skip-link" href="#main-content">跳到主要内容</a>
           <Header />
           <PageTransition />
           <ToastProvider>
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 pb-safe-bottom">
+          <main id="main-content" tabIndex={-1} className="flex-1 w-full max-w-[90rem] mx-auto px-4 py-6 pb-safe-bottom sm:px-6 lg:px-8">
             {children}
           </main>
           </ToastProvider>

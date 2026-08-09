@@ -3,9 +3,10 @@
 import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useTheme } from 'next-themes';
+import { ChevronDown, LogOut, Menu, Search, TreePine, UserRound, X } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
 import { searchApi } from '@/lib/api';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const NAV_ITEMS = [
   { label: '首页', href: '/' },
@@ -27,8 +28,6 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const [keyword, setKeyword] = useState('');
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -38,10 +37,6 @@ export default function Header() {
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useUserStore();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Close user dropdown on outside click
   useEffect(() => {
@@ -57,11 +52,19 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const isDark = mounted && resolvedTheme === 'dark';
-
-  const toggleDark = () => {
-    setTheme(isDark ? 'light' : 'dark');
-  };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [menuOpen]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,38 +120,33 @@ export default function Header() {
   return (
     <>
       <header
-        className="sticky top-0 z-50 w-full border-b backdrop-blur-md"
+        className="sticky top-0 z-50 w-full border-b backdrop-blur-xl"
         style={{
-          backgroundColor: 'var(--bg-secondary)',
+          backgroundColor: 'color-mix(in srgb, var(--bg-secondary) 88%, transparent)',
           borderColor: 'var(--border-color)',
         }}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between h-14 px-4">
+        <div className="mx-auto flex h-16 max-w-[90rem] items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="text-2xl">🌲</span>
-            <span
-              className="text-lg font-bold"
-
-            >
-              影视森林
+          <Link href="/" className="group flex shrink-0 items-center gap-2.5 no-underline" aria-label="影视森林首页">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-[var(--accent)] text-white shadow-[var(--shadow-sm)] transition-transform group-hover:-translate-y-0.5">
+              <TreePine className="size-[19px]" strokeWidth={2.1} aria-hidden />
             </span>
+            <span className="text-[17px] font-extrabold tracking-[-0.025em] text-foreground">影视森林</span>
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="内容导航">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3 py-4 text-sm font-medium border-b-2 transition-colors ${
+                aria-current={isActive(item.href) ? 'page' : undefined}
+                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                   isActive(item.href)
-                    ? 'nav-active'
-                    : 'border-transparent hover:opacity-80'
+                    ? 'bg-[var(--accent-light)] text-[var(--accent)]'
+                    : 'text-secondary-foreground hover:bg-card hover:text-foreground'
                 }`}
-                style={{
-                  color: isActive(item.href) ? 'var(--accent)' : 'var(--text-secondary)',
-                }}
               >
                 {item.label}
               </Link>
@@ -156,15 +154,12 @@ export default function Header() {
           </nav>
 
           {/* Search + Dark Toggle + Auth (desktop) */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden items-center gap-2 lg:flex">
             <form onSubmit={handleSearch} className="flex items-center gap-2">
               <div className="relative" ref={searchWrapRef}>
                 {/* Search icon */}
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }}>
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.3-4.3" />
-                  </svg>
+                <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <Search className="size-4" aria-hidden />
                 </div>
                 <input
                   type="text"
@@ -173,32 +168,30 @@ export default function Header() {
                   onChange={(e) => handleSearchInput(e.target.value)}
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  className="header-search-input w-40 lg:w-52 h-9 pl-8 pr-7 rounded-lg text-sm outline-none border transition-colors focus:border-[var(--accent)]"
-                  style={{
-                    backgroundColor: 'var(--bg-primary)',
-                    borderColor: 'var(--border-color)',
-                    color: 'var(--text-primary)',
-                  }}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-controls="header-search-suggestions"
+                  aria-expanded={showSuggestions && (suggestions.length > 0 || suggestLoading)}
+                  className="header-search-input h-9 w-44 rounded-xl border border-border bg-card pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--accent)] lg:w-60"
                 />
                 {/* Clear button */}
                 {keyword && (
                   <button
                     type="button"
                     onClick={() => { setKeyword(''); setSuggestions([]); setShowSuggestions(false); }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded-full transition-colors"
-                    style={{ color: 'var(--text-muted)' }}
+                    className="absolute right-2 top-1/2 flex size-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-[var(--accent-light)] hover:text-foreground"
                     aria-label="清除搜索"
                     title="清除"
                   >
-                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 6 6 18" />
-                      <path d="m6 6 12 12" />
-                    </svg>
+                    <X className="size-3.5" aria-hidden />
                   </button>
                 )}
                 {showSuggestions && (suggestions.length > 0 || suggestLoading) && (
                   <div
-                    className="absolute top-full left-0 right-0 mt-1 rounded-lg border shadow-lg py-1 z-50 max-h-60 overflow-y-auto"
+                    id="header-search-suggestions"
+                    role="listbox"
+                    aria-label="搜索建议"
+                    className="absolute left-0 right-0 top-full z-50 mt-2 max-h-60 overflow-y-auto rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-lg)]"
                     style={{
                       backgroundColor: 'var(--bg-secondary)',
                       borderColor: 'var(--border-color)',
@@ -212,8 +205,9 @@ export default function Header() {
                     {!suggestLoading && suggestions.map((s, i) => (
                       <button
                         key={i}
-                        className="w-full text-left px-3 py-1.5 text-sm hover:opacity-80 transition-colors"
-                        style={{ color: 'var(--text-primary)' }}
+                        role="option"
+                        aria-selected="false"
+                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-[var(--accent-light)]"
                         onMouseDown={() => handleSuggestionClick(s)}
                       >
                         {s}
@@ -224,82 +218,55 @@ export default function Header() {
               </div>
               <button
                 type="submit"
-                className="h-9 px-4 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-90 shrink-0 flex items-center gap-1"
-                style={{ backgroundColor: 'var(--accent)' }}
+                className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-[var(--accent)] px-3.5 text-sm font-semibold text-white transition-colors hover:bg-[var(--accent-hover)]"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
+                <Search className="size-3.5" aria-hidden />
                 搜索
               </button>
             </form>
-            <button
-              onClick={toggleDark}
-              className="w-9 h-9 flex items-center justify-center rounded-lg border transition-colors"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-secondary)',
-              }}
-              aria-label={isDark ? '切换为浅色模式' : '切换为深色模式'}
-              title="切换深色模式"
-            >
-              {mounted ? (isDark ? '☀️' : '🌙') : '🌙'}
-            </button>
+            <ThemeToggle compact />
 
             {/* Auth section - PC only show login (no register), entry point is inside login page */}
             {isAuthenticated && user ? (
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-1.5 px-1.5 py-1 rounded-lg transition-colors"
-
+                  className="flex items-center gap-1.5 rounded-xl border border-transparent p-1 text-secondary-foreground transition-colors hover:border-border hover:bg-card hover:text-foreground"
+                  aria-label="打开用户菜单"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="menu"
                 >
                   <div
                     className="w-8 h-8 rounded-full flex items-center justify-center text-xs"
                     
                   >
                     {user.avatar ? (
-                      <img src={user.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                      <img src={user.avatar} alt="当前用户头像" className="w-full h-full rounded-lg object-cover" />
                     ) : (
                       <AvatarFallback name={user.nickname || user.username} />
                     )}
                   </div>
-                  <svg
-                    className={`w-3 h-3 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
+                  <ChevronDown className={`size-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} aria-hidden />
                 </button>
                 {userMenuOpen && (
                   <div
-                    className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-lg py-1 z-50"
-
+                    role="menu"
+                    className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-lg)]"
                   >
                     <Link
                       href="/profile"
                       onClick={() => setUserMenuOpen(false)}
-                      className="block px-4 py-2 text-sm transition-colors rounded-md mx-1"
-                      style={{ color: 'var(--text-primary)' }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--accent-light)'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      role="menuitem"
+                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-[var(--accent-light)]"
                     >
-                      我的
+                      <UserRound className="size-4" aria-hidden />我的主页
                     </Link>
                     <button
                       onClick={() => { setUserMenuOpen(false); logout(); router.push('/'); }}
-                      className="block w-full text-left px-4 py-2 text-sm transition-colors rounded-md mx-1"
-                      style={{ color: 'var(--danger, #ef4444)' }}
-                      onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--danger-bg, rgba(239,68,68,0.1))'}
-                      onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                      role="menuitem"
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--danger)] transition-colors hover:bg-[var(--danger-bg)]"
                     >
-                      退出登录
+                      <LogOut className="size-4" aria-hidden />退出登录
                     </button>
                   </div>
                 )}
@@ -308,8 +275,7 @@ export default function Header() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/login"
-                  className="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors"
-
+                  className="rounded-xl border border-border bg-card px-3.5 py-2 text-sm font-semibold text-foreground transition-colors hover:border-[var(--accent)]/40 hover:text-[var(--accent)]"
                 >
                   登录
                 </Link>
@@ -318,29 +284,16 @@ export default function Header() {
           </div>
 
           {/* Mobile: dark toggle + hamburger (user info handled by bottom nav "我的" tab) */}
-          <div className="flex md:hidden items-center gap-2">
-            <button
-              onClick={toggleDark}
-              className="w-8 h-8 flex items-center justify-center rounded-md border text-sm"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-secondary)',
-              }}
-              aria-label={isDark ? '切换为浅色模式' : '切换为深色模式'}
-            >
-              {mounted ? (isDark ? '☀️' : '🌙') : '🌙'}
-            </button>
+          <div className="flex items-center gap-2 lg:hidden">
+            <ThemeToggle compact />
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="w-8 h-8 flex items-center justify-center rounded-md border text-sm"
-              style={{
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-secondary)',
-              }}
+              className="flex size-9 items-center justify-center rounded-xl border border-border bg-card text-secondary-foreground"
               aria-label={menuOpen ? '关闭菜单' : '打开菜单'}
               aria-expanded={menuOpen}
+              aria-controls="mobile-navigation-drawer"
             >
-              {menuOpen ? '✕' : '☰'}
+              {menuOpen ? <X className="size-[18px]" aria-hidden /> : <Menu className="size-[18px]" aria-hidden />}
             </button>
           </div>
         </div>
@@ -349,32 +302,33 @@ export default function Header() {
       {/* Mobile Menu Overlay */}
       {menuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px] lg:hidden"
           onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
         />
       )}
 
       {/* Mobile Menu Drawer */}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-56 border-l transform transition-transform duration-300 ease-in-out md:hidden ${
+        id="mobile-navigation-drawer"
+        aria-label="内容导航抽屉"
+        aria-hidden={!menuOpen}
+        inert={!menuOpen}
+        className={`fixed right-0 top-0 z-50 h-dvh w-[min(86vw,21rem)] transform border-l border-border bg-card shadow-[var(--shadow-lg)] transition-transform duration-300 ease-in-out lg:hidden ${
           menuOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
-        style={{
-          backgroundColor: 'var(--bg-secondary)',
-          borderColor: 'var(--border-color)',
-        }}
       >
-        <div className="flex flex-col p-4 gap-1">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-1 p-5">
+          <div className="mb-5 flex items-center justify-between">
             <span className="text-base font-bold text-foreground" >
               导航菜单
             </span>
             <button
               onClick={() => setMenuOpen(false)}
-              className="w-8 h-8 flex items-center justify-center rounded-md"
-
+              className="flex size-9 items-center justify-center rounded-xl text-secondary-foreground hover:bg-[var(--accent-light)] hover:text-foreground"
+              aria-label="关闭导航菜单"
             >
-              ✕
+              <X className="size-[18px]" aria-hidden />
             </button>
           </div>
 
@@ -385,12 +339,7 @@ export default function Header() {
               placeholder="搜索影片..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              className="w-full h-9 px-3 rounded-lg text-sm outline-none border"
-              style={{
-                backgroundColor: 'var(--bg-primary)',
-                borderColor: 'var(--border-color)',
-                color: 'var(--text-primary)',
-              }}
+              className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--accent)]"
             />
           </form>
 
@@ -399,13 +348,8 @@ export default function Header() {
               key={item.href}
               href={item.href}
               onClick={() => setMenuOpen(false)}
-              className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                isActive(item.href) ? '' : ''
-              }`}
-              style={{
-                color: isActive(item.href) ? 'var(--accent)' : 'var(--text-secondary)',
-                backgroundColor: isActive(item.href) ? 'var(--accent-light)' : 'transparent',
-              }}
+              aria-current={isActive(item.href) ? 'page' : undefined}
+              className={`rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${isActive(item.href) ? 'bg-[var(--accent-light)] text-[var(--accent)]' : 'text-secondary-foreground hover:bg-background hover:text-foreground'}`}
             >
               {item.label}
             </Link>
