@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import Hls from 'hls.js';
 import { CircleAlert, Clapperboard, Star } from 'lucide-react';
 import { usePlayHistoryStore } from '@/stores/playHistoryStore';
 import { getPlaybackSourceMode } from '@/lib/playbackSource';
@@ -133,7 +132,8 @@ export default function VideoPlayer({
     const video = videoRef.current;
     if (!video || !src || (sourceMode !== 'hls' && sourceMode !== 'video')) return;
 
-    let hls: Hls | null = null;
+    let disposed = false;
+    let hls: import('hls.js').default | null = null;
     const handleReady = () => {
       clearPlayerTimeout();
       setPlayerLoaded(true);
@@ -149,10 +149,21 @@ export default function VideoPlayer({
     video.addEventListener('canplay', handleReady);
     video.addEventListener('error', handleError);
 
-    if (sourceMode === 'hls') {
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = src;
-      } else if (Hls.isSupported()) {
+    const attachSource = async () => {
+      if (sourceMode === 'hls') {
+        if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = src;
+          video.load();
+          return;
+        }
+
+        const { default: Hls } = await import('hls.js');
+        if (disposed) return;
+        if (!Hls.isSupported()) {
+          handleError();
+          return;
+        }
+
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
@@ -164,15 +175,17 @@ export default function VideoPlayer({
         });
         hls.loadSource(src);
         hls.attachMedia(video);
-      } else {
-        handleError();
+        return;
       }
-    } else {
+
       video.src = src;
-    }
-    video.load();
+      video.load();
+    };
+
+    void attachSource().catch(handleError);
 
     return () => {
+      disposed = true;
       video.removeEventListener('loadedmetadata', handleReady);
       video.removeEventListener('canplay', handleReady);
       video.removeEventListener('error', handleError);
