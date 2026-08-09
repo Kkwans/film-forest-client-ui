@@ -300,6 +300,7 @@ function SearchContent() {
       <section className="rounded-2xl border border-border bg-card/70 p-3 sm:p-4" aria-label="搜索筛选与排序">
         <div className="flex flex-wrap items-center gap-2">
           <CustomSelect
+            ariaLabel="搜索内容类型"
             value={selectedContentType || 'all'}
             options={[{ label: '全部类型', value: 'all' }, ...Object.values(CONTENT_TYPE_REGISTRY).map((config) => ({ label: config.label, value: config.code }))]}
             onChange={(value) => navigate({ typeFilter: value === 'all' ? null : value, tagId: null, page: 1 })}
@@ -326,16 +327,18 @@ function SearchContent() {
             <button type="submit" className="border-l border-border px-2 text-xs font-medium text-secondary-foreground hover:text-accent">应用</button>
           </form>
           <CustomSelect
+            ariaLabel="搜索地区"
             value={region || 'all'}
             options={[{ label: '全部地区', value: 'all' }, ...REGIONS.map((item) => ({ label: item, value: item }))]}
             onChange={(value) => navigate({ region: value === 'all' ? null : value, page: 1 })}
           />
           <CustomSelect
+            ariaLabel="资源状态"
             value={hasResource}
             options={RESOURCE_OPTIONS}
             onChange={(value) => navigate({ hasResource: value === 'all' ? null : value, page: 1 })}
           />
-          <CustomSelect value={sort} options={SORT_OPTIONS} onChange={(value) => navigate({ sort: value, sortDir: value === 'relevance' ? 'desc' : sortDir, page: 1 })} />
+          <CustomSelect ariaLabel="搜索结果排序" value={sort} options={SORT_OPTIONS} onChange={(value) => navigate({ sort: value, sortDir: value === 'relevance' ? 'desc' : sortDir, page: 1 })} />
           {sort !== 'relevance' && <SortDirButton direction={sortDir} onToggle={() => navigate({ sortDir: sortDir === 'desc' ? 'asc' : 'desc', page: 1 })} />}
           {activeFilterCount > 0 && (
             <button

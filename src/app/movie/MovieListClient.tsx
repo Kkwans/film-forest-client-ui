@@ -168,8 +168,9 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
             value={String(query.size)}
             options={[12, 24, 36, 48].map((size) => ({ label: `${size} / 页`, value: String(size) }))}
             onChange={(value) => updateUrl({ size: value })}
+            ariaLabel="每页显示数量"
           />
-          <CustomSelect value={query.sort} options={SORT_OPTIONS} onChange={(value) => updateUrl({ sort: value })} />
+          <CustomSelect ariaLabel="内容排序方式" value={query.sort} options={SORT_OPTIONS} onChange={(value) => updateUrl({ sort: value })} />
           <SortDirButton direction={query.sortDir} onToggle={() => updateUrl({ sortDir: query.sortDir === 'desc' ? 'asc' : 'desc' })} />
         </div>
       </div>

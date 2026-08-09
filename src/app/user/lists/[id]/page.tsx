@@ -335,7 +335,7 @@ export default function ListDetailPage() {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <CustomSelect value={sortBy} options={sortOptions} onChange={(value) => { setSortBy(value); setCurrentPage(1); }} />
+                <CustomSelect ariaLabel="片单排序方式" value={sortBy} options={sortOptions} onChange={(value) => { setSortBy(value); setCurrentPage(1); }} />
                 <SortDirButton direction={sortDir} onToggle={() => { setSortDir((direction) => direction === 'desc' ? 'asc' : 'desc'); setCurrentPage(1); }} />
                 <button type="button" onClick={() => { setBatchMode((enabled) => !enabled); setSelectedIds(new Set()); }} className={`min-h-9 rounded-lg border px-3 text-xs font-medium ${batchMode ? 'border-accent bg-accent/10 text-accent' : 'border-border text-secondary-foreground'}`}>{batchMode ? '退出批量管理' : '批量管理'}</button>
               </div>
