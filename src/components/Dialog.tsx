@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { AlertTriangle, Info, Loader2 } from 'lucide-react';
+import { Modal } from '@/components/ui/modal';
 
 interface DialogProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   title: string;
   message: string;
   confirmText?: string;
@@ -16,22 +17,16 @@ interface DialogProps {
 
 const VARIANT_STYLES = {
   danger: {
-    confirmBg: 'var(--danger)',
-    icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
-    iconColor: 'var(--danger)',
-    iconBg: 'var(--danger-bg)',
+    icon: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    confirm: 'bg-red-600 text-white hover:bg-red-700',
   },
   warning: {
-    confirmBg: 'var(--status-want)',
-    icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
-    iconColor: 'var(--status-want)',
-    iconBg: 'var(--accent-light)',
+    icon: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    confirm: 'bg-amber-600 text-white hover:bg-amber-700',
   },
   info: {
-    confirmBg: 'var(--accent)',
-    icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
-    iconColor: 'var(--accent)',
-    iconBg: 'var(--accent-light, rgba(59,130,246,0.1))',
+    icon: 'bg-accent/10 text-accent',
+    confirm: 'bg-accent text-white hover:bg-accent-hover',
   },
 };
 
@@ -46,95 +41,34 @@ export default function Dialog({
   variant = 'danger',
   loading = false,
 }: DialogProps) {
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  const style = VARIANT_STYLES[variant];
-
-  useEffect(() => {
-    if (open) {
-      // Focus the confirm button when opened
-      setTimeout(() => confirmRef.current?.focus(), 100);
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'Enter' && !loading) onConfirm();
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [open, loading, onClose, onConfirm]);
-
   if (!open) return null;
+  const styles = VARIANT_STYLES[variant];
+  const Icon = variant === 'info' ? Info : AlertTriangle;
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-message">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-        style={{ animation: 'fadeIn 0.15s ease-out' }}
-      />
-      {/* Dialog */}
-      <div
-        className="relative w-[90%] max-w-sm rounded-2xl border p-6 shadow-xl"
-        style={{
-          backgroundColor: 'var(--bg-secondary)',
-          borderColor: 'var(--border-color)',
-          animation: 'dialogIn 0.2s ease-out',
-        }}
-      >
-        {/* Icon */}
-        <div className="flex items-center gap-3 mb-4">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-            style={{ backgroundColor: style.iconBg }}
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke={style.iconColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d={style.icon} />
-            </svg>
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 id="dialog-title" className="text-base font-bold text-foreground" >{title}</h3>
-          </div>
-        </div>
-
-        {/* Message */}
-        <p id="dialog-message" className="text-sm leading-relaxed mb-6 text-secondary-foreground" >{message}</p>
-
-        {/* Actions */}
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="px-4 py-2 rounded-lg text-sm font-medium border transition-colors"
-
-          >
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      width="sm"
+      footer={(
+        <>
+          <button type="button" onClick={onClose} disabled={loading} className="min-h-10 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">
             {cancelText}
           </button>
-          <button
-            ref={confirmRef}
-            onClick={onConfirm}
-            disabled={loading}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50"
-            style={{ backgroundColor: style.confirmBg }}
-          >
-            {loading ? '处理中...' : confirmText}
+          <button type="button" onClick={() => void onConfirm()} disabled={loading} className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${styles.confirm}`}>
+            {loading && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}
+            {loading ? '处理中' : confirmText}
           </button>
-        </div>
+        </>
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${styles.icon}`}>
+          <Icon aria-hidden className="h-5 w-5" />
+        </span>
+        <p className="pt-1.5 text-sm leading-6 text-secondary-foreground">{message}</p>
       </div>
-
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes dialogIn {
-          from { opacity: 0; transform: scale(0.95) translateY(8px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-      `}</style>
-    </div>
+    </Modal>
   );
 }
