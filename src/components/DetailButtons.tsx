@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { Bookmark, CheckCircle2, Eye, Heart, ListPlus, Loader2 } from 'lucide-react';
 import type { DetailStatus } from '@/hooks/useDetailStatus';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
@@ -11,11 +12,12 @@ interface DetailButtonsProps {
   contentType: string;
   contentTitle: string;
   status: DetailStatus;
+  statusLoading: boolean;
   watchedListId: number | null;
   collectOpen: boolean;
   watchedOpen: boolean;
   watchedReadOnly: boolean;
-  onWantButtonClick: (e: React.MouseEvent) => void;
+  onWantButtonClick: () => void;
   onWatchedClick: () => void;
   onCollectClose: () => void;
   onWatchedClose: () => void;
@@ -23,150 +25,110 @@ interface DetailButtonsProps {
   onCollectOpen: () => void;
 }
 
-// Star rating mini display (compact, for the watched button)
 function MiniStars({ rating }: { rating?: number }) {
-  const r = rating || 0;
+  const roundedRating = Math.round(rating || 0);
   return (
-    <span className="inline-flex items-center gap-px">
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
-        <svg key={i} width="10" height="10" viewBox="0 0 24 24">
-          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-            fill={i <= r ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" />
+    <span className="hidden items-center gap-px text-amber-500 sm:inline-flex" aria-hidden>
+      {[1, 2, 3, 4, 5].map((index) => (
+        <svg key={index} className="h-3 w-3" viewBox="0 0 24 24">
+          <path
+            d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z"
+            fill={index * 2 <= roundedRating ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
         </svg>
       ))}
     </span>
   );
 }
 
+const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition-[border-color,background-color,color,transform] hover:border-accent/40 hover:bg-accent/5 hover:text-accent active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
+const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-3 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] hover:bg-accent-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
+
 export default function DetailButtons({
-  contentId, contentType, contentTitle, status, watchedListId,
-  collectOpen, watchedOpen, watchedReadOnly,
-  onWantButtonClick, onWatchedClick, onCollectClose, onWatchedClose, onWatchedEdit, onCollectOpen,
+  contentId,
+  contentType,
+  contentTitle,
+  status,
+  statusLoading,
+  watchedListId,
+  collectOpen,
+  watchedOpen,
+  watchedReadOnly,
+  onWantButtonClick,
+  onWatchedClick,
+  onCollectClose,
+  onWatchedClose,
+  onWatchedEdit,
+  onCollectOpen,
 }: DetailButtonsProps) {
-  if (status.watched) {
-    return (
-      <>
-        <div className="flex items-center gap-2 flex-wrap animate-fade-in-up stagger-5">
-          <button
-            type="button"
-            onClick={() => onCollectOpen()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-            aria-label="收藏到片单"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-            </svg>
-            <span>收藏</span>
-          </button>
-          <button
-            type="button"
-            onClick={onWatchedClick}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-            aria-label="查看我的评价"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-            <span>已看过</span>
-            {status.watchedRating != null && status.watchedRating > 0 && (
-              <>
-                <MiniStars rating={Math.round(status.watchedRating)} />
-                <span className="font-bold">{status.watchedRating.toFixed(1)}</span>
-              </>
-            )}
-          </button>
-        </div>
-        <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
-        <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle}
-          watchedListId={watchedListId}
-          initialRating={status.watchedRating} initialNote={status.watchedNote}
-          isReadOnly={watchedReadOnly} onEdit={onWatchedEdit} />
-      </>
-    );
-  }
+  const statusLabel = status.watching ? '正在看' : status.want_to_watch ? '已想看' : '想看';
+  const StatusIcon = status.watching ? Eye : status.want_to_watch ? Heart : Bookmark;
 
-  if (status.watching) {
-    return (
-      <>
-        <div className="flex items-center gap-2 animate-fade-in-up stagger-5">
-          <button
-            type="button"
-            onClick={() => onCollectOpen()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-            aria-label="选择片单收藏"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <span>在看</span>
-          </button>
-          <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all"
-            aria-label="标记为已看过"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-            <span>看过</span>
-          </button>
-        </div>
-        <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
-        <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} watchedListId={watchedListId} />
-      </>
-    );
-  }
-
-  if (status.want_to_watch) {
-    return (
-      <>
-        <div className="flex items-center gap-2 animate-fade-in-up stagger-5">
-          <button type="button" onClick={onWantButtonClick} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-            aria-label="已想看，单击取消，双击选择片单"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            <span>已想看</span>
-          </button>
-          <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all"
-            aria-label="标记为已看过"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-            <span>看过</span>
-          </button>
-        </div>
-        <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
-        <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} watchedListId={watchedListId} />
-      </>
-    );
-  }
-
-  // No status
   return (
     <>
-      <div className="flex items-center gap-2 animate-fade-in-up stagger-5">
-        <button type="button" onClick={onWantButtonClick} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all hover:border-accent/40 hover:shadow-sm active:scale-95"
-          aria-label="单击加入想看，双击选择片单"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-          <span>想看</span>
+      <div className="flex flex-wrap items-center gap-2 animate-fade-in-up stagger-5" aria-label="内容操作">
+        {!status.watched && (
+          <button
+            type="button"
+            onClick={status.watching ? onCollectOpen : onWantButtonClick}
+            disabled={statusLoading}
+            className={secondaryButton}
+            aria-label={status.watching ? '管理正在看的片单状态' : status.want_to_watch ? '从想看移除' : '加入想看'}
+          >
+            {statusLoading ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <StatusIcon aria-hidden className={`h-4 w-4 ${status.want_to_watch ? 'fill-current' : ''}`} />}
+            {statusLoading ? '读取状态' : statusLabel}
+          </button>
+        )}
+
+        <button type="button" onClick={onCollectOpen} className={secondaryButton} aria-haspopup="dialog">
+          <ListPlus aria-hidden className="h-4 w-4" />
+          管理片单
         </button>
-        <button type="button" onClick={() => onWatchedClick()} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover shadow-sm active:scale-95 transition-all"
-          aria-label="标记为已看过"
+
+        <button
+          type="button"
+          onClick={onWatchedClick}
+          disabled={statusLoading}
+          className={status.watched ? secondaryButton : primaryButton}
+          aria-haspopup="dialog"
+          aria-label={status.watched ? '查看我的评价' : '标记为看过并评价'}
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-          <span>看过</span>
+          <CheckCircle2 aria-hidden className="h-4 w-4" />
+          {status.watched ? '已看过' : '看过'}
+          {status.watchedRating != null && status.watchedRating > 0 && (
+            <>
+              <MiniStars rating={status.watchedRating} />
+              <span className="font-bold tabular-nums">{status.watchedRating.toFixed(1)}</span>
+            </>
+          )}
         </button>
       </div>
-      <CollectModal open={collectOpen} onClose={onCollectClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} />
-      <WatchedModal open={watchedOpen} onClose={onWatchedClose} movieId={contentId} contentType={contentType} movieTitle={contentTitle} watchedListId={watchedListId} />
+
+      {collectOpen && (
+        <CollectModal
+          open={collectOpen}
+          onClose={onCollectClose}
+          movieId={contentId}
+          contentType={contentType}
+          movieTitle={contentTitle}
+        />
+      )}
+      {watchedOpen && (
+        <WatchedModal
+          open={watchedOpen}
+          onClose={onWatchedClose}
+          movieId={contentId}
+          contentType={contentType}
+          movieTitle={contentTitle}
+          watchedListId={watchedListId}
+          initialRating={status.watchedRating}
+          initialNote={status.watchedNote}
+          isReadOnly={watchedReadOnly}
+          onEdit={onWatchedEdit}
+        />
+      )}
     </>
   );
 }
