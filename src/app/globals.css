@@ -336,31 +336,34 @@ a, button, [role="button"], input[type="submit"] {
 .stagger-11 { animation-delay: 0.55s; }
 .stagger-12 { animation-delay: 0.6s; }
 
-/* Hero gradient animation */
-@keyframes gradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+.home-feature {
+  background:
+    radial-gradient(circle at 84% 14%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 18rem),
+    radial-gradient(circle at 12% 110%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 24rem),
+    color-mix(in srgb, var(--bg-secondary) 94%, var(--accent) 6%);
 }
 
-.hero-gradient {
-  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 40%, var(--accent-light) 100%);
-  background-size: 200% 200%;
-  animation: gradientShift 8s ease-in-out infinite;
+.home-feature::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--border-color) 35%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border-color) 35%, transparent) 1px, transparent 1px);
+  background-size: 2.5rem 2.5rem;
+  content: '';
+  mask-image: radial-gradient(circle at 80% 25%, black, transparent 68%);
+  opacity: 0.55;
 }
 
-/* Floating decoration animation */
-@keyframes float {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  33% { transform: translateY(-8px) rotate(2deg); }
-  66% { transform: translateY(4px) rotate(-1deg); }
+.home-feature-poster {
+  filter: drop-shadow(0 2rem 3rem color-mix(in srgb, var(--accent) 18%, transparent));
+  transform: rotate(1.5deg);
+  transition: transform 220ms ease;
 }
 
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-float-delayed {
-  animation: float 6s ease-in-out 2s infinite;
+.home-feature-poster:hover {
+  transform: rotate(0deg) translateY(-0.2rem);
 }
 
 /* Section accent line */
