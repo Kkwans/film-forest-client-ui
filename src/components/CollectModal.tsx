@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { listApi, type UserList, type UserListItem } from '@/lib/userApi';
-import { useUserStore } from '@/stores/userStore';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Bookmark, Check, CheckCircle2, Eye, ListPlus, Loader2, Plus, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Modal } from '@/components/ui/modal';
+import { useToast } from '@/components/Toast';
+import { listApi, statusApi, type UserList } from '@/lib/userApi';
+import { useUserStore } from '@/stores/userStore';
 
 interface CollectModalProps {
   open: boolean;
@@ -14,329 +17,310 @@ interface CollectModalProps {
 }
 
 const DEFAULT_LISTS_CONFIG = [
-  { type: 'want_to_watch', label: '想看', icon: '🔖' },
-  { type: 'watching', label: '在看', icon: '👁️' },
-  { type: 'watched', label: '看过', icon: '✅' },
+  { type: 'want_to_watch', label: '想看', Icon: Bookmark },
+  { type: 'watching', label: '在看', Icon: Eye },
+  { type: 'watched', label: '看过', Icon: CheckCircle2 },
 ];
+
+function NoteComposer({ value, busy, onChange, onSubmit, onCancel }: {
+  value: string;
+  busy: boolean;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="mt-2 rounded-xl border border-border bg-background p-3">
+      <label className="text-xs font-medium text-secondary-foreground" htmlFor="collect-note">备注（可选）</label>
+      <input
+        id="collect-note"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="例如：周末和家人一起看"
+        maxLength={200}
+        className="mt-2 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20"
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') onSubmit();
+          if (event.key === 'Escape') onCancel();
+        }}
+        autoFocus
+      />
+      <div className="mt-3 flex justify-end gap-2">
+        <button type="button" onClick={onCancel} disabled={busy} className="h-9 rounded-xl border border-border px-3 text-xs font-medium text-secondary-foreground hover:bg-muted disabled:opacity-50">
+          取消
+        </button>
+        <button type="button" onClick={onSubmit} disabled={busy} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-3 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-50">
+          {busy && <Loader2 className="size-3.5 animate-spin" aria-hidden />}添加
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function CollectModal({ open, onClose, movieId, contentType, movieTitle }: CollectModalProps) {
   const router = useRouter();
-  const { isAuthenticated } = useUserStore();
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const { showToast } = useToast();
   const [lists, setLists] = useState<UserList[]>([]);
-  const [loading, setLoading] = useState(false);
   const [movieStatus, setMovieStatus] = useState<Record<number, boolean>>({});
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [toggling, setToggling] = useState<number | null>(null);
+  const [showNoteInput, setShowNoteInput] = useState<number | null>(null);
+  const [addNote, setAddNote] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
-  const [toggling, setToggling] = useState<number | null>(null);
-  // Note input for adding
-  const [addNote, setAddNote] = useState('');
-  const [showNoteInput, setShowNoteInput] = useState<number | null>(null);
 
-  const defaultLists = DEFAULT_LISTS_CONFIG.map(d => {
-    const found = lists.find(l => l.type === d.type);
-    return { ...d, id: found?.id || 0, itemCount: found?.itemCount || 0, loaded: !!found };
-  });
-
-  const customLists = lists.filter(l => l.isDefault !== 1);
-
-  // Determine which default list the movie is currently in
-  const getCurrentDefaultType = (): string | null => {
-    for (const d of defaultLists) {
-      if (d.id && movieStatus[d.id]) return d.type;
-    }
-    return null;
-  };
-  const currentDefaultType = getCurrentDefaultType();
-
-  // Mutual exclusion: determine if a default list button should be disabled
-  const isDefaultDisabled = (type: string): boolean => {
-    if (!currentDefaultType) return false;
-    if (currentDefaultType === type) return false; // Can always toggle off
-    // watched blocks want_to_watch and watching
-    if (currentDefaultType === 'watched') return type === 'want_to_watch' || type === 'watching';
-    // watching blocks want_to_watch
-    if (currentDefaultType === 'watching') return type === 'want_to_watch';
-    return false;
-  };
-
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (signal?: AbortSignal, showLoading = true) => {
     if (!isAuthenticated) return;
-    setLoading(true);
+    if (showLoading) setLoading(true);
+    setLoadError(null);
     try {
-      const listsRes = await listApi.getAll();
-      const allListsRaw = listsRes.data as { data?: UserList[] } | UserList[] | undefined;
-      const allLists: UserList[] = Array.isArray(allListsRaw) ? allListsRaw : (allListsRaw?.data || []);
-      setLists(allLists);
-
-      const statusMap: Record<number, boolean> = {};
-      for (const list of allLists) {
-        try {
-          const itemsRes = await listApi.getItems(list.id, { page: 1, size: 500 });
-          const rawItems = itemsRes.data as { data?: { records?: UserListItem[] } | UserListItem[] } | undefined;
-          const items = Array.isArray(rawItems) ? rawItems : (rawItems?.data && typeof rawItems.data === 'object' ? (rawItems.data as { records?: UserListItem[] }).records || (rawItems.data as UserListItem[]) : []);
-          statusMap[list.id] = Array.isArray(items) && items.some((item: UserListItem) => item.movieId === movieId);
-        } catch {
-          statusMap[list.id] = false;
-        }
-      }
-      setMovieStatus(statusMap);
-    } catch (err) {
-      console.warn('[CollectModal] Failed to load lists:', err);
+      const [listsResponse, statusResponse] = await Promise.all([
+        listApi.getAll({ signal }),
+        statusApi.get(movieId, contentType, { signal }),
+      ]);
+      if (signal?.aborted) return;
+      const nextLists = Array.isArray(listsResponse.data.data) ? listsResponse.data.data : [];
+      const statuses = Array.isArray(statusResponse.data.data) ? statusResponse.data.data : [];
+      setLists(nextLists);
+      setMovieStatus(Object.fromEntries(statuses.map((status) => [status.listId, status.added])));
+    } catch {
+      if (!signal?.aborted) setLoadError('片单加载失败，请检查网络后重试');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted && showLoading) setLoading(false);
     }
-  }, [isAuthenticated, movieId]);
+  }, [contentType, isAuthenticated, movieId]);
 
   useEffect(() => {
-    if (open) {
-      loadData();
-      setShowCreate(false);
-      setNewName('');
-      setAddNote('');
-      setShowNoteInput(null);
-    }
-  }, [open, loadData]);
+    if (!open) return;
+    setShowCreate(false);
+    setNewName('');
+    setAddNote('');
+    setShowNoteInput(null);
+    setActionError(null);
+    const controller = new AbortController();
+    void loadData(controller.signal);
+    return () => controller.abort();
+  }, [loadData, open]);
 
-  const handleToggle = async (listId: number, note?: string) => {
+  const defaultLists = useMemo(() => DEFAULT_LISTS_CONFIG.map((definition) => {
+    const list = lists.find((candidate) => candidate.type === definition.type);
+    return { ...definition, list };
+  }), [lists]);
+  const customLists = useMemo(() => lists.filter((list) => list.isDefault !== 1), [lists]);
+  const currentDefaultType = defaultLists.find(({ list }) => list && movieStatus[list.id])?.type || null;
+
+  const isDefaultDisabled = (type: string) => {
+    if (!currentDefaultType || currentDefaultType === type) return false;
+    if (currentDefaultType === 'watched') return type === 'want_to_watch' || type === 'watching';
+    return currentDefaultType === 'watching' && type === 'want_to_watch';
+  };
+
+  const resetNote = () => {
+    setShowNoteInput(null);
+    setAddNote('');
+  };
+
+  const handleToggle = async (list: UserList, note?: string) => {
     if (!isAuthenticated) {
+      onClose();
       router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
-    if (!listId) return;
-    setToggling(listId);
-    const isCurrentlyIn = movieStatus[listId];
+    const isCurrentlyIn = Boolean(movieStatus[list.id]);
+    setToggling(list.id);
+    setActionError(null);
     try {
       if (isCurrentlyIn) {
-        await listApi.removeItem(listId, { movieId, contentType });
-        setMovieStatus((prev) => ({ ...prev, [listId]: false }));
+        await listApi.removeItem(list.id, { movieId, contentType });
       } else {
-        await listApi.addItem(listId, { movieId, contentType, note: note || undefined });
-        // Find the list type for mutual exclusion
-        const targetList = lists.find(l => l.id === listId);
-        const targetType = targetList?.type;
-
-        // Mutual exclusion for default lists:
-        // - want_to_watch: no exclusion needed
-        // - watching: remove from want_to_watch
-        // - watched: remove from want_to_watch AND watching
-        const newStatus = { ...movieStatus, [listId]: true };
-        if (targetType === 'watching' || targetType === 'watched') {
-          // Remove from want_to_watch
-          const wantList = lists.find(l => l.type === 'want_to_watch');
-          if (wantList) newStatus[wantList.id] = false;
-        }
-        if (targetType === 'watched') {
-          // Remove from watching
-          const watchingList = lists.find(l => l.type === 'watching');
-          if (watchingList) newStatus[watchingList.id] = false;
-        }
-        setMovieStatus(newStatus);
+        await listApi.addItem(list.id, { movieId, contentType, note: note?.trim() || undefined });
       }
-      setShowNoteInput(null);
-      setAddNote('');
-      // Notify all listeners (e.g. useMovieStatuses on home page) to refresh
+      await loadData(undefined, false);
+      resetNote();
+      showToast(isCurrentlyIn ? `已从“${list.name}”移除` : `已加入“${list.name}”`, 'success');
       window.dispatchEvent(new CustomEvent('movie-status-changed', {
-        detail: { movieId, contentType, action: isCurrentlyIn ? 'removed' : 'added' }
+        detail: { movieId, contentType, action: isCurrentlyIn ? 'removed' : 'added' },
       }));
-    } catch {} finally {
+    } catch {
+      const message = isCurrentlyIn ? '移除失败，请重试' : '加入片单失败，请重试';
+      setActionError(message);
+      showToast(message, 'error');
+    } finally {
       setToggling(null);
     }
   };
 
   const handleCreate = async () => {
-    if (!newName.trim()) return;
+    const name = newName.trim();
+    if (!name || creating) return;
     setCreating(true);
+    setActionError(null);
+    let createdList: UserList | null = null;
     try {
-      const res = await listApi.create({ name: newName.trim() });
-      const newList = res.data as { data?: UserList } | UserList | undefined;
-      const finalList: UserList = (newList && 'data' in newList) ? (newList.data as UserList) : (newList as UserList);
-      setLists((prev) => [...prev, finalList]);
-      setMovieStatus((prev) => ({ ...prev, [finalList.id]: false }));
+      const response = await listApi.create({ name });
+      createdList = response.data.data;
+      await listApi.addItem(createdList.id, { movieId, contentType });
+      await loadData(undefined, false);
       setNewName('');
       setShowCreate(false);
-      await handleToggle(finalList.id);
-    } catch {} finally {
+      showToast(`已创建并加入“${createdList.name}”`, 'success');
+      window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId, contentType, action: 'added' } }));
+    } catch {
+      const message = createdList ? '片单已创建，但内容加入失败，请重试' : '创建片单失败，请重试';
+      setActionError(message);
+      showToast(message, createdList ? 'warning' : 'error');
+      if (createdList) await loadData(undefined, false);
+    } finally {
       setCreating(false);
     }
   };
 
-  if (!open) return null;
+  const noteComposer = (list: UserList) => (
+    <NoteComposer
+      value={addNote}
+      busy={toggling === list.id}
+      onChange={setAddNote}
+      onSubmit={() => void handleToggle(list, addNote)}
+      onCancel={resetNote}
+    />
+  );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} role="button" aria-label="关闭弹窗" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }} />
-      <div className="relative w-full sm:max-w-md max-h-[70vh] rounded-t-2xl sm:rounded-2xl border flex flex-col"
-        >
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0 border-border" >
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base font-bold text-foreground" >收藏到片单</h3>
-            {movieTitle && <p className="text-xs mt-0.5 truncate text-muted-foreground" >{movieTitle}</p>}
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full shrink-0 text-muted-foreground" >✕</button>
+    <Modal open={open} onClose={onClose} title="管理片单" description={movieTitle} width="md">
+      {!isAuthenticated ? (
+        <div className="grid place-items-center py-14 text-center">
+          <span className="grid size-12 place-items-center rounded-2xl bg-accent-light text-accent"><ListPlus className="size-5" aria-hidden /></span>
+          <h3 className="mt-4 text-base font-semibold text-foreground">登录后管理你的片单</h3>
+          <p className="mt-1 max-w-xs text-sm leading-6 text-muted-foreground">把内容加入想看、在看、看过或自定义片单，并在不同设备间同步。</p>
+          <button type="button" onClick={() => { onClose(); router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`); }} className="mt-5 h-10 rounded-xl bg-accent px-5 text-sm font-semibold text-white hover:bg-accent-hover">
+            去登录
+          </button>
         </div>
-
-        {/* List */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {!isAuthenticated ? (
-            <div className="text-center py-8">
-              <p className="text-sm mb-3 text-muted-foreground" >登录后可以收藏影视</p>
-              <button onClick={() => { onClose(); router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`); }}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-accent" >去登录</button>
+      ) : loading ? (
+        <div className="space-y-3 py-2" aria-label="正在加载片单">
+          <div className="grid grid-cols-3 gap-2">{[1, 2, 3].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl bg-muted" />)}</div>
+          {[1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-muted" />)}
+        </div>
+      ) : loadError ? (
+        <div className="grid place-items-center py-14 text-center" role="alert">
+          <p className="text-sm text-secondary-foreground">{loadError}</p>
+          <button type="button" onClick={() => void loadData()} className="mt-4 inline-flex h-9 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:bg-muted">
+            <RotateCcw className="size-4" aria-hidden />重新加载
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-7">
+          <section aria-labelledby="default-lists-title">
+            <div>
+              <h3 id="default-lists-title" className="text-sm font-semibold text-foreground">观看状态</h3>
+              <p className="mt-1 text-xs text-muted-foreground">状态按想看 → 在看 → 看过流转，也可以点击当前状态移除。</p>
             </div>
-          ) : (
-            <>
-              {/* Default lists - one row, 3 columns */}
-              <div className="grid grid-cols-3 gap-2 mb-1">
-                {defaultLists.map(d => {
-                  const isIn = movieStatus[d.id];
-                  const isTogglingThis = toggling === d.id;
-                  const disabled = isDefaultDisabled(d.type) || isTogglingThis || !d.loaded;
-                  return (
-                    <button
-                      key={d.label}
-                      onClick={() => {
-                        if (disabled) return;
-                        if (isIn) { handleToggle(d.id); return; }
-                        setShowNoteInput(d.id);
-                      }}
-                      disabled={disabled}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-colors"
-                      style={{
-                        backgroundColor: isIn ? 'var(--accent-light, rgba(59,130,246,0.1))' : 'var(--bg-card)',
-                        borderColor: isIn ? 'var(--accent)' : 'var(--border-color)',
-                        opacity: disabled ? 0.4 : 1,
-                        cursor: disabled ? 'not-allowed' : 'pointer',
-                      }}
-                    >
-                      <span className="text-xl">{d.icon}</span>
-                      <span className={`text-xs font-medium ${isIn ? 'text-accent' : 'text-foreground'}`}>{d.label}</span>
-                      {d.loaded && <span className="text-[10px] text-muted-foreground" >{d.itemCount}部</span>}
-                      {isTogglingThis && <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin bg-accent"  />}
-                      {isIn && !isTogglingThis && (
-                        <svg className="w-4 h-4 bg-accent"  viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
-                      )}
-                    </button>
-                  );
-                })}
+            <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="默认片单">
+              {defaultLists.map(({ type, label, Icon, list }) => {
+                const isIn = Boolean(list && movieStatus[list.id]);
+                const busy = Boolean(list && toggling === list.id);
+                const disabled = !list || isDefaultDisabled(type) || busy;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => {
+                      if (!list || disabled) return;
+                      if (isIn) void handleToggle(list);
+                      else { setShowNoteInput(list.id); setAddNote(''); }
+                    }}
+                    disabled={disabled}
+                    aria-pressed={isIn}
+                    className={`relative flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 text-center transition-colors ${isIn ? 'border-accent bg-accent-light text-accent' : 'border-border bg-card text-secondary-foreground hover:border-accent/50 hover:text-foreground'} disabled:cursor-not-allowed disabled:opacity-45`}
+                  >
+                    {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Icon className="size-5" aria-hidden />}
+                    <span className="text-sm font-semibold">{label}</span>
+                    <span className="text-[11px] text-muted-foreground">{list ? `${list.itemCount} 部` : '不可用'}</span>
+                    {isIn && <Check className="absolute right-2 top-2 size-3.5" aria-hidden />}
+                  </button>
+                );
+              })}
+            </div>
+            {showNoteInput && defaultLists.some(({ list }) => list?.id === showNoteInput) && noteComposer(defaultLists.find(({ list }) => list?.id === showNoteInput)!.list!)}
+          </section>
+
+          <section aria-labelledby="custom-lists-title">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <h3 id="custom-lists-title" className="text-sm font-semibold text-foreground">自定义片单</h3>
+                <p className="mt-1 text-xs text-muted-foreground">按主题整理内容，可同时加入多个自定义片单。</p>
               </div>
-              {/* Note input for default lists */}
-              {showNoteInput && defaultLists.find(d => d.id === showNoteInput) && (
-                <div className="mb-3 px-1">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={addNote}
-                      onChange={(e) => setAddNote(e.target.value)}
-                      placeholder="添加备注（可选）"
-                      maxLength={200}
-                      className="flex-1 h-8 px-3 rounded-lg text-xs border outline-none"
-
-                      onKeyDown={(e) => { if (e.key === 'Enter') { handleToggle(showNoteInput, addNote); setShowNoteInput(null); setAddNote(''); } if (e.key === 'Escape') { setShowNoteInput(null); setAddNote(''); } }}
-                      autoFocus
-                    />
-                    <button onClick={() => { handleToggle(showNoteInput, addNote); setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white bg-accent" >添加</button>
-                    <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white text-destructive" >取消</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Divider */}
-              {customLists.length > 0 && (
-                <div className="flex items-center gap-2 my-3">
-                  <div className="flex-1 h-px border-border"  />
-                  <span className="text-xs text-muted-foreground" >自定义片单</span>
-                  <div className="flex-1 h-px border-border"  />
-                </div>
-              )}
-
-              {/* Custom lists - one per row, with description */}
-              {loading && customLists.length === 0 ? (
-                <div className="space-y-2 bg-card">{[1, 2].map((i) => <div key={i} className="h-14 rounded-lg animate-pulse"  />)}</div>
-              ) : (
-                customLists.map((list) => {
-                  const isIn = movieStatus[list.id];
-                  const isTogglingThis = toggling === list.id;
-                  return (
-                    <div key={list.id}>
-                      <button
-                        onClick={() => {
-                          if (showNoteInput === list.id) {
-                            handleToggle(list.id, addNote);
-                          } else {
-                            setShowNoteInput(list.id);
-                          }
-                        }}
-                        disabled={isTogglingThis}
-                        className="w-full flex items-center justify-between p-3 rounded-lg mb-1.5 transition-colors text-left"
-                        style={{
-                          backgroundColor: isIn ? 'var(--accent-light)' : 'var(--bg-card)',
-                          border: `1px solid ${isIn ? 'var(--accent)' : 'var(--border-color)'}`,
-                          opacity: isTogglingThis ? 0.6 : 1,
-                        }}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate text-foreground" >{list.name}</p>
-                          {list.description && <p className="text-xs truncate mt-0.5 text-muted-foreground" >{list.description}</p>}
-                          <p className="text-xs text-muted-foreground" >{list.itemCount} 部</p>
-                        </div>
-                        {isTogglingThis ? (
-                          <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0 bg-accent"  />
-                        ) : isIn ? (
-                          <svg className="w-5 h-5 shrink-0 bg-accent"  viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
-                        ) : (
-                          <svg className="w-5 h-5 shrink-0 text-muted-foreground"  viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                        )}
-                      </button>
-                      {/* Note input - shown when clicking custom list */}
-                      {showNoteInput === list.id && !isIn && (
-                        <div className="px-3 pb-2">
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={addNote}
-                              onChange={(e) => setAddNote(e.target.value)}
-                              placeholder="添加备注（可选）"
-                              maxLength={200}
-                              className="flex-1 h-8 px-3 rounded-lg text-xs border outline-none"
-
-                              onKeyDown={(e) => { if (e.key === 'Enter') handleToggle(list.id, addNote); if (e.key === 'Escape') setShowNoteInput(null); }}
-                              autoFocus
-                            />
-                            <button onClick={() => handleToggle(list.id, addNote)} className="h-8 px-3 rounded-lg text-xs font-medium text-white bg-accent" >添加</button>
-                            <button onClick={() => { setShowNoteInput(null); setAddNote(''); }} className="h-8 px-3 rounded-lg text-xs font-medium text-white text-destructive" >取消</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-
-              {/* Create new list */}
-              {showCreate ? (
-                <div className="mt-2 p-3 rounded-lg border border-border bg-card" >
-                  <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="新片单名称" autoFocus
-                    className="w-full h-9 px-3 rounded-lg text-sm border outline-none mb-2"
-
-                    onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); if (e.key === 'Escape') setShowCreate(false); }} />
-                  <div className="flex gap-2 justify-end">
-                    <button onClick={() => setShowCreate(false)} className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-secondary-foreground" >取消</button>
-                    <button onClick={handleCreate} disabled={creating || !newName.trim()} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50 bg-accent" >{creating ? '...' : '创建并收藏'}</button>
-                  </div>
-                </div>
-              ) : (
-                <button onClick={() => setShowCreate(true)} className="w-full flex items-center gap-2 p-3 rounded-lg mt-1 transition-colors bg-accent" >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                  <span className="text-sm font-medium">新建片单</span>
+              {!showCreate && (
+                <button type="button" onClick={() => setShowCreate(true)} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg text-xs font-semibold text-accent hover:text-accent-hover">
+                  <Plus className="size-3.5" aria-hidden />新建片单
                 </button>
               )}
-            </>
-          )}
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {customLists.length === 0 && !showCreate && (
+                <div className="rounded-2xl border border-dashed border-border px-4 py-7 text-center text-sm text-muted-foreground">还没有自定义片单</div>
+              )}
+              {customLists.map((list) => {
+                const isIn = Boolean(movieStatus[list.id]);
+                const busy = toggling === list.id;
+                return (
+                  <div key={list.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (busy) return;
+                        if (isIn) void handleToggle(list);
+                        else { setShowNoteInput(list.id); setAddNote(''); }
+                      }}
+                      disabled={busy}
+                      aria-pressed={isIn}
+                      className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${isIn ? 'border-accent bg-accent-light' : 'border-border bg-card hover:border-accent/40'} disabled:opacity-60`}
+                    >
+                      <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${isIn ? 'bg-accent text-white' : 'bg-muted text-muted-foreground'}`}>
+                        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : isIn ? <Check className="size-4" aria-hidden /> : <ListPlus className="size-4" aria-hidden />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">{list.name}</span>
+                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{list.description || `${list.itemCount} 部内容`}</span>
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">{isIn ? '已加入' : '加入'}</span>
+                    </button>
+                    {showNoteInput === list.id && !isIn && noteComposer(list)}
+                  </div>
+                );
+              })}
+            </div>
+
+            {showCreate && (
+              <form className="mt-3 rounded-2xl border border-border bg-card p-4" onSubmit={(event) => { event.preventDefault(); void handleCreate(); }}>
+                <label htmlFor="new-list-name" className="text-xs font-medium text-secondary-foreground">片单名称</label>
+                <input
+                  id="new-list-name"
+                  value={newName}
+                  onChange={(event) => setNewName(event.target.value)}
+                  placeholder="例如：周末家庭影院"
+                  maxLength={50}
+                  className="mt-2 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  autoFocus
+                />
+                <div className="mt-3 flex justify-end gap-2">
+                  <button type="button" onClick={() => { setShowCreate(false); setNewName(''); }} disabled={creating} className="h-9 rounded-xl border border-border px-3 text-xs font-medium text-secondary-foreground hover:bg-muted disabled:opacity-50">取消</button>
+                  <button type="submit" disabled={creating || !newName.trim()} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-accent px-3 text-xs font-semibold text-white hover:bg-accent-hover disabled:opacity-50">
+                    {creating && <Loader2 className="size-3.5 animate-spin" aria-hidden />}创建并加入
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+
+          {actionError && <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">{actionError}</p>}
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

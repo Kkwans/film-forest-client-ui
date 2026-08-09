@@ -1,4 +1,4 @@
-import axios, { type InternalAxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
+import axios, { type InternalAxiosRequestConfig, type AxiosRequestConfig, type AxiosResponse, type AxiosError } from 'axios';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -30,6 +30,8 @@ authClient.interceptors.response.use(
       localStorage.removeItem('ff_token');
       localStorage.removeItem('ff_user');
       if (!window.location.pathname.startsWith('/login')) {
+        // Axios interceptors run outside React, so a hard navigation is required to leave a stale protected tree.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = `/login?from=${encodeURIComponent(window.location.pathname)}`;
       }
     }
@@ -145,8 +147,8 @@ export const posterApi = {
 };
 
 export const listApi = {
-  getAll: () => authClient.get<Result<unknown>>('/api/user/lists'),
-  create: (data: { name: string; description?: string }) => authClient.post<Result<unknown>>('/api/user/lists', data),
+  getAll: (config?: AxiosRequestConfig) => authClient.get<Result<UserList[]>>('/api/user/lists', config),
+  create: (data: { name: string; description?: string }) => authClient.post<Result<UserList>>('/api/user/lists', data),
   update: (id: number, data: { name?: string; description?: string }) => authClient.put<Result<unknown>>(`/api/user/lists/${id}`, data),
   remove: (id: number) => authClient.delete<Result<unknown>>(`/api/user/lists/${id}`),
   getItems: (id: number, params?: { page?: number; size?: number; sort?: string; sortDir?: string }) =>
@@ -167,6 +169,7 @@ export interface ContentStatusQuery {
 }
 
 export interface StatusListEntry {
+  listId: number;
   added: boolean;
   type: string;
   listName?: string;
@@ -179,8 +182,11 @@ export interface ContentStatusResult extends ContentStatusQuery {
 }
 
 export const statusApi = {
-  get: (movieId: number, contentType: string) =>
-    authClient.get<Result<unknown>>('/api/user/movie-status', { params: { movieId, contentType } }),
+  get: (movieId: number, contentType: string, config?: AxiosRequestConfig) =>
+    authClient.get<Result<StatusListEntry[]>>('/api/user/movie-status', {
+      ...config,
+      params: { ...config?.params, movieId, contentType },
+    }),
   batch: (queries: ContentStatusQuery[]) =>
     authClient.post<Result<ContentStatusResult[]>>('/api/user/movie-status-batch', queries),
 };
