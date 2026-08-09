@@ -7,6 +7,7 @@ export interface ContentListQuery {
   yearFrom?: number;
   yearTo?: number;
   tag?: number;
+  hasResource?: boolean;
   sort: string;
   sortDir: 'asc' | 'desc';
 }
@@ -26,6 +27,8 @@ export function parseContentListQuery(params: RawSearchParams): ContentListQuery
   const year = positiveInt(first(params.year), 0, 9999) || undefined;
   const yearFrom = positiveInt(first(params.yearFrom), 0, 9999) || undefined;
   const yearTo = positiveInt(first(params.yearTo), 0, 9999) || undefined;
+  const resourceFilter = first(params.hasResource);
+  const hasResource = resourceFilter === 'true' ? true : resourceFilter === 'false' ? false : undefined;
   return {
     page: positiveInt(first(params.page), 1, 1_000_000),
     size: positiveInt(first(params.size), 24, 100),
@@ -35,6 +38,7 @@ export function parseContentListQuery(params: RawSearchParams): ContentListQuery
     yearFrom: year ? undefined : yearFrom,
     yearTo: year ? undefined : yearTo,
     tag: positiveInt(first(params.tag), 0, Number.MAX_SAFE_INTEGER) || undefined,
+    hasResource,
     sort: first(params.sort) || 'latest',
     sortDir: first(params.sortDir) === 'asc' ? 'asc' : 'desc',
   };
@@ -50,6 +54,7 @@ export function toContentListSearchParams(query: ContentListQuery): URLSearchPar
   if (query.yearFrom) params.set('yearFrom', String(query.yearFrom));
   if (query.yearTo) params.set('yearTo', String(query.yearTo));
   if (query.tag) params.set('tag', String(query.tag));
+  if (query.hasResource !== undefined) params.set('hasResource', String(query.hasResource));
   params.set('sort', query.sort);
   params.set('sortDir', query.sortDir);
   return params;

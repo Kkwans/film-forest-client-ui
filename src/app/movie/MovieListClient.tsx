@@ -53,7 +53,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
     [searchParams],
   );
 
-  const updateUrl = (updates: Record<string, string | number | null>, resetPage = true) => {
+  const updateUrl = (updates: Record<string, string | number | boolean | null>, resetPage = true) => {
     const next = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
       if (value === null || value === '') next.delete(key);
@@ -73,7 +73,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
   };
 
   const activeFilterCount = [query.genre, query.region, query.year, query.yearFrom, query.yearTo, query.tag]
-    .filter(Boolean).length;
+    .filter(Boolean).length + (query.hasResource === undefined ? 0 : 1);
   const [filtersOpen, setFiltersOpen] = useState(activeFilterCount > 0);
   const movieIds = useMemo(() => initialItems.map((item) => item.id), [initialItems]);
   const statusMap = useMovieStatuses(movieIds, contentType);
@@ -146,6 +146,15 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
               <input aria-label="结束年份" name="yearTo" type="number" min="1900" max="9999" defaultValue={query.yearTo} placeholder="结束年" className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground" />
               <button type="submit" className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-secondary-foreground">应用</button>
             </form>
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">资源状态</span>
+          <div className="filter-scroll-row">
+            <FilterChip label="全部内容" active={query.hasResource === undefined} onClick={() => updateUrl({ hasResource: null })} />
+            <FilterChip label="有可用资源" active={query.hasResource === true} onClick={() => updateUrl({ hasResource: true })} />
+            <FilterChip label="暂无可用资源" active={query.hasResource === false} onClick={() => updateUrl({ hasResource: false })} />
           </div>
         </div>
       </section>
