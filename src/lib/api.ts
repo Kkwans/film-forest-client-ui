@@ -213,8 +213,11 @@ export interface RelatedItem {
 
 export const relatedApi = {
   /** 获取相关推荐（同类型 + 同标签） */
-  get: (type: string, id: number, limit?: number) =>
-    client.get<Result<RelatedItem[]>>(`/api/${type}/${id}/related`, { params: { limit } }),
+  get: (type: string, id: number, limit?: number, config?: AxiosRequestConfig) =>
+    client.get<Result<RelatedItem[]>>(`/api/${type}/${id}/related`, {
+      ...config,
+      params: { limit },
+    }),
 };
 
 // ---- Tags ----
