@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { resourceApi } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
 import { useDetailStatus } from '@/hooks/useDetailStatus';
-import VideoPlayer, { type PlayerSource } from '@/components/VideoPlayer';
+import VideoPlayer from '@/components/VideoPlayer';
 import {
   DetailBreadcrumb,
   DetailCover,
@@ -12,7 +12,6 @@ import {
   RatingBadges,
   InfoRow,
   SynopsisSection,
-  DetailTabBar,
   EpisodeGrid,
   OnlineResourceGrid,
   ResourceTabs,
@@ -143,14 +142,6 @@ export default function DetailPageLayout({
       resourceApi.magnet(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: MagnetResourceItem[] } | undefined)?.data; setMagnetResources(Array.isArray(d) ? d : []); return d; }),
       resourceApi.cloud(contentType, item.id, ep).then((res) => { const d = (res.data as { data?: CloudResourceItem[] } | undefined)?.data; setCloudResources(Array.isArray(d) ? d : []); return d; }),
     ])
-      .then(([online]) => {
-        // 自动选择第一个播放源
-        const list = Array.isArray(online) ? online : [];
-        if (list.length > 0 && list[0].sourceUrl) {
-          setPlayerSrc(list[0].sourceUrl);
-          setPlayerSourceId(list[0].id);
-        }
-      })
       .catch(e => {
         console.warn('加载在线资源失败', e);
         setOnlineResources([]);

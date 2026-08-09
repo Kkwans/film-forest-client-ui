@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import LazyImage from '@/components/ui/lazy-image';
+import { getPlaybackSourceMode } from '@/lib/playbackSource';
 
 /**
  * 详情页通用组件库
@@ -332,6 +333,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                   {items.map(r => {
                     const isActive = activeSourceId === r.id;
+                    const opensExternally = getPlaybackSourceMode(r.sourceUrl) === 'external-page';
                     const label = items.length > 1 ? `线路${items.indexOf(r) + 1}` : platformName;
                     return onPlay ? (
                       <button
@@ -347,10 +349,12 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                           {isActive ? '▶ ' : ''}{label}
                         </span>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded text-white ${isActive ? 'animate-pulse' : ''}`}
+                          className={`text-xs px-2 py-0.5 rounded text-white ${isActive && !opensExternally ? 'animate-pulse' : ''}`}
                           style={{ backgroundColor: isActive ? 'var(--accent)' : style.color }}
                         >
-                          {isActive ? '播放中' : '播放'}
+                          {isActive
+                            ? (opensExternally ? '已选择' : '播放中')
+                            : (opensExternally ? '外部打开' : '播放')}
                         </span>
                       </button>
                     ) : (

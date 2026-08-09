@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { usePlayHistoryStore } from '@/stores/playHistoryStore';
+import { getPlaybackSourceMode } from '@/lib/playbackSource';
 
 /** 播放源 */
 export interface PlayerSource {
@@ -65,10 +66,11 @@ export default function VideoPlayer({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [iframeError, setIframeError] = useState(false);
   const addOrUpdate = usePlayHistoryStore((s) => s.addOrUpdate);
+  const sourceMode = getPlaybackSourceMode(src);
 
   // 记录播放历史
   useEffect(() => {
-    if (src) {
+    if (src && sourceMode === 'embed') {
       addOrUpdate({
         contentId,
         contentType,
@@ -82,11 +84,11 @@ export default function VideoPlayer({
         sourceName: sources.find((s) => s.sourceUrl === src)?.sourceName,
       });
     }
-  }, [src, contentId, contentType, title, cover, episode, episodeLabel, year, rating, sources, addOrUpdate]);
+  }, [src, sourceMode, contentId, contentType, title, cover, episode, episodeLabel, year, rating, sources, addOrUpdate]);
 
   // iframe 加载状态
   useEffect(() => {
-    if (src) {
+    if (src && sourceMode === 'embed') {
       setIframeLoaded(false);
       setIframeError(false);
       const timer = setTimeout(() => {
@@ -94,7 +96,7 @@ export default function VideoPlayer({
       }, 10000);
       return () => clearTimeout(timer);
     }
-  }, [src]);
+  }, [src, sourceMode]);
 
   // 全屏切换
   const toggleFullscreen = useCallback(() => {
@@ -127,7 +129,7 @@ export default function VideoPlayer({
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'f' || e.key === 'F') {
+      if ((e.key === 'f' || e.key === 'F') && sourceMode === 'embed') {
         e.preventDefault();
         toggleFullscreen();
       }
@@ -146,7 +148,7 @@ export default function VideoPlayer({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [toggleFullscreen, episode, totalEpisodes, onEpisodeChange]);
+  }, [toggleFullscreen, sourceMode, episode, totalEpisodes, onEpisodeChange]);
 
   const displayTitle = episode ? `第${episode}${episodeLabel}` : title;
 
@@ -158,9 +160,46 @@ export default function VideoPlayer({
         className="relative w-full bg-black rounded-xl overflow-hidden shadow-xl group"
         style={{ aspectRatio: '16/9' }}
       >
-        {/* 播放源 iframe */}
+        {/* 播放源 */}
         {src ? (
-          <>
+          sourceMode === 'external-page' ? (
+            <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+              {cover && (
+                <div
+                  className="absolute inset-0 bg-cover bg-center opacity-20 blur-sm"
+                  style={{ backgroundImage: `url(${cover})` }}
+                />
+              )}
+              <div className="relative flex max-w-md flex-col items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M15 3h6v6" />
+                    <path d="M10 14 21 3" />
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  </svg>
+                </div>
+                <h3 className="text-base font-semibold text-white">该播放源需在来源网站打开</h3>
+                <p className="text-sm leading-6 text-white/65">来源页面禁止站内嵌入，点击后将在新标签页打开。</p>
+                <a
+                  href={src}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                >
+                  前往来源网站观看
+                  <span aria-hidden="true">↗</span>
+                </a>
+              </div>
+            </div>
+          ) : sourceMode === 'invalid' ? (
+            <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
+              <div>
+                <p className="text-base font-semibold text-white">播放源地址无效</p>
+                <p className="mt-2 text-sm text-white/60">请选择其他播放源。</p>
+              </div>
+            </div>
+          ) : (
+            <>
             {/* 加载状态 */}
             {(!iframeLoaded || loading) && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-10">
@@ -335,7 +374,8 @@ export default function VideoPlayer({
                 </div>
               </div>
             )}
-          </>
+            </>
+          )
         ) : (
           /* 无播放源 */
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -348,7 +388,11 @@ export default function VideoPlayer({
             <div className="relative flex flex-col items-center gap-3">
               <p className="text-4xl">🎬</p>
               <p className="text-sm text-white/70">
-                {loading ? '正在加载播放资源...' : '暂无可用播放源'}
+                {loading
+                  ? '正在加载播放资源...'
+                  : sources.length > 0
+                    ? '请从下方选择播放源'
+                    : '暂无可用播放源'}
               </p>
               {loading && (
                 <div className="w-8 h-8 border-2 border-white/30 border-t-accent rounded-full animate-spin" />
@@ -359,7 +403,7 @@ export default function VideoPlayer({
       </div>
 
       {/* 快捷键提示 */}
-      {src && (
+      {src && sourceMode === 'embed' && (
         <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
           <span><kbd className="px-1.5 py-0.5 rounded border text-[10px] font-mono">F</kbd> 全屏</span>
           {totalEpisodes && totalEpisodes > 1 && (
