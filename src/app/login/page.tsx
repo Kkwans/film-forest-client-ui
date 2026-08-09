@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   BookmarkCheck,
@@ -38,6 +38,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnPath = normalizeReturnPath(searchParams.get('from'));
+  const registered = searchParams.get('registered') === '1';
+  const usernameHint = searchParams.get('username')?.trim() || '';
   const login = useUserStore((state) => state.login);
   const { showToast } = useToast();
 
@@ -46,6 +48,10 @@ function LoginForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    if (registered && usernameHint) setUsername(usernameHint);
+  }, [registered, usernameHint]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,9 +63,11 @@ function LoginForm() {
 
     setLoading(true);
     try {
-      await login(username.trim(), password);
+      const user = await login(username.trim(), password);
       showToast('登录成功，欢迎回来', 'success');
-      router.replace(returnPath);
+      router.replace(user.mustChangePassword
+        ? `/change-password?from=${encodeURIComponent(returnPath)}`
+        : returnPath);
     } catch (loginError: unknown) {
       setError(loginError instanceof Error && loginError.message
         ? loginError.message
@@ -138,6 +146,13 @@ function LoginForm() {
             >
               <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>{error}</span>
+            </div>
+          )}
+
+          {registered && !error && (
+            <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-3 text-sm leading-5 text-emerald-700 dark:text-emerald-300" role="status">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span>账号已创建，请使用新账号登录。</span>
             </div>
           )}
 

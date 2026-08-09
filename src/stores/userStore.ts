@@ -8,7 +8,7 @@ interface UserState {
   isAuthenticated: boolean;
   isLoading: boolean;
 
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<User>;
   logout: () => void;
   fetchMe: () => Promise<void>;
   setUser: (user: User | null) => void;
@@ -33,8 +33,10 @@ export const useUserStore = create<UserState>()(
         if (!token) {
           throw new Error('登录失败，未获取到token');
         }
+        if (!user) throw new Error('登录失败，未获取到用户信息');
         localStorage.setItem('ff_token', token);
-        set({ user: user ?? null, token, isAuthenticated: true });
+        set({ user, token, isAuthenticated: true });
+        return user;
       },
 
       logout: () => {
@@ -61,6 +63,12 @@ export const useUserStore = create<UserState>()(
             user.avatar = user.avatarUrl;
           }
           set({ user: user ?? null, isAuthenticated: true, isLoading: false });
+          if (user?.mustChangePassword
+              && !window.location.pathname.startsWith('/change-password')) {
+            // Zustand hydration runs outside a component and cannot access Next's router.
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+            window.location.assign(`/change-password?from=${encodeURIComponent(window.location.pathname)}`);
+          }
         } catch {
           localStorage.removeItem('ff_token');
           set({ user: null, token: null, isAuthenticated: false, isLoading: false });

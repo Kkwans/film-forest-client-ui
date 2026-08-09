@@ -29,6 +29,13 @@ authClient.interceptors.response.use(
       if (payload.code === 401 && !res.config.url?.includes('/api/auth/login')) {
         clearExpiredSession();
       }
+      if (payload.code === 428 && typeof window !== 'undefined'
+          && !res.config.url?.includes('/api/auth/change-password')
+          && !window.location.pathname.startsWith('/change-password')) {
+        // Axios interceptors run outside React, so no router instance is available here.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign(`/change-password?from=${encodeURIComponent(window.location.pathname)}`);
+      }
       return Promise.reject(new AxiosError(
         payload.message || '请求失败',
         'ERR_BAD_RESPONSE',
@@ -69,6 +76,8 @@ export interface User {
   avatar?: string;
   avatarUrl?: string;
   status?: number;
+  role?: 'USER' | 'ADMIN';
+  mustChangePassword?: boolean;
   createdAt?: string;
 }
 
@@ -105,6 +114,12 @@ export const userApi = {
   login: (data: { username: string; password: string }) =>
     authClient.post<Result<unknown>>('/api/auth/login', data),
   me: () => authClient.get<Result<unknown>>('/api/auth/me'),
+  validateInvitation: (token: string) =>
+    authClient.post<Result<{ valid: boolean; expiresAt: string | null }>>('/api/auth/invitations/validate', { token }),
+  registerByInvitation: (data: { token: string; username: string; password: string; email?: string }) =>
+    authClient.post<Result<{ username: string }>>('/api/auth/register-by-invitation', data),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    authClient.post<Result<unknown>>('/api/auth/change-password', data),
 };
 
 export interface PosterSetting {
