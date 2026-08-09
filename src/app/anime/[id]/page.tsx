@@ -1,7 +1,7 @@
 import ContentDetailPage from '@/components/ContentDetailPage';
 import { generateContentMetadata } from '@/lib/detailMetadata';
 
-export const revalidate = 3600;
+export const dynamic = 'force-dynamic';
 
 export function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   return generateContentMetadata('anime', params);

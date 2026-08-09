@@ -3,7 +3,7 @@ import { getListMetadata } from '@/lib/metadata';
 import { parseGenre, parseRegion } from '@/lib/utils';
 
 export const metadata = getListMetadata('home');
-export const revalidate = 600;
+export const dynamic = 'force-dynamic';
 
 interface RecommendItem {
   id: number;
@@ -42,7 +42,7 @@ function mapGroup(group: Record<string, RecommendItem[]> | undefined): Record<st
 
 async function fetchHome(): Promise<{ hot: Record<string, HomeContentItem[]>; latest: Record<string, HomeContentItem[]>; error: boolean }> {
   try {
-    const response = await fetch(`${BASE_URL}/api/recommend?topN=12`, { next: { revalidate: 600 } });
+    const response = await fetch(`${BASE_URL}/api/recommend?topN=12`, { cache: 'no-store' });
     if (!response.ok) throw new Error(`首页聚合请求失败: ${response.status}`);
     const payload = await response.json() as { data?: RecommendData };
     return { hot: mapGroup(payload.data?.hot), latest: mapGroup(payload.data?.latest), error: false };
