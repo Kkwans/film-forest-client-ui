@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { CirclePlay, Clock3, Copy, ExternalLink, Inbox } from 'lucide-react';
+import { ChevronDown, ChevronRight, CirclePlay, Clapperboard, Clock3, Copy, ExternalLink, Inbox, Star } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
 import { getPlaybackSourceMode } from '@/lib/playbackSource';
 
@@ -22,14 +22,14 @@ interface BreadcrumbItem {
 
 export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
   return (
-    <nav className="flex items-center gap-2 text-sm text-muted-foreground animate-fade-in-up stagger-1">
+    <nav className="flex min-w-0 items-center gap-2 overflow-hidden text-sm text-muted-foreground" aria-label="面包屑">
       {items.map((item, i) => (
         <span key={i} className="flex items-center gap-2">
-          {i > 0 && <span className="text-border">›</span>}
+          {i > 0 && <ChevronRight aria-hidden className="size-3.5 shrink-0 text-border" />}
           {item.href ? (
             <Link className="text-secondary-foreground hover:text-accent transition-colors" href={item.href}>{item.label}</Link>
           ) : (
-            <span className="text-foreground font-medium">{item.label}</span>
+            <span className="truncate font-medium text-foreground">{item.label}</span>
           )}
         </span>
       ))}
@@ -43,18 +43,16 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
 
 export function DetailCover({ src, alt }: { src?: string; alt: string }) {
   return (
-    <div className="w-full sm:w-48 md:w-56 lg:w-64 shrink-0 mx-auto sm:mx-0 max-w-[256px] animate-fade-in-up stagger-2">
-      <div className="relative group">
+    <div className="mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56">
+      <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-muted shadow-[0_1.5rem_3rem_rgba(0,0,0,0.22)]">
         <LazyImage
           src={src || '/poster-placeholder.svg'}
           alt={alt}
-          className="rounded-xl shadow-lg"
+          className="rounded-2xl"
           placeholder="skeleton"
           fallbackSrc={'/poster-placeholder.svg'}
           lazy={false}
         />
-        {/* Decorative glow behind cover */}
-        <div className="absolute -inset-1 rounded-xl bg-accent/10 blur-sm -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       </div>
     </div>
   );
@@ -66,11 +64,11 @@ export function DetailCover({ src, alt }: { src?: string; alt: string }) {
 
 export function DetailTitle({ title, year }: { title: string; year?: number }) {
   return (
-    <h1 className="text-2xl md:text-3xl font-bold text-foreground leading-tight">
+    <h1 className="text-3xl font-black leading-[1.12] tracking-[-0.04em] text-foreground md:text-4xl lg:text-5xl">
       {title}
       {year != null && year > 0 && (
-        <span className="text-lg font-normal ml-2 text-muted-foreground">
-          ({year})
+        <span className="ml-2 text-lg font-semibold tracking-normal text-muted-foreground md:text-xl">
+          {year}
         </span>
       )}
     </h1>
@@ -88,10 +86,10 @@ interface RatingBadgesProps {
 }
 
 export function RatingBadges({ douban, imdb, rt }: RatingBadgesProps) {
-  const badges: { label: string; value: string; bg: string; color: string; icon: string }[] = [
-    douban != null ? { label: '豆瓣', value: douban.toFixed(1), bg: 'var(--badge-douban-bg)', color: 'var(--badge-douban-text)', icon: '⭐' } : null,
-    imdb != null ? { label: 'IMDB', value: imdb.toFixed(1), bg: 'var(--badge-imdb-bg)', color: 'var(--badge-imdb-text)', icon: '🎬' } : null,
-    rt != null ? { label: '烂番茄', value: `${rt}%`, bg: 'var(--badge-rt-bg)', color: 'var(--badge-rt-text)', icon: '🍅' } : null,
+  const badges: { label: string; value: string; className: string }[] = [
+    douban != null ? { label: '豆瓣', value: douban.toFixed(1), className: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : null,
+    imdb != null ? { label: 'IMDb', value: imdb.toFixed(1), className: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : null,
+    rt != null ? { label: '烂番茄', value: `${rt}%`, className: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300' } : null,
   ].filter((b): b is NonNullable<typeof b> => b !== null);
 
   if (badges.length === 0) return null;
@@ -101,11 +99,11 @@ export function RatingBadges({ douban, imdb, rt }: RatingBadgesProps) {
       {badges.map((b, i) => (
         <span
           key={i}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm"
-          style={{ backgroundColor: b.bg, color: b.color }}
+          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.className}`}
         >
-          <span className="text-xs">{b.icon}</span>
-          {b.label} {b.value}
+          <Star aria-hidden className="size-3.5 fill-current" />
+          <span className="text-xs font-medium opacity-75">{b.label}</span>
+          <strong className="tabular-nums">{b.value}</strong>
         </span>
       ))}
     </div>
@@ -122,8 +120,8 @@ export function InfoRow({ label, children, accent }: {
   accent?: boolean;
 }) {
   return (
-    <div className="flex gap-2 text-sm leading-relaxed">
-      <span className="shrink-0 font-medium text-muted-foreground border-l-2 border-accent/30 pl-2" style={{ minWidth: '3.5em' }}>
+    <div className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-3 text-sm leading-6">
+      <span className="font-medium text-muted-foreground">
         {label}
       </span>
       <div className={accent ? "text-accent font-medium" : "text-secondary-foreground"}>{children}</div>
@@ -143,26 +141,19 @@ export function SynopsisSection({ text, expanded, onToggle }: {
   if (!text) return null;
 
   return (
-    <section className="rounded-xl p-5 border animate-fade-in-up stagger-6">
-      <h2 className="text-lg font-bold mb-3 text-foreground flex items-center gap-2">
-        <span className="w-1 h-5 bg-accent rounded-full" />
-        简介
-      </h2>
-      <p className={`text-sm leading-relaxed text-secondary-foreground ${expanded ? '' : 'line-clamp-3'}`}>
+    <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Storyline</p>
+      <h2 className="mt-2 text-xl font-black tracking-tight text-foreground">剧情简介</h2>
+      <p className={`mt-4 text-sm leading-7 text-secondary-foreground ${expanded ? '' : 'line-clamp-3'}`}>
         {text}
       </p>
       {text.length > 200 && (
         <button
           onClick={onToggle}
-          className="mt-3 text-sm font-medium text-accent active:opacity-70 transition-opacity flex items-center gap-1 hover:gap-2 transition-all"
+          className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-lg text-sm font-semibold text-accent"
         >
           {expanded ? '收起' : '展开全部'}
-          <svg
-            className={`w-4 h-4 transition-transform ${expanded ? 'rotate-180' : ''}`}
-            viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+          <ChevronDown aria-hidden className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </button>
       )}
     </section>
@@ -185,16 +176,14 @@ export function DetailTabBar<T extends string>({ tabs, active, onChange }: {
   onChange: (key: T) => void;
 }) {
   return (
-    <div className="flex gap-6 border-b border-border">
+    <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-xl bg-muted/60 p-1" role="tablist">
       {tabs.map(tab => (
         <button
           key={tab.key}
           onClick={() => onChange(tab.key)}
-          className="pb-3 text-sm font-medium border-b-2 transition-colors"
-          style={{
-            color: active === tab.key ? 'var(--accent)' : 'var(--text-secondary)',
-            borderColor: active === tab.key ? 'var(--accent)' : 'transparent',
-          }}
+          role="tab"
+          aria-selected={active === tab.key}
+          className={`min-h-9 shrink-0 rounded-lg px-3 text-sm font-semibold transition-[color,background-color,box-shadow] ${active === tab.key ? 'bg-card text-accent shadow-sm' : 'text-secondary-foreground hover:text-foreground'}`}
         >
           {tab.label}{tab.count != null ? ` (${tab.count})` : ''}
         </button>
@@ -219,32 +208,24 @@ export function EpisodeGrid({ total, selected, onSelect, label = '集', gridCols
   const episodes = Array.from({ length: total }, (_, i) => i + 1);
 
   return (
-    <div className="animate-fade-in-up stagger-7">
-      <h3 className="font-bold mb-3 text-foreground flex items-center gap-2">
-        <span className="w-1 h-5 bg-accent rounded-full" />
-        全部{label} ({total}{label})
-      </h3>
+    <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
+      <h3 className="mb-4 text-lg font-black tracking-tight text-foreground">全部{label} <span className="ml-1 text-sm font-medium text-muted-foreground">{total}{label}</span></h3>
       <div className={`grid ${gridCols} gap-2`}>
         {episodes.map(ep => (
           <button
             key={ep}
             onClick={() => onSelect(selected === ep ? null : ep)}
-            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all active:scale-95 ${
+            className={`min-h-10 rounded-xl border px-3 py-2 text-sm font-semibold transition-[color,background-color,border-color] ${
               selected === ep
-                ? 'shadow-md'
-                : 'hover:border-accent/50 hover:text-accent'
+                ? 'border-accent bg-accent text-white'
+                : 'border-border bg-background text-foreground hover:border-accent/50 hover:text-accent'
             }`}
-            style={{
-              backgroundColor: selected === ep ? 'var(--accent)' : 'var(--bg-card)',
-              color: selected === ep ? '#fff' : 'var(--text-primary)',
-              border: selected === ep ? 'none' : '1px solid var(--border-color)',
-            }}
           >
             {ep}
           </button>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -256,6 +237,8 @@ interface OnlineResource {
   id: number;
   sourceName?: string;
   sourceUrl?: string;
+  sourcePageUrl?: string;
+  playbackType?: string;
 }
 
 /** 平台名称到品牌颜色的映射 */
@@ -302,11 +285,8 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
   }, [resources]);
 
   return (
-    <section className="rounded-xl p-5 border animate-fade-in-up stagger-8">
-      <h3 className="font-bold mb-4 text-foreground flex items-center gap-2">
-        <span className="w-1 h-5 bg-accent rounded-full" />
-        {title}
-      </h3>
+    <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Streaming</p><h3 className="mt-2 text-xl font-black tracking-tight text-foreground">{title}</h3></div><p className="text-xs text-muted-foreground">选择线路后在上方播放器观看</p></div>
       {loading ? (
         <div className="space-y-3">
           {[1, 2].map(i => (
@@ -315,7 +295,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
         </div>
       ) : resources.length === 0 ? (
         <div className="text-center py-10">
-          <p className="text-3xl mb-2">📺</p>
+          <Clapperboard aria-hidden className="mx-auto mb-3 size-9 text-muted-foreground/70" />
           <p className="text-sm text-muted-foreground">
             {selectedEpisode ? `该${episodeLabel}暂无资源` : emptyText}
           </p>
@@ -334,13 +314,13 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                   {items.map(r => {
                     const isActive = activeSourceId === r.id;
-                    const opensExternally = getPlaybackSourceMode(r.sourceUrl) === 'external-page';
+                    const opensExternally = getPlaybackSourceMode(r.sourceUrl, r.playbackType) === 'external-page';
                     const label = items.length > 1 ? `线路${items.indexOf(r) + 1}` : platformName;
                     return onPlay ? (
                       <button
                         key={r.id}
                         onClick={() => onPlay(r)}
-                        className={`flex items-center justify-between px-4 py-2.5 rounded-lg border transition-all active:scale-[0.98] ${
+                        className={`flex min-h-11 items-center justify-between rounded-xl border px-4 py-2.5 transition-[color,background-color,border-color] ${
                           isActive
                             ? 'border-accent bg-accent/10 shadow-sm'
                             : 'hover:border-accent/40 hover:shadow-sm'
@@ -350,7 +330,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                           {isActive ? '▶ ' : ''}{label}
                         </span>
                         <span
-                          className={`text-xs px-2 py-0.5 rounded text-white ${isActive && !opensExternally ? 'animate-pulse' : ''}`}
+                          className="rounded-md px-2 py-1 text-xs font-semibold text-white"
                           style={{ backgroundColor: isActive ? 'var(--accent)' : style.color }}
                         >
                           {isActive
@@ -480,7 +460,7 @@ export function ResourceTabs({ tabs, activeTab, onTabChange, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-3xl border border-border bg-card p-4 animate-fade-in-up stagger-9 sm:p-6">
+    <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
       <div className="mb-5">
         <h2 className="text-lg font-bold text-foreground">下载资源</h2>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">按画质与字幕版本精确筛选；网盘资源可直接打开或复制链接。</p>
@@ -533,11 +513,11 @@ export function DetailNotFound({ message = '内容不存在', backHref = '/', ba
 }) {
   return (
     <div className="text-center py-20">
-      <p className="text-5xl mb-4">🎬</p>
+      <Clapperboard aria-hidden className="mx-auto mb-4 size-12 text-muted-foreground/70" />
       <p className="text-lg font-medium text-foreground mb-2">{message}</p>
       <p className="text-sm text-muted-foreground mb-6">抱歉，您查找的内容暂时不可用</p>
       <Link href={backHref} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-accent hover:bg-accent-hover transition-colors shadow-sm">
-        ← {backLabel}
+        {backLabel}<ChevronRight aria-hidden className="size-4" />
       </Link>
     </div>
   );

@@ -249,7 +249,7 @@ export default function VideoPlayer({
   const displayTitle = episode ? `第${episode}${episodeLabel}` : title;
 
   return (
-    <div className="w-full animate-fade-in-up stagger-5">
+    <div className="w-full">
       {/* 播放器容器 */}
       <div
         ref={containerRef}
@@ -257,7 +257,7 @@ export default function VideoPlayer({
         onKeyDown={handlePlayerKeyDown}
         role="region"
         aria-label={`${displayTitle} 播放器`}
-        className="relative w-full bg-black rounded-xl overflow-hidden shadow-xl group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="group relative w-full overflow-hidden rounded-3xl border border-white/10 bg-black shadow-[0_1.25rem_3rem_rgba(0,0,0,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         style={{ aspectRatio: '16/9' }}
       >
         {/* 播放源 */}
@@ -381,6 +381,7 @@ export default function VideoPlayer({
               </div>
             )}
 
+            {sourceMode === 'embed' && (<>
             {/* 顶部信息栏 */}
             <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-black/70 to-transparent opacity-100 transition-opacity z-10 pointer-events-none sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
               <div className="flex items-center justify-between">
@@ -473,7 +474,7 @@ export default function VideoPlayer({
 
             {/* 选集面板 */}
             {showEpisodePanel && totalEpisodes && totalEpisodes > 0 && (
-              <div id={`player-episodes-${contentType}-${contentId}`} className="absolute bottom-14 left-3 right-3 max-h-[55%] bg-black/90 backdrop-blur-sm rounded-xl p-3 overflow-y-auto z-20 animate-fade-in-up">
+              <div id={`player-episodes-${contentType}-${contentId}`} className="absolute bottom-14 left-3 right-3 z-20 max-h-[55%] overflow-y-auto rounded-xl bg-black/90 p-3 backdrop-blur-sm">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-semibold text-white">选集 ({totalEpisodes}{episodeLabel})</h4>
                   <button type="button" aria-label="关闭选集面板" onClick={() => setShowEpisodePanel(false)} className="rounded p-1.5 text-white/60 hover:bg-white/10 hover:text-white">
@@ -505,7 +506,7 @@ export default function VideoPlayer({
 
             {/* 换源面板 */}
             {showSourcePanel && sources.length > 0 && (
-              <div id={`player-sources-${contentType}-${contentId}`} className="absolute bottom-14 left-3 right-3 bg-black/90 backdrop-blur-sm rounded-xl p-3 z-20 animate-fade-in-up sm:left-auto sm:w-64">
+              <div id={`player-sources-${contentType}-${contentId}`} className="absolute bottom-14 left-3 right-3 z-20 rounded-xl bg-black/90 p-3 backdrop-blur-sm sm:left-auto sm:w-64">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-semibold text-white">切换播放源</h4>
                   <button type="button" aria-label="关闭换源面板" onClick={() => setShowSourcePanel(false)} className="rounded p-1.5 text-white/60 hover:bg-white/10 hover:text-white">
@@ -534,6 +535,7 @@ export default function VideoPlayer({
                 </div>
               </div>
             )}
+            </>)}
             </>
           )
         ) : (

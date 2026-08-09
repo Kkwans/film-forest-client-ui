@@ -22,7 +22,6 @@ import {
 } from '@/components/detail/DetailComponents';
 import RelatedSection from '@/components/RelatedSection';
 import TagChips from '@/components/TagChips';
-import RatingDistribution from '@/components/detail/RatingDistribution';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
 import { useToast } from '@/components/Toast';
 
@@ -284,7 +283,7 @@ export default function DetailPageLayout({
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <DetailBreadcrumb
         items={[
           { label: '首页', href: '/' },
@@ -293,10 +292,23 @@ export default function DetailPageLayout({
         ]}
       />
 
-      <div className="flex flex-col sm:flex-row gap-6 items-stretch animate-fade-in-up stagger-3">
-        <DetailCover src={resolvedCover} alt={item.title} />
-        <div className="flex-1 flex flex-col gap-3 min-w-0">
+      <section className="relative isolate overflow-hidden rounded-[2rem] border border-border bg-card p-5 shadow-[var(--shadow-sm)] sm:p-7 lg:p-8">
+        {resolvedCover && (
+          <div
+            aria-hidden
+            className="absolute -right-16 -top-24 -z-10 h-[34rem] w-[34rem] bg-cover bg-center opacity-[0.12] blur-3xl saturate-150 dark:opacity-[0.18]"
+            style={{ backgroundImage: `url(${resolvedCover})` }}
+          />
+        )}
+        <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-transparent via-transparent to-accent/[0.04]" />
+        <div className="flex flex-col items-stretch gap-7 sm:flex-row lg:gap-9">
+          <DetailCover src={resolvedCover} alt={item.title} />
+          <div className="flex min-w-0 flex-1 flex-col gap-4 py-1">
           <DetailTitle title={item.title} year={item.year} />
+
+          <RatingBadges douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
+
+          <TagChips contentType={contentType} contentId={item.id} />
 
           <DetailButtons
             contentId={item.id}
@@ -316,11 +328,7 @@ export default function DetailPageLayout({
             onCollectOpen={() => ds.setCollectOpen(true)}
           />
 
-          <RatingBadges douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
-
-          <TagChips contentType={contentType} contentId={item.id} />
-
-          <div className="mt-2 space-y-2 animate-fade-in-up stagger-4">
+          <div className="mt-1 grid gap-x-8 gap-y-2 border-t border-border/70 pt-4 lg:grid-cols-2">
             {item.status && (
               <InfoRow label="状态" accent={item.status === updatingText}>
                 {item.status}
@@ -353,19 +361,15 @@ export default function DetailPageLayout({
               </InfoRow>
             )}
           </div>
+          </div>
         </div>
-      </div>
+      </section>
 
       <SynopsisSection
         text={item.summary}
         expanded={synopsisExpanded}
         onToggle={() => setSynopsisExpanded(!synopsisExpanded)}
       />
-
-      {/* Rating distribution */}
-      <div className="animate-fade-in-up stagger-7">
-        <RatingDistribution douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
-      </div>
 
       {(
         <>
@@ -527,7 +531,7 @@ export default function DetailPageLayout({
         </>
       )}
 
-      <div className="animate-fade-in-up stagger-10">
+      <div>
         <RelatedSection contentType={contentType} contentId={item.id} />
       </div>
     </div>
