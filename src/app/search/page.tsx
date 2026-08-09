@@ -3,18 +3,22 @@
 import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { Search as SearchIcon } from 'lucide-react';
 import CustomSelect from '@/components/CustomSelect';
 import LazyImage from '@/components/ui/lazy-image';
 import Pagination from '@/components/Pagination';
 import SortDirButton from '@/components/SortDirButton';
+import TagFilter from '@/components/TagFilter';
 import {
   CONTENT_TYPE_REGISTRY,
+  type ContentType,
   getContentTypeConfig,
   getStatusConfig,
   normalizeContentType,
   parseJsonArr,
 } from '@/lib/contentConstants';
 import { contentStatusKey, useContentStatuses } from '@/hooks/useMovieStatuses';
+import { usePosterUrl } from '@/hooks/usePosterUrl';
 
 interface SearchResult {
   id: number;
@@ -56,6 +60,24 @@ function Highlight({ text, keyword }: { text: string; keyword: string }) {
   return <>{text.slice(0, index)}<mark className="rounded bg-accent/20 px-0.5 text-inherit">{text.slice(index, index + keyword.length)}</mark>{text.slice(index + keyword.length)}</>;
 }
 
+function isContentType(value: string): value is ContentType {
+  return Object.prototype.hasOwnProperty.call(CONTENT_TYPE_REGISTRY, value);
+}
+
+function SearchPoster({ item, type }: { item: SearchResult; type: ContentType }) {
+  const poster = usePosterUrl(type, item.id, item.cover);
+  return (
+    <LazyImage
+      src={poster}
+      fallbackSrc="/poster-placeholder.svg"
+      alt={item.title}
+      className="h-[138px] w-[92px] shrink-0 rounded-xl sm:h-[162px] sm:w-[108px]"
+      aspectRatio={null}
+      rootMargin="240px"
+    />
+  );
+}
+
 function SearchContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -63,6 +85,9 @@ function SearchContent() {
   const [isPending, startTransition] = useTransition();
   const q = searchParams.get('q')?.trim() || '';
   const typeFilter = searchParams.get('typeFilter') || '';
+  const selectedContentType = isContentType(typeFilter) ? typeFilter : null;
+  const rawTagId = Number(searchParams.get('tagId'));
+  const tagId = selectedContentType && Number.isSafeInteger(rawTagId) && rawTagId > 0 ? rawTagId : null;
   const sort = searchParams.get('sort') || 'latest';
   const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
@@ -71,6 +96,7 @@ function SearchContent() {
   const [data, setData] = useState<SearchPageData>({ records: [], total: 0, size, current: page, pages: 0 });
   const [loading, setLoading] = useState(Boolean(q));
   const [error, setError] = useState(false);
+  const [requestVersion, setRequestVersion] = useState(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const [hot, setHot] = useState<HotSearchItem[]>([]);
@@ -106,10 +132,15 @@ function SearchContent() {
       const stored = JSON.parse(localStorage.getItem('search_history') || '[]') as unknown;
       if (Array.isArray(stored)) setHistory(stored.filter((item): item is string => typeof item === 'string').slice(0, 10));
     } catch { /* ignore damaged local history */ }
-    fetch('/api/search/hot')
-      .then((response) => response.json())
+    const controller = new AbortController();
+    fetch('/api/search/hot', { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`热门搜索请求失败: ${response.status}`);
+        return response.json();
+      })
       .then((payload) => setHot(Array.isArray(payload?.data) ? payload.data : []))
-      .catch(() => setHot([]));
+      .catch((reason) => { if (reason?.name !== 'AbortError') setHot([]); });
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -120,7 +151,10 @@ function SearchContent() {
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       fetch(`/api/search/suggest?q=${encodeURIComponent(input.trim())}`, { signal: controller.signal })
-        .then((response) => response.json())
+        .then((response) => {
+          if (!response.ok) throw new Error(`搜索建议请求失败: ${response.status}`);
+          return response.json();
+        })
         .then((payload) => setSuggestions(Array.isArray(payload?.data) ? payload.data : []))
         .catch((reason) => { if (reason?.name !== 'AbortError') setSuggestions([]); });
     }, 250);
@@ -139,7 +173,8 @@ function SearchContent() {
     setLoading(true);
     setError(false);
     const params = new URLSearchParams({ keyword: q, page: String(page), size: String(size), sort, sortDir });
-    if (typeFilter) params.set('typeFilter', typeFilter);
+    if (selectedContentType) params.set('typeFilter', selectedContentType);
+    if (tagId) params.set('tagId', String(tagId));
     fetch(`/api/search?${params}`, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`搜索请求失败: ${response.status}`);
@@ -163,7 +198,7 @@ function SearchContent() {
       })
       .finally(() => { if (currentRequest === requestId.current) setLoading(false); });
     return () => controller.abort();
-  }, [q, typeFilter, sort, sortDir, page, size]);
+  }, [q, selectedContentType, tagId, sort, sortDir, page, size, requestVersion]);
 
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
@@ -196,7 +231,7 @@ function SearchContent() {
   };
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6" aria-busy={loading || isPending}>
+    <div className="mx-auto flex max-w-6xl flex-col gap-6" aria-busy={loading || isPending}>
       <div>
         <h1 className="text-2xl font-bold text-foreground">全站搜索</h1>
         <p className="mt-1 text-sm text-muted-foreground">支持五类内容、服务端排序与真实分页</p>
@@ -217,13 +252,16 @@ function SearchContent() {
               if (event.key === 'Escape') { setSuggestions([]); setActiveSuggestion(-1); inputRef.current?.blur(); }
             }}
             placeholder="片名、演员或导演（按 / 快速聚焦）"
-            className="h-12 flex-1 rounded-xl border border-border bg-card px-4 text-foreground outline-none focus:border-accent"
+            className="h-12 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/15"
             role="combobox"
+            aria-autocomplete="list"
             aria-controls="search-suggestions"
             aria-expanded={visibleSuggestions.length > 0}
             aria-activedescendant={activeSuggestion >= 0 ? `search-option-${activeSuggestion}` : undefined}
           />
-          <button type="submit" className="rounded-xl bg-accent px-6 text-sm font-semibold text-white">搜索</button>
+          <button type="submit" className="inline-flex h-12 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white hover:bg-accent-hover sm:px-6">
+            <SearchIcon className="size-4" aria-hidden /><span className="hidden sm:inline">搜索</span>
+          </button>
         </form>
         {visibleSuggestions.length > 0 && focused && (
           <div id="search-suggestions" className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-border bg-card shadow-xl" role="listbox">
@@ -243,16 +281,24 @@ function SearchContent() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <CustomSelect
-          value={typeFilter || 'all'}
-          options={[{ label: '全部类型', value: 'all' }, ...Object.values(CONTENT_TYPE_REGISTRY).map((config) => ({ label: config.label, value: config.code }))]}
-          onChange={(value) => navigate({ typeFilter: value === 'all' ? null : value, page: 1 })}
-        />
-        <CustomSelect value={sort} options={SORT_OPTIONS} onChange={(value) => navigate({ sort: value, page: 1 })} />
-        <SortDirButton direction={sortDir} onToggle={() => navigate({ sortDir: sortDir === 'desc' ? 'asc' : 'desc', page: 1 })} />
-        {q && <span className="ml-auto text-sm text-muted-foreground">{loading ? '搜索中…' : error ? '搜索失败' : `找到 ${data.total} 条`}</span>}
-      </div>
+      <section className="rounded-2xl border border-border bg-card/70 p-3 sm:p-4" aria-label="搜索筛选与排序">
+        <div className="flex flex-wrap items-center gap-2">
+          <CustomSelect
+            value={selectedContentType || 'all'}
+            options={[{ label: '全部类型', value: 'all' }, ...Object.values(CONTENT_TYPE_REGISTRY).map((config) => ({ label: config.label, value: config.code }))]}
+            onChange={(value) => navigate({ typeFilter: value === 'all' ? null : value, tagId: null, page: 1 })}
+          />
+          <CustomSelect value={sort} options={SORT_OPTIONS} onChange={(value) => navigate({ sort: value, page: 1 })} />
+          <SortDirButton direction={sortDir} onToggle={() => navigate({ sortDir: sortDir === 'desc' ? 'asc' : 'desc', page: 1 })} />
+          {q && <span className="ml-auto text-sm tabular-nums text-muted-foreground" aria-live="polite">{loading ? '搜索中…' : error ? '搜索失败' : `找到 ${data.total} 条`}</span>}
+        </div>
+        {selectedContentType && (
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="mb-2 text-xs font-semibold text-muted-foreground">标准题材</p>
+            <TagFilter contentType={selectedContentType} selectedTagId={tagId} onSelect={(nextTagId) => navigate({ tagId: nextTagId, page: 1 })} />
+          </div>
+        )}
+      </section>
 
       {!q ? (
         <div className="rounded-xl border border-border bg-card p-6">
@@ -263,9 +309,25 @@ function SearchContent() {
           {history.length > 0 && <div className="mt-6"><div className="flex items-center justify-between"><h2 className="font-semibold text-foreground">搜索历史</h2><button onClick={() => { setHistory([]); localStorage.removeItem('search_history'); }} className="text-xs text-muted-foreground">清空</button></div><div className="mt-3 flex flex-wrap gap-2">{history.map((item) => <button key={item} onClick={() => submit(item)} className="rounded-full border border-border px-3 py-1.5 text-sm text-secondary-foreground">{item}</button>)}</div></div>}
         </div>
       ) : error ? (
-        <div className="py-16 text-center"><p className="text-sm text-secondary-foreground">搜索服务暂时不可用</p><button onClick={() => router.refresh()} className="mt-3 text-sm font-medium text-accent">重新加载</button></div>
+        <div className="py-16 text-center"><p className="text-sm text-secondary-foreground">搜索服务暂时不可用</p><button onClick={() => setRequestVersion((version) => version + 1)} className="mt-3 text-sm font-medium text-accent">重新加载</button></div>
+      ) : loading && data.records.length === 0 ? (
+        <div className="grid gap-3" aria-label="正在加载搜索结果">
+          {Array.from({ length: 5 }, (_, index) => (
+            <div key={index} className="flex gap-4 rounded-2xl border border-border bg-card p-3">
+              <div className="h-[138px] w-[92px] shrink-0 animate-pulse rounded-xl bg-muted sm:h-[162px] sm:w-[108px]" />
+              <div className="flex flex-1 flex-col gap-3 py-2"><span className="h-4 w-1/2 animate-pulse rounded bg-muted" /><span className="h-3 w-1/3 animate-pulse rounded bg-muted" /><span className="h-3 w-full animate-pulse rounded bg-muted" /><span className="h-3 w-2/3 animate-pulse rounded bg-muted" /></div>
+            </div>
+          ))}
+        </div>
       ) : !loading && data.records.length === 0 ? (
-        <div className="py-16 text-center"><p className="text-sm text-secondary-foreground">没有找到“{q}”</p><p className="mt-2 text-xs text-muted-foreground">可尝试缩短关键词、切换“全部类型”或选择热门搜索词</p>{typeFilter && <button onClick={() => navigate({ typeFilter: null, page: 1 })} className="mt-4 rounded-full border border-accent px-4 py-2 text-xs text-accent">搜索全部类型</button>}</div>
+        <div className="py-16 text-center">
+          <p className="text-sm text-secondary-foreground">没有找到“{q}”</p>
+          <p className="mt-2 text-xs text-muted-foreground">可尝试缩短关键词或减少筛选条件</p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            {tagId && <button type="button" onClick={() => navigate({ tagId: null, page: 1 })} className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-secondary-foreground">清除题材</button>}
+            {selectedContentType && <button type="button" onClick={() => navigate({ typeFilter: null, tagId: null, page: 1 })} className="rounded-xl border border-accent px-4 py-2 text-xs font-medium text-accent">搜索全部类型</button>}
+          </div>
+        </div>
       ) : (
         <div className={`grid gap-3 transition-opacity ${loading ? 'opacity-50' : 'opacity-100'}`}>
           {data.records.map((item) => {
@@ -274,10 +336,10 @@ function SearchContent() {
             const status = statuses[contentStatusKey(type, item.id)];
             const statusConfig = getStatusConfig(status?.listType);
             return (
-              <Link key={`${type}-${item.id}`} href={`/${config.route}/${item.id}`} className="flex gap-4 rounded-xl border border-border bg-card p-3 transition-colors hover:border-accent/40">
-                <LazyImage src={item.cover || '/poster-placeholder.svg'} fallbackSrc="/poster-placeholder.svg" alt={item.title} className="h-[150px] w-[100px] shrink-0 rounded-lg" aspectRatio={null} />
+              <Link key={`${type}-${item.id}`} href={`/${config.route}/${item.id}`} prefetch={false} className="flex gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-accent/40 sm:gap-4">
+                <SearchPoster item={item} type={type} />
                 <div className="min-w-0 flex-1 py-1">
-                  <div className="flex items-start justify-between gap-3"><h2 className="font-semibold text-foreground"><Highlight text={item.title} keyword={q} /></h2><span className="rounded-full bg-background px-2 py-1 text-[11px] text-muted-foreground">{config.label}</span></div>
+                  <div className="flex items-start justify-between gap-3"><h2 className="text-pretty font-semibold leading-6 text-foreground"><Highlight text={item.title} keyword={q} /></h2><span className="shrink-0 rounded-lg bg-background px-2 py-1 text-[11px] text-muted-foreground">{config.label}</span></div>
                   <p className="mt-2 text-xs text-muted-foreground">{[item.year, ...parseJsonArr(item.region)].filter(Boolean).join(' · ')}</p>
                   {item.genre && <p className="mt-2 text-xs text-secondary-foreground">{parseJsonArr(item.genre).slice(0, 4).join(' / ')}</p>}
                   {item.summary && <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground"><Highlight text={item.summary} keyword={q} /></p>}
