@@ -52,6 +52,7 @@ export default function MobileBottomNav() {
             >
               <span className={`flex size-7 items-center justify-center rounded-lg transition-colors ${active ? 'bg-[var(--accent-light)]' : 'group-hover:bg-card'}`}>
                 {tab.href === '/profile' && isAuthenticated && user?.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- 头像 URL 由用户数据提供，来源域名不固定。
                   <img src={user.avatar} alt="当前用户头像" className="size-5 rounded-md object-cover" />
                 ) : (
                   <Icon className="size-[18px]" strokeWidth={active ? 2.25 : 1.8} aria-hidden />

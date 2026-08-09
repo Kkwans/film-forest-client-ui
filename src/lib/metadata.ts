@@ -8,13 +8,6 @@ export const SITE_NAME = '影视森林';
 /** 标题后缀（自动拼接） */
 const TITLE_SUFFIX = ` - ${SITE_NAME}`;
 
-/** 默认描述 */
-const DEFAULT_DESCRIPTION =
-  '影视资源聚合平台 - 电影/剧集/综艺/动漫/短剧，提供豆瓣/IMDB评分、磁力链接、网盘资源一站式聚合服务。';
-
-/** 默认 OG 图片（后续可替换为实际 logo） */
-const DEFAULT_OG_IMAGE = '/og-default.png';
-
 // ==================== 列表页静态 Metadata ====================
 
 /** 列表页 key → 配置映射 */

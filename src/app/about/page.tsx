@@ -23,6 +23,7 @@ export default function AboutPage() {
         <h2 className="text-lg font-bold text-foreground">TMDB 数据与图片署名</h2>
         <a href="https://www.themoviedb.org" target="_blank" rel="noreferrer" className="mt-5 inline-flex no-underline" aria-label="访问 The Movie Database">
           {/* 官方批准的 blue long 2 标志；不修改颜色、比例或方向。 */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- TMDB 要求直接展示其官方托管标志。 */}
           <img src={TMDB_LOGO} width="180" height="76" alt="The Movie Database (TMDB)" className="h-auto w-40 sm:w-44" />
         </a>
         <p className="mt-5 rounded-xl border px-4 py-3 text-sm font-medium leading-6 text-foreground" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-primary)' }}>

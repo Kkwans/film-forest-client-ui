@@ -241,6 +241,7 @@ export default function Header() {
                     
                   >
                     {user.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- 头像 URL 由用户数据提供，来源域名不固定。
                       <img src={user.avatar} alt="当前用户头像" className="w-full h-full rounded-lg object-cover" />
                     ) : (
                       <AvatarFallback name={user.nickname || user.username} />
