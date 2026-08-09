@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { CircleAlert, Clapperboard, Star } from 'lucide-react';
 import { usePlayHistoryStore } from '@/stores/playHistoryStore';
 import { getPlaybackSourceMode } from '@/lib/playbackSource';
 
@@ -60,13 +61,22 @@ export default function VideoPlayer({
   loading = false,
 }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const iframeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSourcePanel, setShowSourcePanel] = useState(false);
   const [showEpisodePanel, setShowEpisodePanel] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [iframeError, setIframeError] = useState(false);
+  const [iframeReloadKey, setIframeReloadKey] = useState(0);
   const addOrUpdate = usePlayHistoryStore((s) => s.addOrUpdate);
   const sourceMode = getPlaybackSourceMode(src);
+
+  const clearIframeTimeout = useCallback(() => {
+    if (iframeTimeoutRef.current) {
+      clearTimeout(iframeTimeoutRef.current);
+      iframeTimeoutRef.current = null;
+    }
+  }, []);
 
   // 记录播放历史
   useEffect(() => {
@@ -88,15 +98,17 @@ export default function VideoPlayer({
 
   // iframe 加载状态
   useEffect(() => {
+    clearIframeTimeout();
     if (src && sourceMode === 'embed') {
       setIframeLoaded(false);
       setIframeError(false);
-      const timer = setTimeout(() => {
-        setIframeLoaded(true); // 超时也标记为已加载
-      }, 10000);
-      return () => clearTimeout(timer);
+      iframeTimeoutRef.current = setTimeout(() => {
+        setIframeLoaded(true);
+        setIframeError(true);
+      }, 15000);
     }
-  }, [src, sourceMode]);
+    return clearIframeTimeout;
+  }, [clearIframeTimeout, iframeReloadKey, src, sourceMode]);
 
   // 全屏切换
   const toggleFullscreen = useCallback(() => {
@@ -125,30 +137,41 @@ export default function VideoPlayer({
     if (canNext && onEpisodeChange && episode) onEpisodeChange(episode + 1);
   };
 
-  // 键盘快捷键
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if ((e.key === 'f' || e.key === 'F') && sourceMode === 'embed') {
-        e.preventDefault();
-        toggleFullscreen();
+  // 快捷键仅在播放器自身获得焦点时生效，避免干扰页面浏览。
+  const handlePlayerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (
+      target instanceof HTMLButtonElement
+      || target instanceof HTMLAnchorElement
+      || target instanceof HTMLInputElement
+      || target instanceof HTMLTextAreaElement
+      || target instanceof HTMLSelectElement
+      || target instanceof HTMLIFrameElement
+      || target instanceof HTMLElement && target.isContentEditable
+    ) return;
+
+    if (event.key === 'Escape') {
+      setShowEpisodePanel(false);
+      setShowSourcePanel(false);
+      return;
+    }
+    if ((event.key === 'f' || event.key === 'F') && sourceMode === 'embed') {
+      event.preventDefault();
+      toggleFullscreen();
+    }
+    if (event.key === 'ArrowLeft' || event.key === '[') {
+      event.preventDefault();
+      if (episode != null && episode > 1 && onEpisodeChange) {
+        onEpisodeChange(episode - 1);
       }
-      if (e.key === 'ArrowLeft' || e.key === '[') {
-        e.preventDefault();
-        if (episode != null && episode > 1 && onEpisodeChange) {
-          onEpisodeChange(episode - 1);
-        }
+    }
+    if (event.key === 'ArrowRight' || event.key === ']') {
+      event.preventDefault();
+      if (episode != null && totalEpisodes != null && episode < totalEpisodes && onEpisodeChange) {
+        onEpisodeChange(episode + 1);
       }
-      if (e.key === 'ArrowRight' || e.key === ']') {
-        e.preventDefault();
-        if (episode != null && totalEpisodes != null && episode < totalEpisodes && onEpisodeChange) {
-          onEpisodeChange(episode + 1);
-        }
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [toggleFullscreen, sourceMode, episode, totalEpisodes, onEpisodeChange]);
+    }
+  };
 
   const displayTitle = episode ? `第${episode}${episodeLabel}` : title;
 
@@ -157,7 +180,11 @@ export default function VideoPlayer({
       {/* 播放器容器 */}
       <div
         ref={containerRef}
-        className="relative w-full bg-black rounded-xl overflow-hidden shadow-xl group"
+        tabIndex={sourceMode === 'embed' ? 0 : -1}
+        onKeyDown={handlePlayerKeyDown}
+        role="region"
+        aria-label={`${displayTitle} 播放器`}
+        className="relative w-full bg-black rounded-xl overflow-hidden shadow-xl group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         style={{ aspectRatio: '16/9' }}
       >
         {/* 播放源 */}
@@ -218,24 +245,37 @@ export default function VideoPlayer({
 
             {/* iframe */}
             <iframe
+              key={`${src}-${iframeReloadKey}`}
               src={src}
+              title={`${displayTitle} 在线播放`}
               className="w-full h-full border-0"
               allowFullScreen
               allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-              onLoad={() => setIframeLoaded(true)}
-              onError={() => setIframeError(true)}
+              onLoad={() => {
+                clearIframeTimeout();
+                setIframeLoaded(true);
+                setIframeError(false);
+              }}
+              onError={() => {
+                clearIframeTimeout();
+                setIframeLoaded(true);
+                setIframeError(true);
+              }}
               sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              referrerPolicy="strict-origin-when-cross-origin"
             />
 
             {/* 加载失败 */}
             {iframeError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-20">
-                <p className="text-3xl mb-3">😵</p>
+                <CircleAlert aria-hidden className="mb-3 h-9 w-9 text-white/70" />
                 <p className="text-sm text-white/70 mb-3">播放源加载失败</p>
                 <button
+                  type="button"
                   onClick={() => {
                     setIframeError(false);
                     setIframeLoaded(false);
+                    setIframeReloadKey((key) => key + 1);
                   }}
                   className="px-4 py-2 text-sm rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors"
                 >
@@ -245,13 +285,14 @@ export default function VideoPlayer({
             )}
 
             {/* 顶部信息栏 */}
-            <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+            <div className="absolute top-0 left-0 right-0 p-3 bg-gradient-to-b from-black/70 to-transparent opacity-100 transition-opacity z-10 pointer-events-none sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-white text-sm font-medium truncate drop-shadow">{displayTitle}</span>
                   {rating && rating > 0 && (
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-accent/80 text-white shrink-0">
-                      ⭐ {rating.toFixed(1)}
+                    <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-accent/80 text-white shrink-0">
+                      <Star aria-hidden className="h-3 w-3 fill-current" />
+                      {rating.toFixed(1)}
                     </span>
                   )}
                 </div>
@@ -259,29 +300,39 @@ export default function VideoPlayer({
             </div>
 
             {/* 底部控制栏 */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 to-transparent opacity-100 transition-opacity z-10 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
               <div className="flex items-center justify-between gap-2">
                 {/* 左侧：集数导航 */}
                 {totalEpisodes && totalEpisodes > 1 && (
                   <div className="flex items-center gap-1">
                     <button
+                      type="button"
                       onClick={goPrev}
                       disabled={!canPrev}
-                      className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      aria-label="上一集"
+                      className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       title="上一集"
                     >
                       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 20L9 12l10-8v16z"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
                     </button>
                     <button
-                      onClick={() => setShowEpisodePanel(!showEpisodePanel)}
-                      className="px-2 py-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition-all"
+                      type="button"
+                      onClick={() => {
+                        setShowEpisodePanel(!showEpisodePanel);
+                        setShowSourcePanel(false);
+                      }}
+                      aria-expanded={showEpisodePanel}
+                      aria-controls={`player-episodes-${contentType}-${contentId}`}
+                      className="min-h-9 px-2 py-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                     >
                       {episode ? `第${episode}${episodeLabel}` : '选集'}
                     </button>
                     <button
+                      type="button"
                       onClick={goNext}
                       disabled={!canNext}
-                      className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      aria-label="下一集"
+                      className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                       title="下一集"
                     >
                       <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 4l10 8-10 8V4z"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
@@ -293,16 +344,24 @@ export default function VideoPlayer({
                 <div className="flex items-center gap-1">
                   {sources.length > 1 && (
                     <button
-                      onClick={() => setShowSourcePanel(!showSourcePanel)}
-                      className="px-2 py-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition-all flex items-center gap-1"
+                      type="button"
+                      onClick={() => {
+                        setShowSourcePanel(!showSourcePanel);
+                        setShowEpisodePanel(false);
+                      }}
+                      aria-expanded={showSourcePanel}
+                      aria-controls={`player-sources-${contentType}-${contentId}`}
+                      className="min-h-9 px-2 py-1 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1"
                     >
                       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                       换源
                     </button>
                   )}
                   <button
+                    type="button"
                     onClick={toggleFullscreen}
-                    className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all"
+                    aria-label={isFullscreen ? '退出全屏' : '进入全屏'}
+                    className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
                     title={isFullscreen ? '退出全屏 (F)' : '全屏 (F)'}
                   >
                     {isFullscreen ? (
@@ -317,22 +376,24 @@ export default function VideoPlayer({
 
             {/* 选集面板 */}
             {showEpisodePanel && totalEpisodes && totalEpisodes > 0 && (
-              <div className="absolute bottom-14 left-3 right-3 max-h-[40%] bg-black/90 backdrop-blur-sm rounded-xl p-3 overflow-y-auto z-20 animate-fade-in-up">
+              <div id={`player-episodes-${contentType}-${contentId}`} className="absolute bottom-14 left-3 right-3 max-h-[55%] bg-black/90 backdrop-blur-sm rounded-xl p-3 overflow-y-auto z-20 animate-fade-in-up">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-semibold text-white">选集 ({totalEpisodes}{episodeLabel})</h4>
-                  <button onClick={() => setShowEpisodePanel(false)} className="text-white/60 hover:text-white">
+                  <button type="button" aria-label="关闭选集面板" onClick={() => setShowEpisodePanel(false)} className="rounded p-1.5 text-white/60 hover:bg-white/10 hover:text-white">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
-                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1.5">
+                <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-1.5">
                   {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((ep) => (
                     <button
+                      type="button"
                       key={ep}
                       onClick={() => {
                         onEpisodeChange?.(ep);
                         setShowEpisodePanel(false);
                       }}
-                      className={`px-2 py-1.5 rounded-md text-xs font-medium transition-all ${
+                      aria-current={ep === episode ? 'true' : undefined}
+                      className={`min-h-9 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                         ep === episode
                           ? 'bg-accent text-white shadow'
                           : 'bg-white/10 text-white/80 hover:bg-white/20'
@@ -347,22 +408,24 @@ export default function VideoPlayer({
 
             {/* 换源面板 */}
             {showSourcePanel && sources.length > 0 && (
-              <div className="absolute bottom-14 right-3 w-64 bg-black/90 backdrop-blur-sm rounded-xl p-3 z-20 animate-fade-in-up">
+              <div id={`player-sources-${contentType}-${contentId}`} className="absolute bottom-14 left-3 right-3 bg-black/90 backdrop-blur-sm rounded-xl p-3 z-20 animate-fade-in-up sm:left-auto sm:w-64">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-sm font-semibold text-white">切换播放源</h4>
-                  <button onClick={() => setShowSourcePanel(false)} className="text-white/60 hover:text-white">
+                  <button type="button" aria-label="关闭换源面板" onClick={() => setShowSourcePanel(false)} className="rounded p-1.5 text-white/60 hover:bg-white/10 hover:text-white">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
                 <div className="space-y-1">
                   {sources.map((s) => (
                     <button
+                      type="button"
                       key={s.id}
                       onClick={() => {
                         onSourceChange?.(s);
                         setShowSourcePanel(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${
+                      aria-pressed={s.sourceUrl === src}
+                      className={`w-full min-h-10 text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                         s.sourceUrl === src
                           ? 'bg-accent text-white'
                           : 'text-white/80 hover:bg-white/10'
@@ -386,7 +449,7 @@ export default function VideoPlayer({
               />
             )}
             <div className="relative flex flex-col items-center gap-3">
-              <p className="text-4xl">🎬</p>
+              <Clapperboard aria-hidden className="h-10 w-10 text-white/60" />
               <p className="text-sm text-white/70">
                 {loading
                   ? '正在加载播放资源...'
@@ -404,8 +467,8 @@ export default function VideoPlayer({
 
       {/* 快捷键提示 */}
       {src && sourceMode === 'embed' && (
-        <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-          <span><kbd className="px-1.5 py-0.5 rounded border text-[10px] font-mono">F</kbd> 全屏</span>
+        <div className="mt-2 hidden items-center justify-center gap-4 text-xs text-muted-foreground sm:flex">
+          <span>聚焦播放器后 <kbd className="px-1.5 py-0.5 rounded border text-[10px] font-mono">F</kbd> 全屏</span>
           {totalEpisodes && totalEpisodes > 1 && (
             <>
               <span><kbd className="px-1.5 py-0.5 rounded border text-[10px] font-mono">←</kbd> 上一集</span>
