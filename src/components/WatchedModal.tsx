@@ -1,8 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Slider } from '@base-ui/react/slider';
+import { CheckCircle2, Loader2, LogIn, Pencil, Star } from 'lucide-react';
 import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
+import { Modal } from '@/components/ui/modal';
+import { useUserStore } from '@/stores/userStore';
 
 interface WatchedModalProps {
   open: boolean;
@@ -14,53 +19,84 @@ interface WatchedModalProps {
   initialNote?: string;
   isReadOnly?: boolean;
   onEdit?: () => void;
-  watchedListId?: number | null; // Passed from useDetailStatus to avoid redundant getAll() call
+  watchedListId?: number | null;
 }
 
 const RATING_LEVELS = [
-  { value: 1, label: '很差', color: 'var(--rating-low)' },
-  { value: 2, label: '较差', color: 'var(--rating-low)' },
-  { value: 3, label: '一般', color: 'var(--rating-low)' },
-  { value: 4, label: '还行', color: 'var(--rating-6)' },
-  { value: 5, label: '中等', color: 'var(--rating-6)' },
-  { value: 6, label: '较好', color: 'var(--rating-6)' },
-  { value: 7, label: '良好', color: 'var(--rating-7)' },
-  { value: 8, label: '优秀', color: 'var(--rating-7)' },
-  { value: 9, label: '极佳', color: 'var(--rating-8)' },
-  { value: 10, label: '神作', color: 'var(--rating-9)' },
+  { max: 2, label: '不推荐', color: 'var(--rating-low)' },
+  { max: 4, label: '较一般', color: 'var(--rating-low)' },
+  { max: 6, label: '还不错', color: 'var(--rating-6)' },
+  { max: 8, label: '很喜欢', color: 'var(--rating-7)' },
+  { max: 10, label: '强烈推荐', color: 'var(--rating-9)' },
 ];
 
-export default function WatchedModal({ open, onClose, movieId, contentType, movieTitle, initialRating, initialNote, isReadOnly, onEdit, watchedListId: watchedListIdProp }: WatchedModalProps) {
-  const [rating, setRating] = useState<number>(0);
-  const [hoverRating, setHoverRating] = useState<number>(0);
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
-  // watchedListId from props (useDetailStatus) to avoid redundant listApi.getAll()
-  const [watchedListId, setWatchedListId] = useState<number | null>(null);
-  const starsRef = useRef<HTMLDivElement>(null);
+function ratingLevel(rating: number) {
+  return RATING_LEVELS.find((level) => rating <= level.max) || RATING_LEVELS[RATING_LEVELS.length - 1];
+}
+
+export default function WatchedModal({
+  open,
+  onClose,
+  movieId,
+  contentType,
+  movieTitle,
+  initialRating,
+  initialNote,
+  isReadOnly = false,
+  onEdit,
+  watchedListId: watchedListIdProp,
+}: WatchedModalProps) {
+  const router = useRouter();
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const { showToast } = useToast();
+  const [rating, setRating] = useState(0);
+  const [note, setNote] = useState('');
+  const [watchedListId, setWatchedListId] = useState<number | null>(watchedListIdProp ?? null);
+  const [loadingList, setLoadingList] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setRating(initialRating || 0);
-      setHoverRating(0);
-      setNote(initialNote || '');
-      // Use prop if available, otherwise fetch
-      if (watchedListIdProp) {
-        setWatchedListId(watchedListIdProp);
-      } else {
-        listApi.getAll().then(res => {
-          const lists = res.data.data || res.data;
-          const watched = Array.isArray(lists) ? lists.find((l: UserList) => l.type === 'watched') : null;
-          if (watched) setWatchedListId(watched.id);
-        }).catch(e => console.warn('加载已看列表失败', e));
-      }
+    if (!open) return;
+    setRating(initialRating || 0);
+    setNote(initialNote || '');
+    setSaveError(null);
+    setLoadError(null);
+
+    if (!isAuthenticated || watchedListIdProp) {
+      setWatchedListId(watchedListIdProp ?? null);
+      setLoadingList(false);
+      return;
     }
-  }, [open, initialRating, initialNote, watchedListIdProp]);
+
+    const controller = new AbortController();
+    setLoadingList(true);
+    void listApi.getAll({ signal: controller.signal })
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        const lists = Array.isArray(response.data.data) ? response.data.data : [];
+        const watched = lists.find((list: UserList) => list.type === 'watched');
+        if (watched) {
+          setWatchedListId(watched.id);
+        } else {
+          setLoadError('系统未找到默认“看过”片单');
+        }
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLoadError('观看状态加载失败，请关闭后重试');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingList(false);
+      });
+
+    return () => controller.abort();
+  }, [initialNote, initialRating, isAuthenticated, open, watchedListIdProp]);
 
   const handleSave = async () => {
-    if (!watchedListId) return;
+    if (!watchedListId || saving) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await listApi.addItem(watchedListId, {
         movieId,
@@ -68,187 +104,153 @@ export default function WatchedModal({ open, onClose, movieId, contentType, movi
         rating: rating > 0 ? rating : undefined,
         note: note.trim() || undefined,
       });
-      showToast('评价保存成功', 'success');
-      // Notify all listeners (e.g. useMovieStatuses on home page) to refresh
+      showToast('观看状态与评价已保存', 'success');
       window.dispatchEvent(new CustomEvent('movie-status-changed', {
-        detail: { movieId, contentType, action: 'added' }
+        detail: { movieId, contentType, action: 'added' },
       }));
       onClose();
     } catch {
-      showToast('保存失败，请稍后再试', 'error');
+      setSaveError('保存失败，请检查网络后重试');
+      showToast('评价保存失败', 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  // Calculate rating from X position relative to stars
-  // Each star is 28px wide, gap-0.5 = 2px, so 10 stars = 10*28 + 9*2 = 298px
-  const STAR_W = 28;
-  const STAR_GAP = 2;
-  const STAR_COUNT = 10;
-  const TOTAL_STAR_W = STAR_COUNT * STAR_W + (STAR_COUNT - 1) * STAR_GAP;
-
-  const calcRatingFromX = (clientX: number) => {
-    if (!starsRef.current) return 0;
-    const rect = starsRef.current.getBoundingClientRect();
-    // Stars are centered in the container
-    const starsStart = rect.left + (rect.width - TOTAL_STAR_W) / 2;
-    const x = clientX - starsStart;
-    const ratio = Math.max(0, Math.min(1, x / TOTAL_STAR_W));
-    const raw = ratio * 10;
-    return Math.round(raw * 2) / 2; // Snap to 0.5 increments
-  };
-
-  // Mouse handlers
-  const handleMouseMove = (e: React.MouseEvent) => {
-    setHoverRating(calcRatingFromX(e.clientX));
-  };
-  const handleClick = (e: React.MouseEvent) => {
-    const val = calcRatingFromX(e.clientX);
-    setRating(val === rating ? 0 : val);
-  };
-
-  // Touch handlers for mobile
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    setHoverRating(calcRatingFromX(touch.clientX));
-  };
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
-    setHoverRating(calcRatingFromX(touch.clientX));
-  };
-  const handleTouchEnd = () => {
-    if (hoverRating > 0) {
-      setRating(hoverRating === rating ? 0 : hoverRating);
-    }
-    setHoverRating(0);
-  };
-
-  if (!open) return null;
-
-  const displayRating = hoverRating || rating;
-  const level = RATING_LEVELS.find(l => l.value === Math.ceil(displayRating)) || RATING_LEVELS[0];
-
-  // Render star bar: continuous bar with star pattern
-  const renderStarBar = () => {
-    const activeSteps = Math.round((hoverRating || rating) * 2); // 0-20
-    return (
-      <div
-        ref={starsRef}
-        className={`flex items-center justify-center gap-0.5 select-none touch-none ${isReadOnly ? '' : 'cursor-pointer'}`}
-        onMouseMove={isReadOnly ? undefined : handleMouseMove}
-        onMouseLeave={isReadOnly ? undefined : () => setHoverRating(0)}
-        onClick={isReadOnly ? undefined : handleClick}
-        onTouchStart={isReadOnly ? undefined : handleTouchStart}
-        onTouchMove={isReadOnly ? undefined : handleTouchMove}
-        onTouchEnd={isReadOnly ? undefined : handleTouchEnd}
-      >
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((starIndex) => {
-          const fillRatio = Math.max(0, Math.min(1, activeSteps / 2 - starIndex));
-          const id = `star-clip-watched-${starIndex}`;
-          return (
-            <svg key={starIndex} width="28" height="28" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-              <defs>
-                <clipPath id={id}>
-                  <rect x="0" y="0" width={fillRatio * 24} height="24" />
-                </clipPath>
-              </defs>
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-                fill="none" stroke={level.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              {fillRatio > 0 && (
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
-                  fill={level.color} stroke={level.color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-                  clipPath={`url(#${id})`} />
-              )}
-            </svg>
-          );
-        })}
-      </div>
-    );
-  };
+  const displayLevel = rating > 0 ? ratingLevel(rating) : null;
+  const footer = isAuthenticated ? (
+    isReadOnly ? (
+      <>
+        <button type="button" onClick={onClose} className="min-h-10 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:bg-muted">
+          关闭
+        </button>
+        <button type="button" onClick={onEdit} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover">
+          <Pencil aria-hidden className="h-4 w-4" />编辑评价
+        </button>
+      </>
+    ) : (
+      <>
+        <button type="button" onClick={onClose} disabled={saving} className="min-h-10 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50">
+          取消
+        </button>
+        <button type="button" onClick={() => void handleSave()} disabled={saving || loadingList || !watchedListId} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50">
+          {saving ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <CheckCircle2 aria-hidden className="h-4 w-4" />}
+          {saving ? '保存中' : '保存评价'}
+        </button>
+      </>
+    )
+  ) : undefined;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} role="button" aria-label="关闭弹窗" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClose(); }} />
-      <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border flex flex-col"
-        style={{maxHeight: '75vh'}}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0 border-border" >
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base font-bold text-foreground" >{isReadOnly ? '评价详情' : initialRating ? '编辑评价' : '标记看过'}</h3>
-            {movieTitle && <p className="text-xs mt-0.5 truncate text-muted-foreground" >{movieTitle}</p>}
-          </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full shrink-0 text-muted-foreground" >✕</button>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isReadOnly ? '我的评价' : initialRating ? '编辑评价' : '标记为看过'}
+      description={movieTitle}
+      width="sm"
+      footer={footer}
+    >
+      {!isAuthenticated ? (
+        <div className="grid place-items-center py-12 text-center">
+          <span className="grid size-12 place-items-center rounded-2xl bg-accent-light text-accent">
+            <LogIn aria-hidden className="h-5 w-5" />
+          </span>
+          <h3 className="mt-4 text-base font-semibold text-foreground">登录后记录观看与评价</h3>
+          <p className="mt-1 max-w-xs text-sm leading-6 text-muted-foreground">你的观看状态、评分和感想会同步到个人片单。</p>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
+            }}
+            className="mt-5 min-h-10 rounded-xl bg-accent px-5 text-sm font-semibold text-white hover:bg-accent-hover"
+          >
+            去登录
+          </button>
         </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
-          {/* Rating */}
-          <div>
-            <label className="block text-sm font-medium mb-3 text-secondary-foreground" >评分</label>
-            {renderStarBar()}
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <span className="text-2xl font-bold tabular-nums text-muted-foreground" style={{ color: displayRating > 0 ? level.color : undefined, minWidth: '2.5rem', textAlign: 'center' }}>
-                {displayRating > 0 ? displayRating.toFixed(1) : '-'}
-              </span>
-              {displayRating > 0 && (
-                <span className="text-sm px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${level.color}15`, color: level.color }}>
-                  {level.label}
-                </span>
-              )}
+      ) : (
+        <div className="space-y-6">
+          <section aria-labelledby="rating-label">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 id="rating-label" className="text-sm font-semibold text-foreground">我的评分</h3>
+                <p className="mt-1 text-xs text-muted-foreground">支持 0.5 分步进，使用方向键也可调整。</p>
+              </div>
+              <div className="flex min-w-20 items-center justify-end gap-1.5">
+                <Star aria-hidden className="h-4 w-4 fill-amber-500 text-amber-500" />
+                <span className="text-2xl font-bold tabular-nums text-foreground">{rating > 0 ? rating.toFixed(1) : '—'}</span>
+              </div>
             </div>
-            {!isReadOnly && <p className="text-center text-[10px] mt-1 text-muted-foreground" >点击星星或左右滑动选择（支持半星，满分10.0）</p>}
-          </div>
 
-          {/* Note */}
-          <div>
-            <label className="block text-sm font-medium mb-2 text-secondary-foreground" >感想</label>
             {isReadOnly ? (
-              note ? (
-                <div className="w-full px-4 py-3 rounded-lg text-sm border border-border bg-secondary/50 text-foreground leading-relaxed whitespace-pre-wrap min-h-[5rem]">
-                  {note}
+              <div className="mt-4 rounded-xl border border-border bg-muted/40 px-4 py-3">
+                <p className="text-sm font-medium" style={{ color: displayLevel?.color }}>
+                  {displayLevel?.label || '暂未评分'}
+                </p>
+              </div>
+            ) : (
+              <Slider.Root
+                value={rating}
+                onValueChange={setRating}
+                min={0}
+                max={10}
+                step={0.5}
+                className="mt-5 w-full"
+              >
+                <Slider.Control className="flex h-10 w-full touch-none items-center">
+                  <Slider.Track className="relative h-2 w-full rounded-full bg-muted">
+                    <Slider.Indicator className="absolute rounded-full bg-accent" />
+                    <Slider.Thumb
+                      className="size-5 rounded-full border-2 border-accent bg-card shadow-md outline-none ring-accent/20 transition-shadow focus-visible:ring-4"
+                      getAriaLabel={() => '我的评分'}
+                      getAriaValueText={(_, value) => `${value.toFixed(1)} 分`}
+                    />
+                  </Slider.Track>
+                </Slider.Control>
+                <div className="flex justify-between text-[10px] tabular-nums text-muted-foreground" aria-hidden>
+                  {[0, 2, 4, 6, 8, 10].map((value) => <span key={value}>{value}</span>)}
                 </div>
-              ) : (
-                <div className="w-full px-4 py-3 rounded-lg text-sm border border-border bg-secondary/30 text-muted-foreground italic min-h-[5rem]">
-                  暂无感想
-                </div>
-              )
+                <p className="mt-3 min-h-5 text-center text-sm font-medium" style={{ color: displayLevel?.color }} aria-live="polite">
+                  {displayLevel?.label || '拖动滑块选择评分'}
+                </p>
+              </Slider.Root>
+            )}
+          </section>
+
+          <section>
+            <label htmlFor="watched-note" className="text-sm font-semibold text-foreground">观后感</label>
+            {isReadOnly ? (
+              <div className="mt-2 min-h-24 whitespace-pre-wrap rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm leading-6 text-secondary-foreground">
+                {note || <span className="text-muted-foreground">暂未记录观后感</span>}
+              </div>
             ) : (
               <>
                 <textarea
+                  id="watched-note"
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="记录一下看完的感受..."
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="记录一下看完后的感受……"
                   rows={4}
                   maxLength={500}
-                  className="w-full px-4 py-3 rounded-lg text-sm border outline-none resize-none border-border text-foreground bg-background"
+                  className="mt-2 w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20"
                 />
-                <div className="flex justify-end mt-1">
-                  <span className="text-[10px] text-muted-foreground" >{note.length}/500</span>
-                </div>
+                <p className="mt-1 text-right text-xs tabular-nums text-muted-foreground">{note.length}/500</p>
               </>
             )}
-          </div>
-        </div>
+          </section>
 
-        {/* Footer */}
-        <div className="flex gap-3 justify-end px-5 py-4 border-t shrink-0 border-border" >
-          {isReadOnly ? (
-            <>
-              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-secondary-foreground" >关闭</button>
-              <button onClick={() => onEdit?.()} className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-accent" >编辑</button>
-            </>
-          ) : (
-            <>
-              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-secondary-foreground" >取消</button>
-              <button onClick={handleSave} disabled={saving || !watchedListId} className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 bg-accent" >
-                {saving ? '保存中...' : '确认'}
-              </button>
-            </>
+          {loadingList && (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+              <Loader2 aria-hidden className="h-4 w-4 animate-spin" />正在准备“看过”片单
+            </p>
+          )}
+          {(loadError || saveError) && (
+            <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+              {loadError || saveError}
+            </p>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }
