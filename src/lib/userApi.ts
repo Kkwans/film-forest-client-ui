@@ -124,6 +124,8 @@ export interface PlayHistoryRecord {
   title: string;
   posterUrl: string | null;
   year: number | null;
+  genre: string | null;
+  region: string | null;
   resourceId: number | null;
   episodeNumber: number | null;
   episodeTitle: string | null;

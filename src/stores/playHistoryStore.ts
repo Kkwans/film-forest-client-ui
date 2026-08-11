@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { playHistoryApi, type PlayHistoryRecord } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
+import { parseGenre, parseRegion } from '@/lib/utils';
 
 /** 播放记录项。匿名记录保留本地播放源 URL，登录记录的来源由服务端资源投影派生。 */
 export interface PlayHistoryItem {
@@ -196,6 +197,8 @@ function toLocalItem(record: PlayHistoryRecord): PlayHistoryItem {
     title: record.title,
     cover: record.posterUrl || undefined,
     year: record.year ?? undefined,
+    genres: parseGenre(record.genre || undefined),
+    region: parseRegion(record.region || undefined).join(' / ') || undefined,
     resourceId: record.resourceId ?? undefined,
     episode: record.episodeNumber ?? undefined,
     episodeLabel: '集',
