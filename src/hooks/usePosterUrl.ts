@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { posterApi, type PosterResolution } from '@/lib/userApi';
+import { normalizeContentType } from '@/lib/contentConstants';
 import { useUserStore } from '@/stores/userStore';
 
 interface ActivePoster {
+  cacheKey: string;
   contentType: string;
   contentId: number;
   enrich: boolean;
@@ -19,12 +21,11 @@ const queued = new Set<string>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let invalidationReady = false;
 
-function keyOf(contentType: string, contentId: number) {
-  return `${contentType}:${contentId}`;
+function keyOf(identityKey: string, contentType: string, contentId: number) {
+  return `${identityKey}:${normalizeContentType(contentType)}:${contentId}`;
 }
 
-function publish(result: PosterResolution) {
-  const key = keyOf(result.contentType, result.contentId);
+function publish(key: string, result: PosterResolution) {
   const posterUrl = result.source === 'tmdb' ? result.posterUrl : null;
   cache.set(key, posterUrl);
   subscribers.get(key)?.forEach(subscriber => subscriber(posterUrl));
@@ -50,7 +51,13 @@ async function flush() {
     const batch = resolve.slice(offset, offset + 100);
     try {
       const response = await posterApi.resolve(batch.map(({ contentType, contentId }) => ({ contentType, contentId })));
-      response.data.data.forEach(publish);
+      response.data.data.forEach(result => {
+        const request = batch.find(item => (
+          item.contentId === result.contentId
+          && item.contentType === normalizeContentType(result.contentType)
+        ));
+        if (request) publish(request.cacheKey, result);
+      });
     } catch {
       // Silent original-poster fallback is the contract for display resolution failures.
     }
@@ -59,7 +66,7 @@ async function flush() {
   await Promise.all(enrich.map(async item => {
     try {
       const response = await posterApi.enrich(item.contentType, item.contentId);
-      publish(response.data.data);
+      publish(item.cacheKey, response.data.data);
     } catch {
       // The source poster remains visible when the explicit enrichment request fails.
     }
@@ -81,34 +88,46 @@ function ensureInvalidationListener() {
 export function usePosterUrl(contentType: string, contentId: number, originalUrl?: string,
                              options: { enrich?: boolean } = {}) {
   const isAuthenticated = useUserStore(state => state.isAuthenticated);
-  const key = keyOf(contentType, contentId);
-  const [override, setOverride] = useState<string | null>(() => cache.get(key) ?? null);
+  const userId = useUserStore(state => state.user?.id ?? null);
+  const identityKey = isAuthenticated && userId ? `user:${userId}` : 'anonymous';
+  const normalizedContentType = normalizeContentType(contentType);
+  const key = keyOf(identityKey, normalizedContentType, contentId);
+  const [overrideState, setOverrideState] = useState<{ cacheKey: string; posterUrl: string | null }>(() => ({
+    cacheKey: key,
+    posterUrl: cache.get(key) ?? null,
+  }));
+  const override = overrideState.cacheKey === key ? overrideState.posterUrl : null;
   const enrich = options.enrich === true;
 
   useEffect(() => {
     ensureInvalidationListener();
-    if (!isAuthenticated) {
-      setOverride(null);
+    if (!isAuthenticated || !userId) {
       return;
     }
+    const subscriber: Subscriber = posterUrl => setOverrideState({ cacheKey: key, posterUrl });
     const listeners = subscribers.get(key) || new Set<Subscriber>();
-    listeners.add(setOverride);
+    listeners.add(subscriber);
     subscribers.set(key, listeners);
     const current = active.get(key);
-    active.set(key, { contentType, contentId, enrich: enrich || current?.enrich === true });
-    if (cache.has(key)) setOverride(cache.get(key) ?? null);
+    active.set(key, {
+      cacheKey: key,
+      contentType: normalizedContentType,
+      contentId,
+      enrich: enrich || current?.enrich === true,
+    });
+    if (cache.has(key)) subscriber(cache.get(key) ?? null);
     if (!cache.has(key) || (enrich && cache.get(key) === null)) schedule(key);
 
     return () => {
       const remaining = subscribers.get(key);
-      remaining?.delete(setOverride);
+      remaining?.delete(subscriber);
       if (remaining?.size === 0) {
         subscribers.delete(key);
         active.delete(key);
         queued.delete(key);
       }
     };
-  }, [contentType, contentId, enrich, isAuthenticated, key]);
+  }, [contentId, enrich, identityKey, isAuthenticated, key, normalizedContentType, userId]);
 
   return override || originalUrl || '/poster-placeholder.svg';
 }

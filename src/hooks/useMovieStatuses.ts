@@ -22,8 +22,13 @@ export function contentStatusKey(contentType: string, contentId: number): string
 
 /** 一次 POST 查询首页、搜索等异构结果的用户状态。 */
 export function useContentStatuses(queries: ContentStatusQuery[]) {
-  const [statusMap, setStatusMap] = useState<Record<string, MovieStatusInfo | null>>({});
+  const [statusState, setStatusState] = useState<{
+    identityKey: string;
+    values: Record<string, MovieStatusInfo | null>;
+  }>({ identityKey: '', values: {} });
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const userId = useUserStore((state) => state.user?.id ?? null);
+  const identityKey = isAuthenticated && userId ? `user:${userId}` : 'anonymous';
   const fetchedRef = useRef('');
   const normalized = useMemo(() => {
     const unique = new Map<string, ContentStatusQuery>();
@@ -34,12 +39,13 @@ export function useContentStatuses(queries: ContentStatusQuery[]) {
     return [...unique.values()];
   }, [queries]);
   const requestKey = useMemo(
-    () => normalized.map((query) => contentStatusKey(query.contentType, query.contentId)).sort().join(','),
-    [normalized],
+    () => `${identityKey}|${normalized.map((query) => contentStatusKey(query.contentType, query.contentId)).sort().join(',')}`,
+    [identityKey, normalized],
   );
+  const statusMap = statusState.identityKey === identityKey ? statusState.values : {};
 
   const fetchStatuses = useCallback(async () => {
-    if (!isAuthenticated || normalized.length === 0 || requestKey === fetchedRef.current) return;
+    if (!isAuthenticated || !userId || normalized.length === 0 || requestKey === fetchedRef.current) return;
     fetchedRef.current = requestKey;
     try {
       const response = await statusApi.batch(normalized);
@@ -47,12 +53,12 @@ export function useContentStatuses(queries: ContentStatusQuery[]) {
       for (const result of response.data.data || []) {
         next[contentStatusKey(result.contentType, result.contentId)] = preferredStatus(result.statuses || []);
       }
-      setStatusMap(next);
+      setStatusState({ identityKey, values: next });
     } catch (error) {
       fetchedRef.current = '';
       console.warn('[useContentStatuses] Failed to fetch statuses:', error);
     }
-  }, [isAuthenticated, normalized, requestKey]);
+  }, [identityKey, isAuthenticated, normalized, requestKey, userId]);
 
   useEffect(() => {
     void fetchStatuses();
