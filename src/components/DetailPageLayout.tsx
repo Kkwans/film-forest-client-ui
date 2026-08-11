@@ -414,6 +414,7 @@ export default function DetailPageLayout({
           {/* 视频播放器 */}
           <VideoPlayer
             src={playerSrc}
+            sourceId={playerSourceId ?? undefined}
             title={item.title}
             contentId={item.id}
             contentType={contentType}

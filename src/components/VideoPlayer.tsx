@@ -18,6 +18,8 @@ export interface PlayerSource {
 interface VideoPlayerProps {
   /** 当前播放源 URL */
   src?: string;
+  /** 当前播放源 ID，用于区分 URL 相同但契约不同的线路 */
+  sourceId?: number;
   /** 标题 */
   title: string;
   /** 内容 ID */
@@ -52,6 +54,7 @@ interface VideoPlayerProps {
 
 export default function VideoPlayer({
   src,
+  sourceId,
   title,
   contentId,
   contentType,
@@ -92,8 +95,9 @@ export default function VideoPlayer({
   const remoteFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasPlayedRef = useRef(false);
   const activeSource = useMemo(
-    () => sources.find((source) => source.sourceUrl === src),
-    [sources, src],
+    () => sources.find((source) => source.id === sourceId)
+      ?? sources.find((source) => source.sourceUrl === src),
+    [sourceId, sources, src],
   );
   const activeSourceId = activeSource?.id;
   const activeSourceName = activeSource?.sourceName;
