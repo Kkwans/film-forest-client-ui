@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LoaderCircle, Play, RefreshCw, X } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
@@ -149,9 +149,16 @@ export default function ContinueWatching() {
   const isReady = usePlayHistoryStore((s) => s.isReady);
   const loadError = usePlayHistoryStore((s) => s.loadError);
   const { showToast } = useToast();
+  const [mounted, setMounted] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [removingKey, setRemovingKey] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+
+  // The server cannot observe account-scoped localStorage while the client
+  // store intentionally enters an auth-loading state during module startup.
+  // Keep the first client render identical to SSR, then reveal the authoritative
+  // loading/history state after hydration.
+  useEffect(() => setMounted(true), []);
 
   const handleRemove = async (item: PlayHistoryItem) => {
     const key = `${item.contentType}-${item.contentId}`;
@@ -178,6 +185,8 @@ export default function ContinueWatching() {
       setClearing(false);
     }
   };
+
+  if (!mounted) return null;
 
   if (isLoading || !isReady) {
     if (loadError) {
