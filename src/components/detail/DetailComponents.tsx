@@ -376,6 +376,9 @@ interface CopyableResource {
   id: number;
   title?: string;
   url?: string;
+  copyValue?: string;
+  copyLabel?: string;
+  copySuccessMessage?: string;
   badges?: string[];
   timeLabel?: string;
   openLabel?: string;
@@ -384,7 +387,7 @@ interface CopyableResource {
 export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyText }: {
   resources: CopyableResource[];
   copiedId: number | null;
-  onCopy: (url: string, id: number) => void | Promise<void>;
+  onCopy: (text: string, id: number, successMessage?: string) => void | Promise<void>;
   icon: React.ReactNode;
   emptyText: string;
 }) {
@@ -433,14 +436,14 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
             )}
             <button
               type="button"
-              onClick={() => onCopy(r.url || '', r.id)}
-              disabled={!r.url}
-              aria-label={`复制${r.title || '资源'}链接`}
+              onClick={() => onCopy(r.copyValue || r.url || '', r.id, r.copySuccessMessage)}
+              disabled={!(r.copyValue || r.url)}
+              aria-label={`${r.copyLabel || '复制链接'}：${r.title || '资源'}`}
               className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition-colors ${
                 copiedId === r.id ? 'bg-copied' : 'bg-accent hover:bg-accent-hover'
               } disabled:cursor-not-allowed disabled:opacity-50`}
             >
-              <Copy aria-hidden className="size-3.5" />{copiedId === r.id ? '已复制' : '复制链接'}
+              <Copy aria-hidden className="size-3.5" />{copiedId === r.id ? '已复制' : r.copyLabel || '复制链接'}
             </button>
           </div>
         </div>

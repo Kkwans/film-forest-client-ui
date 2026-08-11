@@ -54,6 +54,7 @@ interface CloudResourceItem {
   title: string;
   url: string;
   diskType?: string;
+  extractionCode?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -283,15 +284,15 @@ export default function DetailPageLayout({
     return () => controller.abort();
   }, [contentType, item.id, resourceReloadKey, selectedEpisode]);
 
-  const copyLink = async (url: string, resId: number) => {
-    if (!url) return;
+  const copyResource = async (text: string, resId: number, successMessage?: string) => {
+    if (!text) return;
 
     try {
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(text);
       } else {
         const textArea = document.createElement('textarea');
-        textArea.value = url;
+        textArea.value = text;
         textArea.style.position = 'fixed';
         textArea.style.left = '-9999px';
         document.body.appendChild(textArea);
@@ -304,7 +305,7 @@ export default function DetailPageLayout({
       }
       setCopiedId(resId);
       window.setTimeout(() => setCopiedId(null), 2000);
-      showToast('资源链接已复制', 'success');
+      showToast(successMessage || '资源链接已复制', 'success');
     } catch {
       showToast('复制失败，请长按或手动选择链接', 'error');
     }
@@ -531,7 +532,7 @@ export default function DetailPageLayout({
                     };
                   })}
                   copiedId={copiedId}
-                  onCopy={copyLink}
+                  onCopy={copyResource}
                   icon={<Magnet aria-hidden className="h-5 w-5" />}
                   emptyText={selectedEpisode ? `该${episodeLabel}暂无磁力链接` : '暂无磁力链接'}
                 />
@@ -540,17 +541,24 @@ export default function DetailPageLayout({
               <CopyableResourceList
                 resources={cloudResources.map((resource) => {
                   const presentation = resourcePresentation(resource.title, resource.updatedAt || resource.createdAt);
+                  const extractionCode = resource.extractionCode?.trim();
                   return {
                     id: resource.id,
                     title: presentation.title,
                     url: resource.url,
-                    badges: [DISK_LABELS[resource.diskType || ''] || resource.diskType || '网盘'],
+                    badges: [
+                      DISK_LABELS[resource.diskType || ''] || resource.diskType || '网盘',
+                      extractionCode ? `提取码 ${extractionCode}` : '',
+                    ],
                     timeLabel: presentation.timeLabel,
                     openLabel: '打开网盘',
+                    copyValue: extractionCode ? `${resource.url}\n提取码：${extractionCode}` : resource.url,
+                    copyLabel: extractionCode ? '复制链接和码' : '复制链接',
+                    copySuccessMessage: extractionCode ? '网盘链接和提取码已复制' : '网盘链接已复制',
                   };
                 })}
                 copiedId={copiedId}
-                onCopy={copyLink}
+                onCopy={copyResource}
                 icon={<CloudDownload aria-hidden className="h-5 w-5" />}
                 emptyText={selectedEpisode ? `该${episodeLabel}暂无网盘资源` : '暂无网盘资源'}
               />
