@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Play, X } from 'lucide-react';
+import { LoaderCircle, Play, RefreshCw, X } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
 import Dialog from '@/components/Dialog';
 import { usePlayHistoryStore, type PlayHistoryItem } from '@/stores/playHistoryStore';
 import { formatRelativeTime } from '@/lib/utils';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { useToast } from '@/components/Toast';
 
 /** 格式化进度 */
 function formatProgress(progress?: number): string {
@@ -27,7 +28,11 @@ function getDetailPath(item: PlayHistoryItem): string {
     short_drama: 'short',
   };
   const path = typeMap[item.contentType] || item.contentType;
-  return `/${path}/${item.contentId}`;
+  const params = new URLSearchParams();
+  if (item.episode != null && item.episode > 0) params.set('episode', String(item.episode));
+  if (item.resourceId != null && item.resourceId > 0) params.set('sourceId', String(item.resourceId));
+  const query = params.toString();
+  return `/${path}/${item.contentId}${query ? `?${query}` : ''}`;
 }
 
 /** 内容类型中文名 */
@@ -43,7 +48,7 @@ function getTypeName(type: string): string {
 }
 
 /** 单个播放记录卡片 */
-function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () => void }) {
+function HistoryCard({ item, onRemove, removing }: { item: PlayHistoryItem; onRemove: () => void; removing: boolean }) {
   const detailPath = getDetailPath(item);
   const posterUrl = usePosterUrl(item.contentType, item.contentId, item.cover);
   const progressPercent =
@@ -105,11 +110,13 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
           <p className="text-xs text-muted-foreground">
             {formatRelativeTime(item.lastPlayedAt)}
           </p>
-          {item.progress && item.progress > 0 && (
+          {item.completed ? (
+            <p className="text-xs font-medium text-accent">已看完</p>
+          ) : item.progress && item.progress > 0 ? (
             <p className="text-xs text-muted-foreground">
               看到 {formatProgress(item.progress)}
             </p>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -121,11 +128,12 @@ function HistoryCard({ item, onRemove }: { item: PlayHistoryItem; onRemove: () =
           e.stopPropagation();
           onRemove();
         }}
+        disabled={removing}
         className="absolute bottom-2 right-2 z-10 flex size-8 items-center justify-center rounded-full bg-black/70 text-white transition-[background-color,opacity] hover:bg-red-600 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
         title="移除记录"
         aria-label={`移除《${item.title}》的播放记录`}
       >
-        <X aria-hidden className="h-4 w-4" />
+        {removing ? <LoaderCircle aria-hidden className="h-4 w-4 animate-spin" /> : <X aria-hidden className="h-4 w-4" />}
       </button>
     </div>
   );
@@ -136,7 +144,70 @@ export default function ContinueWatching() {
   const history = usePlayHistoryStore((s) => s.history);
   const remove = usePlayHistoryStore((s) => s.remove);
   const clear = usePlayHistoryStore((s) => s.clear);
+  const reload = usePlayHistoryStore((s) => s.reload);
+  const isLoading = usePlayHistoryStore((s) => s.isLoading);
+  const isReady = usePlayHistoryStore((s) => s.isReady);
+  const loadError = usePlayHistoryStore((s) => s.loadError);
+  const { showToast } = useToast();
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [removingKey, setRemovingKey] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+
+  const handleRemove = async (item: PlayHistoryItem) => {
+    const key = `${item.contentType}-${item.contentId}`;
+    setRemovingKey(key);
+    try {
+      await remove(item.contentId, item.contentType);
+      showToast('已移除播放记录', 'success');
+    } catch {
+      showToast('删除失败，记录已保留，请稍后重试', 'error');
+    } finally {
+      setRemovingKey(null);
+    }
+  };
+
+  const handleClear = async () => {
+    setClearing(true);
+    try {
+      await clear();
+      setClearDialogOpen(false);
+      showToast('播放记录已清空', 'success');
+    } catch {
+      showToast('清空失败，记录已保留，请稍后重试', 'error');
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  if (isLoading || !isReady) {
+    if (loadError) {
+      return (
+        <section className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4" role="status">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">继续观看暂时无法加载</h2>
+              <p className="mt-1 text-xs text-muted-foreground">登录设备的播放记录没有丢失，恢复连接后可重试。</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void reload()}
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground hover:border-accent/40 hover:text-accent"
+            >
+              <RefreshCw aria-hidden className="size-3.5" /> 重试
+            </button>
+          </div>
+        </section>
+      );
+    }
+    return (
+      <section aria-label="正在加载继续观看" className="animate-fade-in-up">
+        <div className="mb-4 h-6 w-28 animate-pulse rounded bg-muted" />
+        <div className="flex gap-3 overflow-hidden">
+          {[1, 2, 3].map((key) => <div key={key} className="aspect-[2/3] w-40 shrink-0 animate-pulse rounded-xl bg-muted sm:w-48" />)}
+        </div>
+      </section>
+    );
+  }
 
   if (history.length === 0) return null;
 
@@ -162,7 +233,8 @@ export default function ContinueWatching() {
           <HistoryCard
             key={`${item.contentType}-${item.contentId}`}
             item={item}
-            onRemove={() => remove(item.contentId, item.contentType)}
+            removing={removingKey === `${item.contentType}-${item.contentId}`}
+            onRemove={() => void handleRemove(item)}
           />
         ))}
       </div>
@@ -170,11 +242,12 @@ export default function ContinueWatching() {
       <Dialog
         open={clearDialogOpen}
         onClose={() => setClearDialogOpen(false)}
-        onConfirm={() => { clear(); setClearDialogOpen(false); }}
+        onConfirm={handleClear}
         title="清空播放记录"
         message="确定清空所有播放记录？此操作不可撤销。"
         confirmText="清空"
         variant="danger"
+        loading={clearing}
       />
     </section>
   );

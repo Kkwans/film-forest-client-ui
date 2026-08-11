@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CloudDownload, Magnet, RefreshCw, TriangleAlert } from 'lucide-react';
 import { resourceApi } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
@@ -190,6 +190,8 @@ export default function DetailPageLayout({
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [playerSrc, setPlayerSrc] = useState<string | undefined>(undefined);
   const [playerSourceId, setPlayerSourceId] = useState<number | null>(null);
+  const [requestedSourceId, setRequestedSourceId] = useState<number | null>(null);
+  const requestedSourceHandledRef = useRef(false);
 
   const ds = useDetailStatus(item.id, contentType);
   const resolvedCover = usePosterUrl(contentType, item.id, item.cover, { enrich: true });
@@ -210,6 +212,32 @@ export default function DetailPageLayout({
   const visibleMagnets = activeMagnetQuality === '全部'
     ? magnetResources
     : magnetResources.filter((resource) => resource.qualityCategory === activeMagnetQuality);
+
+  // 播放记录卡片通过 episode/sourceId 深链回来；仅接受当前内容真实存在的集数。
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const rawEpisode = Number.parseInt(params.get('episode') || '', 10);
+    const episode = hasEpisodes && Number.isInteger(rawEpisode) && rawEpisode > 0
+      && item.totalEpisode != null && rawEpisode <= item.totalEpisode
+      ? rawEpisode
+      : null;
+    const rawSourceId = Number.parseInt(params.get('sourceId') || '', 10);
+    const sourceId = Number.isInteger(rawSourceId) && rawSourceId > 0 ? rawSourceId : null;
+    requestedSourceHandledRef.current = false;
+    setSelectedEpisode(episode);
+    setRequestedSourceId(sourceId);
+  }, [contentType, hasEpisodes, item.id, item.totalEpisode]);
+
+  // sourceId 只在当前集的真实在线播放资源中匹配成功时才自动选中；不存在则保持默认未选择状态。
+  useEffect(() => {
+    if (loadingResources || requestedSourceId == null || requestedSourceHandledRef.current) return;
+    requestedSourceHandledRef.current = true;
+    const source = onlineResources.find((resource) => resource.id === requestedSourceId);
+    if (!source) return;
+    setPlayerSrc(source.sourceUrl);
+    setPlayerSourceId(source.id);
+  }, [loadingResources, onlineResources, requestedSourceId]);
 
   // Fetch all resources when episode changes
   useEffect(() => {

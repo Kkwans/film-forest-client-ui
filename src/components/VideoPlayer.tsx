@@ -78,11 +78,27 @@ export default function VideoPlayer({
   const [playerError, setPlayerError] = useState(false);
   const [playerReloadKey, setPlayerReloadKey] = useState(0);
   const addOrUpdate = usePlayHistoryStore((s) => s.addOrUpdate);
+  const history = usePlayHistoryStore((s) => s.history);
+  const historyReady = usePlayHistoryStore((s) => s.isReady);
+  const updateProgress = usePlayHistoryStore((s) => s.updateProgress);
+  const syncRemote = usePlayHistoryStore((s) => s.syncRemote);
+  const historyRef = useRef(history);
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+  const lastLocalWriteRef = useRef(0);
+  const lastRemoteWriteRef = useRef(0);
+  const pendingRemoteRef = useRef(false);
+  const remoteFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasPlayedRef = useRef(false);
   const activeSource = useMemo(
     () => sources.find((source) => source.sourceUrl === src),
     [sources, src],
   );
-  const sourceMode = getPlaybackSourceMode(src, activeSource?.playbackType);
+  const activeSourceId = activeSource?.id;
+  const activeSourceName = activeSource?.sourceName;
+  const activePlaybackType = activeSource?.playbackType;
+  const sourceMode = getPlaybackSourceMode(src, activePlaybackType);
   const isPlayable = sourceMode === 'hls' || sourceMode === 'video' || sourceMode === 'embed';
   const fallbackUrl = activeSource?.sourcePageUrl || src;
 
@@ -93,9 +109,30 @@ export default function VideoPlayer({
     }
   }, []);
 
+  /** 服务端进度写入节流；网络失败只记录状态，不影响播放器继续播放。 */
+  const flushRemoteNow = useCallback(() => {
+    if (!pendingRemoteRef.current) return Promise.resolve();
+    pendingRemoteRef.current = false;
+    lastRemoteWriteRef.current = Date.now();
+    return syncRemote(contentId, contentType).catch(() => undefined);
+  }, [contentId, contentType, syncRemote]);
+
+  const flushPlayback = useCallback((completed = false) => {
+    const video = videoRef.current;
+    if (!historyReady || !video || (sourceMode !== 'hls' && sourceMode !== 'video')) return;
+    const position = Number.isFinite(video.currentTime) ? Math.max(0, video.currentTime) : 0;
+    if (!completed && !hasPlayedRef.current && position <= 0) return;
+    const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : undefined;
+    const reachedEnd = completed || video.ended || (duration != null && position >= duration - 1);
+    updateProgress(contentId, contentType, position, duration, { completed: reachedEnd });
+    pendingRemoteRef.current = true;
+    lastLocalWriteRef.current = Date.now();
+    void flushRemoteNow();
+  }, [contentId, contentType, flushRemoteNow, historyReady, sourceMode, updateProgress]);
+
   // 记录播放历史
   useEffect(() => {
-    if (src && isPlayable) {
+    if (src && isPlayable && historyReady) {
       addOrUpdate({
         contentId,
         contentType,
@@ -108,10 +145,106 @@ export default function VideoPlayer({
         genres,
         region,
         sourceUrl: src,
-        sourceName: activeSource?.sourceName,
+        sourceName: activeSourceName,
+        resourceId: activeSourceId,
+        playbackType: activePlaybackType,
       });
+      lastRemoteWriteRef.current = Date.now();
     }
-  }, [src, isPlayable, contentId, contentType, title, cover, episode, episodeLabel, year, rating, genres, region, activeSource, addOrUpdate]);
+  }, [src, isPlayable, historyReady, contentId, contentType, title, cover, episode, episodeLabel, year, rating, genres, region, activeSourceId, activeSourceName, activePlaybackType, addOrUpdate]);
+
+  // HTML5 播放进度：本地约 2 秒节流，服务端约 15 秒节流；嵌入式跨域播放器不伪造秒级进度。
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!historyReady || !video || !src || (sourceMode !== 'hls' && sourceMode !== 'video')) return;
+
+    let restored = false;
+    hasPlayedRef.current = false;
+
+    const restoreProgress = () => {
+      if (restored || !historyReady) return;
+      restored = true;
+      // 用户已在当前设备开始播放时，不用迟到的历史响应覆盖正在观看的位置。
+      if (Number.isFinite(video.currentTime) && video.currentTime > 3) return;
+      const record = historyRef.current.find(
+        (item) => item.contentId === contentId && item.contentType === contentType,
+      );
+      if (!record || record.completed || record.progress == null || record.progress <= 3) return;
+      if (record.resourceId != null && activeSourceId != null && record.resourceId !== activeSourceId) return;
+      if (record.episode != null && episode != null && record.episode !== episode) return;
+      const currentDuration = Number.isFinite(video.duration) && video.duration > 0
+        ? video.duration
+        : record.duration;
+      if (!currentDuration || !Number.isFinite(currentDuration) || currentDuration <= 0) return;
+      const progress = record.progress;
+      // Do not seek to a stale/invalid point or trap the user on the final frame.
+      if (!Number.isFinite(progress) || progress >= currentDuration - 10 || progress >= currentDuration * 0.98) return;
+      try {
+        video.currentTime = Math.max(0, Math.min(progress, currentDuration - 1));
+      } catch {
+        // Some browsers reject seeking until the first media segment is ready.
+      }
+    };
+
+    const scheduleRemoteFlush = () => {
+      if (!pendingRemoteRef.current || remoteFlushTimerRef.current) return;
+      const wait = Math.max(0, 15000 - (Date.now() - lastRemoteWriteRef.current));
+      remoteFlushTimerRef.current = setTimeout(() => {
+        remoteFlushTimerRef.current = null;
+        void flushRemoteNow();
+      }, wait);
+    };
+
+    const handleTimeUpdate = () => {
+      const position = Number.isFinite(video.currentTime) ? Math.max(0, video.currentTime) : 0;
+      if (position > 0) hasPlayedRef.current = true;
+      const duration = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : undefined;
+      const completed = duration != null && position >= duration - 1;
+      const now = Date.now();
+      if (completed || now - lastLocalWriteRef.current >= 2000) {
+        updateProgress(contentId, contentType, position, duration, { completed });
+        lastLocalWriteRef.current = now;
+      }
+      pendingRemoteRef.current = true;
+      if (completed || now - lastRemoteWriteRef.current >= 15000) {
+        void flushRemoteNow();
+      } else {
+        scheduleRemoteFlush();
+      }
+    };
+    const handlePlay = () => { hasPlayedRef.current = true; };
+    const handlePause = () => flushPlayback(false);
+    const handleEnded = () => {
+      updateProgress(contentId, contentType, video.duration, video.duration, { completed: true });
+      pendingRemoteRef.current = true;
+      void flushRemoteNow();
+    };
+    const handlePageHide = () => flushPlayback(false);
+
+    video.addEventListener('loadedmetadata', restoreProgress);
+    video.addEventListener('durationchange', restoreProgress);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePause);
+    video.addEventListener('ended', handleEnded);
+    window.addEventListener('pagehide', handlePageHide);
+    if (video.readyState >= 1) restoreProgress();
+
+    return () => {
+      video.removeEventListener('loadedmetadata', restoreProgress);
+      video.removeEventListener('durationchange', restoreProgress);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePause);
+      video.removeEventListener('ended', handleEnded);
+      window.removeEventListener('pagehide', handlePageHide);
+      if (remoteFlushTimerRef.current) {
+        clearTimeout(remoteFlushTimerRef.current);
+        remoteFlushTimerRef.current = null;
+      }
+      flushPlayback(false);
+    };
+  }, [activeSourceId, contentId, contentType, episode, flushPlayback, flushRemoteNow, historyReady, src, sourceMode, updateProgress]);
 
   // 播放器加载状态。超时后保留来源页作为明确降级路径。
   useEffect(() => {

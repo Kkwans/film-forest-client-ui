@@ -110,6 +110,41 @@ export interface UserListItem {
   totalEpisode?: number;
 }
 
+/**
+ * Server-authoritative playback history projection.
+ *
+ * The server derives title/poster/source metadata from the published content
+ * and resource tables.  Keep the client contract narrow so a browser cannot
+ * persist arbitrary display text or playback URLs as trusted history data.
+ */
+export interface PlayHistoryRecord {
+  id: number;
+  contentType: string;
+  contentId: number;
+  title: string;
+  posterUrl: string | null;
+  year: number | null;
+  resourceId: number | null;
+  episodeNumber: number | null;
+  episodeTitle: string | null;
+  sourceName: string | null;
+  playbackType: string | null;
+  positionSeconds: number;
+  durationSeconds: number | null;
+  completed: boolean;
+  lastPlayedAt: string;
+}
+
+/** Only identifiers and progress are accepted when writing playback history. */
+export interface PlayHistoryUpsert {
+  contentType: string;
+  contentId: number;
+  resourceId?: number | null;
+  positionSeconds: number;
+  durationSeconds?: number | null;
+  completed: boolean;
+}
+
 export const userApi = {
   login: (data: { username: string; password: string }) =>
     authClient.post<Result<unknown>>('/api/auth/login', data),
@@ -225,6 +260,19 @@ export const statusApi = {
     }),
   batch: (queries: ContentStatusQuery[]) =>
     authClient.post<Result<ContentStatusResult[]>>('/api/user/movie-status-batch', queries),
+};
+
+export const playHistoryApi = {
+  list: (config?: AxiosRequestConfig) =>
+    authClient.get<Result<PlayHistoryRecord[]>>('/api/user/play-history', {
+      ...config,
+      params: { limit: 100, ...config?.params },
+    }),
+  upsert: (data: PlayHistoryUpsert) =>
+    authClient.put<Result<null>>('/api/user/play-history', data),
+  remove: (contentType: string, contentId: number) =>
+    authClient.delete<Result<null>>(`/api/user/play-history/${encodeURIComponent(contentType)}/${contentId}`),
+  clear: () => authClient.delete<Result<null>>('/api/user/play-history'),
 };
 
 export default authClient;
