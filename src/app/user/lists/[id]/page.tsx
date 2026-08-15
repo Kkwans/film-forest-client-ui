@@ -157,6 +157,7 @@ export default function ListDetailPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const listId = Number(params.id);
+  const [hydrated, setHydrated] = useState(false);
   const [list, setList] = useState<UserList | null>(null);
   const [items, setItems] = useState<UserListItem[]>([]);
   const [metadataLoading, setMetadataLoading] = useState(true);
@@ -180,6 +181,7 @@ export default function ListDetailPage() {
   const [confirmBatchDelete, setConfirmBatchDelete] = useState(false);
 
   useEffect(() => {
+    setHydrated(true);
     if (!hasStoredToken()) router.replace(`/login?from=/user/lists/${listId}`);
   }, [listId, router]);
 
@@ -291,7 +293,7 @@ export default function ListDetailPage() {
     window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: noteEdit.movieId, contentType: noteEdit.contentType, action: 'updated' } }));
   };
 
-  if (!hasStoredToken()) return null;
+  if (!hydrated || !hasStoredToken()) return null;
 
   const listType = list?.type || 'custom';
   const watchedList = listType === 'watched';
