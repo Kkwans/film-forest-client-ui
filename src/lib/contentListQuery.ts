@@ -3,6 +3,7 @@ export interface ContentListQuery {
   size: number;
   genre?: string;
   region?: string;
+  language?: string;
   year?: number;
   yearFrom?: number;
   yearTo?: number;
@@ -34,6 +35,7 @@ export function parseContentListQuery(params: RawSearchParams): ContentListQuery
     size: positiveInt(first(params.size), 24, 100),
     genre: first(params.genre) || undefined,
     region: first(params.region) || undefined,
+    language: first(params.language) || undefined,
     year,
     yearFrom: year ? undefined : yearFrom,
     yearTo: year ? undefined : yearTo,
@@ -50,6 +52,7 @@ export function toContentListSearchParams(query: ContentListQuery): URLSearchPar
   params.set('size', String(query.size));
   if (query.genre) params.set('genre', query.genre);
   if (query.region) params.set('region', query.region);
+  if (query.language) params.set('language', query.language);
   if (query.year) params.set('year', String(query.year));
   if (query.yearFrom) params.set('yearFrom', String(query.yearFrom));
   if (query.yearTo) params.set('yearTo', String(query.yearTo));

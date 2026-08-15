@@ -1,14 +1,25 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Star } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { StatusIconButton, GenreTags } from '@/components/ContentShared';
-import dynamic from 'next/dynamic';
 import LazyImage from '@/components/ui/lazy-image';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { listApi } from '@/lib/userApi';
+import { useUserStore } from '@/stores/userStore';
+import { useToast } from '@/components/Toast';
+import { createSingleDoubleClickGuard } from '@/lib/uiContracts';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
+
+interface MovieStatus {
+  listType: string;
+  listName: string;
+}
 
 interface MovieCardProps {
   id: number;
@@ -24,16 +35,7 @@ interface MovieCardProps {
   duration?: number;
   href: string;
   showCollect?: boolean;
-  movieStatus?: { listType: string; listName: string } | null;
-}
-
-/** 获取评分颜色 */
-function getRatingColor(rating: number): string {
-  if (rating >= 9) return 'var(--rating-9)';
-  if (rating >= 8) return 'var(--rating-8)';
-  if (rating >= 7) return 'var(--rating-7)';
-  if (rating >= 6) return 'var(--rating-6)';
-  return 'var(--rating-low)';
+  movieStatus?: MovieStatus | null;
 }
 
 export default function MovieCard({
@@ -52,20 +54,84 @@ export default function MovieCard({
   showCollect = true,
   movieStatus,
 }: MovieCardProps) {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const [navigating, setNavigating] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<MovieStatus | null>(movieStatus || null);
+  const singleActionRef = useRef<() => void>(() => undefined);
+  const doubleActionRef = useRef<() => void>(() => undefined);
+  const clickGuardRef = useRef<ReturnType<typeof createSingleDoubleClickGuard> | null>(null);
   const contentType = type || 'movie';
   const resolvedCover = usePosterUrl(contentType, id, cover);
 
-  const handleCollectClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setCollectOpen(true);
+  useEffect(() => setCurrentStatus(movieStatus || null), [movieStatus]);
+
+  const handleWantToggle = useCallback(async () => {
+    if (!isAuthenticated) {
+      router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    if (statusLoading) return;
+
+    setStatusLoading(true);
+    try {
+      const response = await listApi.getAll();
+      const lists = Array.isArray(response.data.data) ? response.data.data : [];
+      const wantList = lists.find((list) => list.type === 'want_to_watch');
+      if (!wantList) {
+        showToast('想看片单暂不可用，请稍后重试', 'error');
+        return;
+      }
+
+      if (currentStatus?.listType === 'want_to_watch') {
+        await listApi.removeItem(wantList.id, { movieId: id, contentType });
+        setCurrentStatus(null);
+        showToast('已从想看移除', 'info');
+      } else if (currentStatus) {
+        showToast('当前观看状态请在片单管理中调整', 'info');
+        return;
+      } else {
+        await listApi.addItem(wantList.id, { movieId: id, contentType });
+        setCurrentStatus({ listType: 'want_to_watch', listName: wantList.name });
+        showToast('已加入想看', 'success');
+      }
+      window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: id, contentType } }));
+    } catch {
+      showToast('想看状态更新失败，请重试', 'error');
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [contentType, currentStatus, id, isAuthenticated, router, showToast, statusLoading]);
+
+  useEffect(() => {
+    singleActionRef.current = () => { void handleWantToggle(); };
+    doubleActionRef.current = () => setCollectOpen(true);
+  }, [handleWantToggle]);
+
+  useEffect(() => {
+    const guard = createSingleDoubleClickGuard(
+      () => singleActionRef.current(),
+      () => doubleActionRef.current(),
+    );
+    clickGuardRef.current = guard;
+    return () => {
+      guard.dispose();
+      if (clickGuardRef.current === guard) clickGuardRef.current = null;
+    };
+  }, []);
+
+  const handleCollectClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clickGuardRef.current?.handle();
   };
 
   const regionArr = parseRegion(region);
   const genreArr = parseGenre(genre);
-  const regionDisplay = regionArr.length > 0 ? regionArr[0] : '';
+  const regionDisplay = regionArr.join(' / ');
   const cleanTitle = cleanTitleUtil(title);
   const fallbackCover = '/poster-placeholder.svg';
 
@@ -76,130 +142,100 @@ export default function MovieCard({
     badgeText = `${episodes}集`;
   }
 
-  const handleClick = () => {
-    setNavigating(true);
-  };
-
-  const renderCollectButton = () => {
-    if (!showCollect) return null;
-    return (
-      <StatusIconButton
-        listType={movieStatus?.listType || null}
-        onClick={handleCollectClick}
-        size="sm"
-        className="absolute top-1.5 left-1.5 z-10"
-      />
-    );
-  };
-
   return (
     <>
-    <Link
-      href={href}
-      prefetch={false}
-      onClick={handleClick}
-      className="group block no-underline"
-      style={{
-        WebkitTapHighlightColor: 'transparent',
-        touchAction: 'manipulation',
-      }}
-    >
-      <div
-        className="rounded-xl overflow-hidden border card-hover relative flex flex-col"
-        style={{
-          backgroundColor: 'var(--bg-card)',
-          borderColor: 'var(--border-color)',
-          opacity: navigating ? 0.7 : 1,
-          transition: 'opacity 0.15s ease, transform 0.2s ease, box-shadow 0.2s ease',
-        }}
+      <Link
+        href={href}
+        prefetch={false}
+        onClick={() => setNavigating(true)}
+        className="group block no-underline"
+        style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
       >
-        {navigating && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
-            <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
-          </div>
-        )}
-
-        {/* Poster */}
-        <div className="relative aspect-[2/3] overflow-hidden poster-gradient">
-          <LazyImage
-            src={resolvedCover || fallbackCover}
-            alt={title}
-            className="rounded-none"
-            imgClassName="img-zoom"
-            placeholder="blur"
-            aspectRatio={null}
-            fallbackSrc={'/poster-placeholder.svg'}
-            rootMargin="300px"
-          />
-          {/* Rating badge - enhanced */}
-          {rating != null && (
-            <span
-              className="absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold text-white backdrop-blur-sm shadow-sm"
-              style={{
-                background: `linear-gradient(135deg, ${getRatingColor(rating)}dd, ${getRatingColor(rating)})`,
-              }}
-            >
-              ★ {rating.toFixed(1)}
-            </span>
+        <div
+          className="card-hover relative flex flex-col overflow-hidden rounded-xl border"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            borderColor: 'var(--border-color)',
+            opacity: navigating ? 0.7 : 1,
+          }}
+        >
+          {navigating && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-[1px]">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            </div>
           )}
-          {renderCollectButton()}
-          {status && (
+
+          <div className="poster-gradient relative aspect-[2/3] overflow-hidden">
+            <LazyImage
+              src={resolvedCover || fallbackCover}
+              alt={title}
+              className="rounded-none"
+              imgClassName="img-zoom"
+              placeholder="blur"
+              aspectRatio={null}
+              fallbackSrc={fallbackCover}
+              rootMargin="300px"
+            />
+
             <span
-              className={`absolute top-2 ${showCollect ? 'left-10' : 'left-2'} px-1.5 py-0.5 rounded text-xs font-medium text-white`}
-              style={{
-                backgroundColor:
-                  status === '更新中' || status === '连载中'
+              className="absolute left-2 top-2 inline-flex min-h-6 items-center gap-1 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm"
+              aria-label={`豆瓣评分 ${rating != null && rating > 0 ? rating.toFixed(1) : '暂无'}`}
+            >
+              {rating != null && rating > 0 && <Star aria-hidden className="size-3 fill-current" />}
+              <span>{rating != null && rating > 0 ? rating.toFixed(1) : '--'}</span>
+            </span>
+
+            {showCollect && (
+              <StatusIconButton
+                listType={currentStatus?.listType || null}
+                onClick={handleCollectClick}
+                size="sm"
+                loading={statusLoading}
+                title="单击切换想看，双击管理片单"
+                className="absolute right-2 top-2 z-10"
+              />
+            )}
+
+            {status && (
+              <span
+                className="absolute left-2 top-10 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm"
+                style={{
+                  color: status === '更新中' || status === '连载中'
                     ? 'var(--status-updating)'
                     : status === '已完结'
-                    ? 'var(--text-muted)'
-                    : 'var(--accent)',
-              }}
-            >
-              {status}
-            </span>
-          )}
-          {badgeText && (
-            <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md text-[11px] font-medium text-white bg-black/60 backdrop-blur-sm">
-              {badgeText}
-            </span>
-          )}
-        </div>
-
-        {/* Info */}
-        <div className="p-2.5 md:p-3 flex flex-col gap-1" style={{ minHeight: '76px' }}>
-          <p className="font-semibold text-xs md:text-sm truncate min-w-0 group-hover:text-[var(--accent)] transition-colors">
-            {cleanTitle || '\u00A0'}
-          </p>
-
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {year ? (
-              <span className="text-[10px] md:text-xs text-muted-foreground">
-                {year}
+                      ? 'var(--text-muted)'
+                      : '#fff',
+                }}
+              >
+                {status}
               </span>
-            ) : null}
-            {year && regionDisplay ? (
-              <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground" />
-            ) : null}
-            {regionDisplay ? (
-              <span className="text-[10px] md:text-xs truncate max-w-[5em] text-muted-foreground">
-                {regionDisplay}
-              </span>
-            ) : null}
+            )}
+            {badgeText && <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">{badgeText}</span>}
           </div>
 
-          <GenreTags genres={genreArr} />
+          <div className="flex min-h-[92px] flex-col gap-1 p-2.5 md:p-3">
+            <p className="min-w-0 truncate text-xs font-semibold transition-colors group-hover:text-[var(--accent)] md:text-sm">
+              {cleanTitle || '\u00A0'}
+            </p>
+            <div className="flex flex-wrap items-start gap-x-1.5 gap-y-0.5">
+              {year ? <span className="text-[10px] text-muted-foreground md:text-xs">{year}</span> : null}
+              {year && regionDisplay ? <span className="mt-1 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground" /> : null}
+              {regionDisplay ? <span className="break-words text-[10px] leading-4 text-muted-foreground md:text-xs">{regionDisplay}</span> : null}
+            </div>
+            <GenreTags genres={genreArr} />
+          </div>
         </div>
-      </div>
-    </Link>
-    {showCollect && collectOpen && (
-      <CollectModal
-        open={collectOpen}
-        onClose={() => setCollectOpen(false)}
-        movieId={id}
-        contentType={contentType}
-        movieTitle={title}
-      />
-    )}
+      </Link>
+
+      {showCollect && collectOpen && (
+        <CollectModal
+          open={collectOpen}
+          onClose={() => setCollectOpen(false)}
+          movieId={id}
+          contentType={contentType}
+          movieTitle={title}
+        />
+      )}
     </>
   );
 }

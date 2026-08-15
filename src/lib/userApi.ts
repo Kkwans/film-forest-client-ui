@@ -102,6 +102,7 @@ export interface UserListItem {
   userRating?: number;
   note?: string;
   addedAt?: string;
+  watchedAt?: string;
   region?: string;
   genre?: string;
   director?: string;
@@ -178,6 +179,8 @@ export interface PosterResolution {
   diagnosticCode: string | null;
   confidence: number | null;
   matchedAt: string | null;
+  tmdbScore?: number | null;
+  tmdbVoteCount?: number | null;
 }
 
 export interface PosterEnrichmentJob {
@@ -248,6 +251,7 @@ export interface StatusListEntry {
   listName?: string;
   userRating?: number;
   note?: string;
+  watchedAt?: string;
 }
 
 export interface ContentStatusResult extends ContentStatusQuery {

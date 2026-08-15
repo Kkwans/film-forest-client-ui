@@ -30,8 +30,9 @@ import {
 import { useUserStore, hasStoredToken } from '@/stores/userStore';
 import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
-import { cleanTitle as cleanTitleUtil, formatRelativeTime } from '@/lib/utils';
+import { cleanTitle as cleanTitleUtil, formatRelativeTime, parseRegion } from '@/lib/utils';
 import { parseJsonArr } from '@/lib/contentConstants';
+import { formatWatchedAt } from '@/lib/uiContracts';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import PosterSettingsCard from '@/components/PosterSettingsCard';
@@ -68,6 +69,7 @@ interface HistoryItem {
   year?: number;
   rating?: number;
   addedAt?: string;
+  watchedAt?: string;
   action: string;
   listType: string;
   region?: string;
@@ -82,7 +84,7 @@ const contentTypeRoute: Record<string, string> = {
   short_drama: '/short',
 };
 
-const inputClassName = 'w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20';
+const inputClassName = 'w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent';
 
 function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
@@ -269,22 +271,23 @@ function ListsTab() {
             <p className="mt-1 text-xs text-muted-foreground">默认观看状态已足够使用，也可以按自己的主题继续整理。</p>
           </div>
         ) : (
-          <div className="mt-4 grid gap-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {customLists.map((list) => (
-              <div key={list.id} className="flex items-stretch overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
-                <Link href={`/user/lists/${list.id}`} prefetch={false} className="flex min-h-16 min-w-0 flex-1 items-center gap-3 p-4 no-underline">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{list.name}</p>
-                    {list.description && <p className="mt-0.5 truncate text-xs text-muted-foreground">{list.description}</p>}
-                  </div>
+              <article key={list.id} className="flex min-h-36 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
+                <Link href={`/user/lists/${list.id}`} prefetch={false} className="flex min-h-24 min-w-0 flex-1 items-start gap-3 p-4 no-underline">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent"><FolderHeart aria-hidden className="h-4 w-4" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">{list.name}</span>
+                    <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{list.description || '为喜欢的内容留一处清晰的位置。'}</span>
+                  </span>
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{list.itemCount} 部</span>
-                  <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <ChevronRight aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
-                <div className="flex shrink-0 items-center border-l border-border px-1.5" aria-label={`${list.name}片单操作`}>
-                  <button type="button" onClick={() => openEditor(list)} className="grid size-10 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`编辑片单“${list.name}”`} title="编辑片单"><Pencil aria-hidden className="h-4 w-4" /></button>
-                  <button type="button" onClick={() => setDeletingList(list)} className="grid size-10 place-items-center rounded-xl text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={`删除片单“${list.name}”`} title="删除片单"><Trash2 aria-hidden className="h-4 w-4" /></button>
+                <div className="flex items-center justify-end gap-1 border-t border-border px-3 py-2" aria-label={`${list.name}片单操作`}>
+                  <button type="button" onClick={() => openEditor(list)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`编辑片单“${list.name}”`}><Pencil aria-hidden className="h-3.5 w-3.5" />编辑</button>
+                  <button type="button" onClick={() => setDeletingList(list)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={`删除片单“${list.name}”`}><Trash2 aria-hidden className="h-3.5 w-3.5" />删除</button>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}
@@ -330,7 +333,7 @@ function ListsTab() {
 function HistoryRow({ item }: { item: HistoryItem }) {
   const route = contentTypeRoute[item.contentType] || '/movie';
   const posterUrl = usePosterUrl(item.contentType, item.movieId, item.cover);
-  const region = parseJsonArr(item.region)[0];
+  const region = parseRegion(item.region).join(' / ');
   const genres = parseJsonArr(item.genre);
   const statusTone = item.listType === 'watched' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : item.listType === 'watching' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'bg-violet-500/10 text-violet-700 dark:text-violet-300';
 
@@ -348,13 +351,13 @@ function HistoryRow({ item }: { item: HistoryItem }) {
           <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <TypeBadge contentType={item.contentType} />
             {item.year && <span>{item.year}</span>}
-            {region && <span className="max-w-24 truncate">{region}</span>}
+            {region && <span className="break-words">{region}</span>}
             {item.rating != null && Number(item.rating) > 0 && <span className="font-semibold text-amber-600 dark:text-amber-400">{Number(item.rating).toFixed(1)} 分</span>}
           </div>
         </div>
         <div className="flex items-end justify-between gap-3">
           <GenreTags genres={genres} max={2} />
-          <span className="shrink-0 text-[10px] text-muted-foreground">{formatRelativeTime(item.addedAt || '')}</span>
+          <span className="shrink-0 text-[10px] text-muted-foreground">{item.listType === 'watched' ? formatWatchedAt(item.watchedAt || item.addedAt) : formatRelativeTime(item.addedAt || '')}</span>
         </div>
       </div>
     </Link>
@@ -521,6 +524,7 @@ export default function ProfileClient() {
   const router = useRouter();
   const { user } = useUserStore();
   const [activeTab, setActiveTab] = useState<TabKey>('lists');
+  const [loadedTabs, setLoadedTabs] = useState<Set<TabKey>>(() => new Set(['lists']));
 
   useEffect(() => {
     if (!hasStoredToken()) router.replace('/login?from=/profile');
@@ -528,12 +532,20 @@ export default function ProfileClient() {
 
   if (!hasStoredToken()) return null;
 
+  const selectTab = (key: TabKey) => {
+    setActiveTab(key);
+    setLoadedTabs((current) => current.has(key) ? current : new Set(current).add(key));
+  };
+
   return (
     <div className="space-y-6">
-      <header className="overflow-hidden rounded-3xl border border-border bg-card">
-        <div className="h-20 bg-[radial-gradient(circle_at_15%_10%,color-mix(in_srgb,var(--accent)_30%,transparent),transparent_45%),linear-gradient(120deg,color-mix(in_srgb,var(--bg-secondary)_90%,var(--accent)_10%),var(--bg-secondary))]" />
-        <div className="flex items-end gap-4 px-5 pb-5 sm:px-6">
-          <div className="-mt-7 grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border-4 border-card bg-accent text-xl font-bold text-white shadow-md">
+      <header className="relative overflow-hidden rounded-3xl border border-border bg-card">
+        <div className="relative h-28 overflow-hidden bg-[radial-gradient(circle_at_15%_10%,color-mix(in_srgb,var(--accent)_30%,transparent),transparent_45%),linear-gradient(120deg,color-mix(in_srgb,var(--bg-secondary)_90%,var(--accent)_10%),var(--bg-secondary))]" aria-hidden>
+          <div className="absolute -right-10 -top-16 size-56 rounded-full border border-accent/20" />
+          <div className="absolute right-20 top-10 size-24 rounded-full border border-accent/10" />
+        </div>
+        <div className="relative -mt-10 flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:gap-5 sm:px-6">
+          <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-3xl border-4 border-card bg-accent text-2xl font-bold text-white shadow-md">
             {user?.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.avatar} alt={`${user.nickname || user.username || '用户'}头像`} className="h-full w-full object-cover" />
@@ -546,22 +558,25 @@ export default function ProfileClient() {
             <h1 className="mt-1 truncate text-xl font-bold text-foreground">{user?.nickname || user?.username || '影视森林用户'}</h1>
             {user?.nickname && user?.username && <p className="mt-0.5 text-xs text-muted-foreground">@{user.username}</p>}
           </div>
+          <p className="shrink-0 text-xs text-muted-foreground">收藏、观看与评价都在这里继续</p>
         </div>
       </header>
 
       <div className="filter-scroll-row rounded-2xl border border-border bg-card p-1.5" role="tablist" aria-label="个人中心">
         {TABS.map((tab) => (
-          <button key={tab.key} type="button" role="tab" aria-selected={activeTab === tab.key} aria-controls={`profile-panel-${tab.key}`} onClick={() => setActiveTab(tab.key)} className={`inline-flex min-h-10 flex-1 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-accent text-white shadow-sm' : 'text-secondary-foreground hover:bg-muted'}`}>
+          <button key={tab.key} type="button" role="tab" aria-selected={activeTab === tab.key} aria-controls={`profile-panel-${tab.key}`} onClick={() => selectTab(tab.key)} className={`inline-flex min-h-10 flex-1 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-accent text-white shadow-sm' : 'text-secondary-foreground hover:bg-muted'}`}>
             <tab.Icon aria-hidden className="h-4 w-4" />{tab.label}
           </button>
         ))}
       </div>
 
-      <div id={`profile-panel-${activeTab}`} role="tabpanel">
-        {activeTab === 'lists' && <ListsTab />}
-        {activeTab === 'history' && <HistoryTab />}
-        {activeTab === 'settings' && <SettingsTab />}
-      </div>
+      {TABS.map((tab) => (
+        <div key={tab.key} id={`profile-panel-${tab.key}`} role="tabpanel" hidden={activeTab !== tab.key}>
+          {loadedTabs.has(tab.key) && tab.key === 'lists' && <ListsTab />}
+          {loadedTabs.has(tab.key) && tab.key === 'history' && <HistoryTab />}
+          {loadedTabs.has(tab.key) && tab.key === 'settings' && <SettingsTab />}
+        </div>
+      ))}
     </div>
   );
 }

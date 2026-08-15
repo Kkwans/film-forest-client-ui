@@ -81,15 +81,23 @@ export function DetailTitle({ title, year }: { title: string; year?: number }) {
 
 interface RatingBadgesProps {
   douban?: number | null;
+  doubanCount?: number | null;
   imdb?: number | null;
+  imdbCount?: number | null;
   rt?: number | null;
+  rtCriticCount?: number | null;
+  rtAudienceCount?: number | null;
+  tmdb?: number | null;
+  tmdbVoteCount?: number | null;
 }
 
-export function RatingBadges({ douban, imdb, rt }: RatingBadgesProps) {
-  const badges: { label: string; value: string; className: string }[] = [
-    douban != null ? { label: '豆瓣', value: douban.toFixed(1), className: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : null,
-    imdb != null ? { label: 'IMDb', value: imdb.toFixed(1), className: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : null,
-    rt != null ? { label: '烂番茄', value: `${rt}%`, className: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300' } : null,
+export function RatingBadges({ douban, doubanCount, imdb, imdbCount, rt, rtCriticCount, rtAudienceCount, tmdb, tmdbVoteCount }: RatingBadgesProps) {
+  const hasCount = (value?: number | null) => value != null && value > 0;
+  const badges: { label: string; value: string; className: string; detail?: string }[] = [
+    douban != null || hasCount(doubanCount) ? { label: '豆瓣', value: douban != null ? douban.toFixed(1) : '暂无', detail: hasCount(doubanCount) ? `${doubanCount!.toLocaleString('zh-CN')}人评分` : undefined, className: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : null,
+    imdb != null || hasCount(imdbCount) ? { label: 'IMDb', value: imdb != null ? imdb.toFixed(1) : '暂无', detail: hasCount(imdbCount) ? `${imdbCount!.toLocaleString('zh-CN')}人评分` : undefined, className: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : null,
+    rt != null || hasCount(rtCriticCount) || hasCount(rtAudienceCount) ? { label: '烂番茄', value: rt != null ? `${rt}%` : '暂无', detail: [hasCount(rtCriticCount) ? `影评人 ${rtCriticCount!.toLocaleString('zh-CN')}` : '', hasCount(rtAudienceCount) ? `观众 ${rtAudienceCount!.toLocaleString('zh-CN')}` : ''].filter(Boolean).join(' · ') || undefined, className: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300' } : null,
+    tmdb != null || hasCount(tmdbVoteCount) ? { label: 'TMDB', value: tmdb != null ? tmdb.toFixed(1) : '暂无', detail: hasCount(tmdbVoteCount) ? `${tmdbVoteCount!.toLocaleString('zh-CN')}票` : undefined, className: 'border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' } : null,
   ].filter((b): b is NonNullable<typeof b> => b !== null);
 
   if (badges.length === 0) return null;
@@ -104,6 +112,7 @@ export function RatingBadges({ douban, imdb, rt }: RatingBadgesProps) {
           <Star aria-hidden className="size-3.5 fill-current" />
           <span className="text-xs font-medium opacity-75">{b.label}</span>
           <strong className="tabular-nums">{b.value}</strong>
+          {b.detail && <span className="text-[11px] opacity-70">{b.detail}</span>}
         </span>
       ))}
     </div>
@@ -327,7 +336,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                         }`}
                       >
                         <span className="text-sm font-medium truncate text-foreground">
-                          {isActive ? '▶ ' : ''}{label}
+                          {label}
                         </span>
                         <span
                           className="rounded-md px-2 py-1 text-xs font-semibold text-white"

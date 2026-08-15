@@ -50,7 +50,7 @@ export async function fetchContentList(
         cover: String(item.posterUrl || item.cover || ''),
         year: Number(item.year || 0),
         region: parseRegion(item.region as string).join(' / '),
-        rating: Number(item.scoreDouban || item.scoreImdb) || undefined,
+        rating: Number(item.scoreDouban) || undefined,
         genre: parseGenre(item.genre as string),
         duration: Number(item.duration) || undefined,
         episodes: Number(item.totalEpisode || item.currentEpisode) || undefined,

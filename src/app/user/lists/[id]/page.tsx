@@ -11,8 +11,9 @@ import { useToast } from '@/components/Toast';
 import Pagination from '@/components/Pagination';
 import CustomSelect from '@/components/CustomSelect';
 import SortDirButton from '@/components/SortDirButton';
-import { cleanTitle as cleanTitleUtil, formatRelativeTime } from '@/lib/utils';
+import { cleanTitle as cleanTitleUtil, formatRelativeTime, parseRegion } from '@/lib/utils';
 import { parseJsonArr } from '@/lib/contentConstants';
+import { formatWatchedAt } from '@/lib/uiContracts';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
@@ -88,7 +89,7 @@ function ListItemCard({
   const route = contentTypeRoute[item.contentType] || '/movie';
   const href = `${route}/${item.movieId}`;
   const posterUrl = usePosterUrl(item.contentType, item.movieId, item.cover);
-  const regions = parseJsonArr(item.region);
+  const regions = parseRegion(item.region);
   const genres = parseJsonArr(item.genre);
   const directors = parseJsonArr(item.director);
   const hasRating = listType === 'watched' && item.userRating != null && Number(item.userRating) > 0;
@@ -119,13 +120,13 @@ function ListItemCard({
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <TypeBadge contentType={item.contentType} />
             {item.year && <span>{item.year}</span>}
-            {regions[0] && <span className="max-w-24 truncate">{regions[0]}</span>}
+            {regions.length > 0 && <span className="break-words">{regions.join(' / ')}</span>}
             {item.duration && <span>{item.duration} 分钟</span>}
             {item.totalEpisode && <span>{item.totalEpisode} 集</span>}
           </div>
           <div className="mt-2"><GenreTags genres={genres} max={3} /></div>
           {directors.length > 0 && <p className="mt-2 truncate text-xs text-muted-foreground">导演：{directors.join(' / ')}</p>}
-          <p className="mt-auto pt-2 text-[11px] text-muted-foreground">{formatRelativeTime(item.addedAt || '')} · {activityLabel(listType)}</p>
+          <p className="mt-auto pt-2 text-[11px] text-muted-foreground">{listType === 'watched' ? formatWatchedAt(item.watchedAt || item.addedAt) : formatRelativeTime(item.addedAt || '')} · {activityLabel(listType)}</p>
         </div>
       </div>
 

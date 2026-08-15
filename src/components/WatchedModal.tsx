@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast';
 import { Modal } from '@/components/ui/modal';
 import { useUserStore } from '@/stores/userStore';
 import RatingField from '@/components/RatingField';
+import { formatWatchedAt } from '@/lib/uiContracts';
 
 interface WatchedModalProps {
   open: boolean;
@@ -17,7 +18,9 @@ interface WatchedModalProps {
   movieTitle?: string;
   initialRating?: number;
   initialNote?: string;
+  initialWatchedAt?: string;
   isReadOnly?: boolean;
+  isExisting?: boolean;
   onEdit?: () => void;
   watchedListId?: number | null;
 }
@@ -30,7 +33,9 @@ export default function WatchedModal({
   movieTitle,
   initialRating,
   initialNote,
+  initialWatchedAt,
   isReadOnly = false,
+  isExisting = false,
   onEdit,
   watchedListId: watchedListIdProp,
 }: WatchedModalProps) {
@@ -86,12 +91,14 @@ export default function WatchedModal({
     setSaving(true);
     setSaveError(null);
     try {
-      await listApi.addItem(watchedListId, {
+      const payload = {
         movieId,
         contentType,
         rating: rating > 0 ? rating : undefined,
         note: note.trim() || undefined,
-      });
+      };
+      if (isExisting) await listApi.updateItem(watchedListId, payload);
+      else await listApi.addItem(watchedListId, payload);
       showToast('观看状态与评价已保存', 'success');
       window.dispatchEvent(new CustomEvent('movie-status-changed', {
         detail: { movieId, contentType, action: 'added' },
@@ -122,7 +129,7 @@ export default function WatchedModal({
         </button>
         <button type="button" onClick={() => void handleSave()} disabled={saving || loadingList || !watchedListId} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50">
           {saving ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <CheckCircle2 aria-hidden className="h-4 w-4" />}
-          {saving ? '保存中' : '保存评价'}
+          {saving ? '保存中' : rating > 0 || note.trim() ? '保存评价' : '仅标记看过'}
         </button>
       </>
     )
@@ -132,7 +139,7 @@ export default function WatchedModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={isReadOnly ? '我的评价' : initialRating ? '编辑评价' : '标记为看过'}
+      title={isReadOnly ? '我的评价' : isExisting ? '编辑评价' : '标记为看过'}
       description={movieTitle}
       width="sm"
       footer={footer}
@@ -159,6 +166,10 @@ export default function WatchedModal({
         <div className="space-y-6">
           <RatingField value={rating} onChange={setRating} readOnly={isReadOnly} />
 
+          {initialWatchedAt && (
+            <p className="text-xs text-muted-foreground" role="status">看过于 {formatWatchedAt(initialWatchedAt)}</p>
+          )}
+
           <section>
             <label htmlFor="watched-note" className="text-sm font-semibold text-foreground">观后感</label>
             {isReadOnly ? (
@@ -174,7 +185,7 @@ export default function WatchedModal({
                   placeholder="记录一下看完后的感受……"
                   rows={4}
                   maxLength={500}
-                  className="mt-2 w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  className="mt-2 w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent"
                 />
                 <p className="mt-1 text-right text-xs tabular-nums text-muted-foreground">{note.length}/500</p>
               </>

@@ -72,7 +72,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
     startTransition(() => router.push(`${pathname}?${next.toString()}`, { scroll: false }));
   };
 
-  const activeFilterCount = [query.genre, query.region, query.year, query.yearFrom, query.yearTo, query.tag]
+  const activeFilterCount = [query.genre, query.region, query.language, query.year, query.yearFrom, query.yearTo, query.tag]
     .filter(Boolean).length + (query.hasResource === undefined ? 0 : 1);
   const [filtersOpen, setFiltersOpen] = useState(activeFilterCount > 0);
   const movieIds = useMemo(() => initialItems.map((item) => item.id), [initialItems]);

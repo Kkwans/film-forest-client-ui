@@ -75,6 +75,43 @@
   --copied-bg: #6b7280;
   /* Notes bg */
   --notes-bg: #f8f9fa;
+  /* Low-saturation semantic genre tokens for list cards only. */
+  --genre-action-bg: #eef2ff;
+  --genre-action-text: #4f46a5;
+  --genre-action-border: #c7d2fe;
+  --genre-comedy-bg: #fff7ed;
+  --genre-comedy-text: #c2410c;
+  --genre-comedy-border: #fed7aa;
+  --genre-drama-bg: #fdf2f8;
+  --genre-drama-text: #be185d;
+  --genre-drama-border: #fbcfe8;
+  --genre-romance-bg: #fff1f2;
+  --genre-romance-text: #be123c;
+  --genre-romance-border: #fecdd3;
+  --genre-horror-bg: #f5f3ff;
+  --genre-horror-text: #6d28d9;
+  --genre-horror-border: #ddd6fe;
+  --genre-thriller-bg: #f1f5f9;
+  --genre-thriller-text: #334155;
+  --genre-thriller-border: #cbd5e1;
+  --genre-erotic-bg: #fefce8;
+  --genre-erotic-text: #a16207;
+  --genre-erotic-border: #fde68a;
+  --genre-scifi-bg: #ecfeff;
+  --genre-scifi-text: #0e7490;
+  --genre-scifi-border: #a5f3fc;
+  --genre-fantasy-bg: #f0fdfa;
+  --genre-fantasy-text: #0f766e;
+  --genre-fantasy-border: #99f6e4;
+  --genre-documentary-bg: #f8fafc;
+  --genre-documentary-text: #475569;
+  --genre-documentary-border: #cbd5e1;
+  --genre-animation-bg: #eff6ff;
+  --genre-animation-text: #1d4ed8;
+  --genre-animation-border: #bfdbfe;
+  --genre-default-bg: var(--bg-primary);
+  --genre-default-text: var(--text-secondary);
+  --genre-default-border: var(--border-color);
 }
 
 /* Dark theme */
@@ -122,6 +159,42 @@
   --copied-bg: #52525b;
   /* Notes bg */
   --notes-bg: #27272a;
+  --genre-action-bg: rgba(99,102,241,.16);
+  --genre-action-text: #c7d2fe;
+  --genre-action-border: rgba(129,140,248,.38);
+  --genre-comedy-bg: rgba(249,115,22,.15);
+  --genre-comedy-text: #fdba74;
+  --genre-comedy-border: rgba(251,146,60,.35);
+  --genre-drama-bg: rgba(236,72,153,.15);
+  --genre-drama-text: #f9a8d4;
+  --genre-drama-border: rgba(244,114,182,.35);
+  --genre-romance-bg: rgba(244,63,94,.15);
+  --genre-romance-text: #fda4af;
+  --genre-romance-border: rgba(251,113,133,.35);
+  --genre-horror-bg: rgba(124,58,237,.16);
+  --genre-horror-text: #ddd6fe;
+  --genre-horror-border: rgba(167,139,250,.38);
+  --genre-thriller-bg: rgba(100,116,139,.18);
+  --genre-thriller-text: #cbd5e1;
+  --genre-thriller-border: rgba(148,163,184,.38);
+  --genre-erotic-bg: rgba(234,179,8,.15);
+  --genre-erotic-text: #fde68a;
+  --genre-erotic-border: rgba(250,204,21,.35);
+  --genre-scifi-bg: rgba(6,182,212,.15);
+  --genre-scifi-text: #a5f3fc;
+  --genre-scifi-border: rgba(34,211,238,.38);
+  --genre-fantasy-bg: rgba(20,184,166,.15);
+  --genre-fantasy-text: #99f6e4;
+  --genre-fantasy-border: rgba(45,212,191,.35);
+  --genre-documentary-bg: rgba(148,163,184,.16);
+  --genre-documentary-text: #cbd5e1;
+  --genre-documentary-border: rgba(148,163,184,.35);
+  --genre-animation-bg: rgba(59,130,246,.15);
+  --genre-animation-text: #bfdbfe;
+  --genre-animation-border: rgba(96,165,250,.35);
+  --genre-default-bg: var(--bg-primary);
+  --genre-default-text: var(--text-secondary);
+  --genre-default-border: var(--border-color);
 }
 
 * {
@@ -305,6 +378,14 @@ a, button, [role="button"], input[type="submit"] {
   }
 }
 
+/* Inputs retain the single global keyboard outline and never compress on press. */
+input:active,
+textarea:active,
+select:active,
+[role="combobox"]:active {
+  transform: none !important;
+}
+
 /* Staggered fade-in for content sections */
 @keyframes fadeInUp {
   from {
@@ -400,6 +481,23 @@ a, button, [role="button"], input[type="submit"] {
   pointer-events: none;
   transition: opacity 0.3s ease;
 }
+
+.genre-tag {
+  background: var(--genre-default-bg);
+  color: var(--genre-default-text);
+  border: 1px solid var(--genre-default-border);
+}
+.genre-tag-action { background: var(--genre-action-bg); color: var(--genre-action-text); border-color: var(--genre-action-border); }
+.genre-tag-comedy { background: var(--genre-comedy-bg); color: var(--genre-comedy-text); border-color: var(--genre-comedy-border); }
+.genre-tag-drama { background: var(--genre-drama-bg); color: var(--genre-drama-text); border-color: var(--genre-drama-border); }
+.genre-tag-romance { background: var(--genre-romance-bg); color: var(--genre-romance-text); border-color: var(--genre-romance-border); }
+.genre-tag-horror { background: var(--genre-horror-bg); color: var(--genre-horror-text); border-color: var(--genre-horror-border); }
+.genre-tag-thriller { background: var(--genre-thriller-bg); color: var(--genre-thriller-text); border-color: var(--genre-thriller-border); }
+.genre-tag-erotic { background: var(--genre-erotic-bg); color: var(--genre-erotic-text); border-color: var(--genre-erotic-border); }
+.genre-tag-scifi { background: var(--genre-scifi-bg); color: var(--genre-scifi-text); border-color: var(--genre-scifi-border); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--genre-scifi-text) 10%, transparent); }
+.genre-tag-fantasy { background: var(--genre-fantasy-bg); color: var(--genre-fantasy-text); border-color: var(--genre-fantasy-border); }
+.genre-tag-documentary { background: var(--genre-documentary-bg); color: var(--genre-documentary-text); border-color: var(--genre-documentary-border); }
+.genre-tag-animation { background: var(--genre-animation-bg); color: var(--genre-animation-text); border-color: var(--genre-animation-border); }
 
 /* Shake animation for login error */
 @keyframes shake {

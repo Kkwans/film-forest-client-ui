@@ -3,6 +3,7 @@
 import { useId } from 'react';
 import { Slider } from '@base-ui/react/slider';
 import { Star } from 'lucide-react';
+import { fractionalStarFill } from '@/lib/uiContracts';
 
 const RATING_LEVELS = [
   { max: 2, label: '不推荐', color: 'var(--rating-low)' },
@@ -14,6 +15,21 @@ const RATING_LEVELS = [
 
 function ratingLevel(rating: number) {
   return RATING_LEVELS.find((level) => rating <= level.max) || RATING_LEVELS[RATING_LEVELS.length - 1];
+}
+
+function FractionalStars({ score }: { score: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-amber-500" aria-label={`${score.toFixed(1)} 分，${(score / 2).toFixed(2)} 星`}>
+      {[0, 1, 2, 3, 4].map((index) => (
+        <span key={index} className="relative inline-flex h-4 w-4">
+          <Star aria-hidden className="absolute inset-0 h-4 w-4" strokeWidth={1.5} />
+          <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fractionalStarFill(score, index) * 100}%` }}>
+            <Star aria-hidden className="h-4 w-4 max-w-none fill-current" strokeWidth={1.5} />
+          </span>
+        </span>
+      ))}
+    </span>
+  );
 }
 
 export default function RatingField({ value, onChange, readOnly = false }: {
@@ -32,7 +48,7 @@ export default function RatingField({ value, onChange, readOnly = false }: {
           {!readOnly && <p className="mt-1 text-xs text-muted-foreground">支持 0.5 分步进，使用方向键也可调整。</p>}
         </div>
         <div className="flex min-w-20 items-center justify-end gap-1.5">
-          <Star aria-hidden className="h-4 w-4 fill-amber-500 text-amber-500" />
+          {value > 0 && <FractionalStars score={value} />}
           <span className="text-2xl font-bold tabular-nums text-foreground">{value > 0 ? value.toFixed(1) : '—'}</span>
         </div>
       </div>
@@ -47,7 +63,7 @@ export default function RatingField({ value, onChange, readOnly = false }: {
             <Slider.Track className="relative h-2 w-full rounded-full bg-muted">
               <Slider.Indicator className="absolute rounded-full bg-accent" />
               <Slider.Thumb
-                className="size-5 rounded-full border-2 border-accent bg-card shadow-md outline-none ring-accent/20 transition-shadow focus-visible:ring-4"
+                className="size-5 rounded-full border-2 border-accent bg-card shadow-md outline-none transition-shadow"
                 getAriaLabel={() => '我的评分'}
                 getAriaValueText={(_, rating) => `${rating.toFixed(1)} 分`}
               />

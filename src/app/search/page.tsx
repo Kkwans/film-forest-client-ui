@@ -17,6 +17,7 @@ import {
   normalizeContentType,
   parseJsonArr,
 } from '@/lib/contentConstants';
+import { parseRegion } from '@/lib/utils';
 import { contentStatusKey, useContentStatuses } from '@/hooks/useMovieStatuses';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
 
@@ -30,6 +31,12 @@ interface SearchResult {
   summary?: string;
   genre?: string;
   region?: string;
+  alias?: string | string[];
+  director?: string | string[];
+  writer?: string | string[];
+  actor?: string | string[];
+  releaseDate?: string;
+  matchedFields?: string[] | string;
 }
 
 interface SearchPageData {
@@ -62,6 +69,20 @@ function Highlight({ text, keyword }: { text: string; keyword: string }) {
   const index = text.toLocaleLowerCase().indexOf(keyword.toLocaleLowerCase());
   if (index < 0) return text;
   return <>{text.slice(0, index)}<mark className="rounded bg-accent/20 px-0.5 text-inherit">{text.slice(index, index + keyword.length)}</mark>{text.slice(index + keyword.length)}</>;
+}
+
+function valuesOf(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value.filter((entry) => typeof entry === 'string' && entry.trim()).map((entry) => entry.trim());
+  return parseJsonArr(value);
+}
+
+const MATCHED_FIELD_LABELS: Record<string, string> = {
+  title: '标题', alias: '别名', director: '导演', writer: '编剧', actor: '主演', genre: '类型', year: '上映年份', region: '地区', language: '语言',
+};
+
+function matchedFieldLabels(value: string[] | string | undefined): string[] {
+  const fields = Array.isArray(value) ? value : parseJsonArr(value);
+  return fields.map((field) => MATCHED_FIELD_LABELS[field] || field).filter(Boolean);
 }
 
 function isContentType(value: string): value is ContentType {
@@ -268,7 +289,7 @@ function SearchContent() {
               if (event.key === 'Escape') { setSuggestions([]); setActiveSuggestion(-1); inputRef.current?.blur(); }
             }}
             placeholder="片名、别名、主创、年份或题材（按 / 快速聚焦）"
-            className="h-12 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/15"
+            className="h-12 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent"
             role="combobox"
             aria-autocomplete="list"
             aria-controls="search-suggestions"
@@ -394,13 +415,27 @@ function SearchContent() {
             const config = getContentTypeConfig(type);
             const status = statuses[contentStatusKey(type, item.id)];
             const statusConfig = getStatusConfig(status?.listType);
+            const aliases = valuesOf(item.alias);
+            const directors = valuesOf(item.director);
+            const writers = valuesOf(item.writer);
+            const actors = valuesOf(item.actor);
+            const genres = valuesOf(item.genre);
+            const matched = matchedFieldLabels(item.matchedFields);
             return (
               <Link key={`${type}-${item.id}`} href={`/${config.route}/${item.id}`} prefetch={false} className="flex gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-accent/40 sm:gap-4">
                 <SearchPoster item={item} type={type} />
                 <div className="min-w-0 flex-1 py-1">
                   <div className="flex items-start justify-between gap-3"><h2 className="text-pretty font-semibold leading-6 text-foreground"><Highlight text={item.title} keyword={q} /></h2><span className="shrink-0 rounded-lg bg-background px-2 py-1 text-[11px] text-muted-foreground">{config.label}</span></div>
-                  <p className="mt-2 text-xs text-muted-foreground">{[item.year, ...parseJsonArr(item.region)].filter(Boolean).join(' · ')}</p>
-                  {item.genre && <p className="mt-2 text-xs text-secondary-foreground">{parseJsonArr(item.genre).slice(0, 4).join(' / ')}</p>}
+                  {aliases.length > 0 && <p className="mt-1 text-xs text-muted-foreground">别名：{aliases.join(' / ')}</p>}
+                  <div className="mt-2 grid gap-1 text-xs text-secondary-foreground sm:grid-cols-2">
+                    <p>导演：{directors.length > 0 ? directors.join(' / ') : '--'}</p>
+                    <p>编剧：{writers.length > 0 ? writers.join(' / ') : '--'}</p>
+                    <p>主演：{actors.length > 0 ? actors.join(' / ') : '--'}</p>
+                    <p>类型：{genres.length > 0 ? genres.slice(0, 4).join(' / ') : '--'}</p>
+                    <p>上映：{item.releaseDate || item.year || '--'}</p>
+                    <p>地区：{parseRegion(item.region).join(' / ') || '--'}</p>
+                  </div>
+                  {matched.length > 0 && <p className="mt-2 text-xs font-medium text-accent">命中字段：{matched.join('、')}</p>}
                   {item.summary && <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground"><Highlight text={item.summary} keyword={q} /></p>}
                   {statusConfig && <span className="mt-3 inline-flex rounded-full px-2 py-1 text-[11px]" style={{ color: statusConfig.color, background: 'var(--bg-primary)' }}>{statusConfig.label}</span>}
                 </div>

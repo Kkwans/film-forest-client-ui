@@ -79,7 +79,7 @@ export default function NoteEditModal({
             </div>
           ) : (
             <>
-              <textarea id="list-item-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder={isWatchedList ? '记录一下看完后的感受……' : '记录收藏理由、观看计划或其他信息……'} rows={4} maxLength={500} className="mt-2 w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20" />
+              <textarea id="list-item-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder={isWatchedList ? '记录一下看完后的感受……' : '记录收藏理由、观看计划或其他信息……'} rows={4} maxLength={500} className="mt-2 w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent" />
               <p className="mt-1 text-right text-xs tabular-nums text-muted-foreground">{note.length}/500</p>
             </>
           )}

@@ -1,8 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Bookmark, CheckCircle2, Eye, Heart, ListPlus, Loader2 } from 'lucide-react';
+import { Bookmark, CheckCircle2, Eye, Heart, ListPlus, Loader2, Star } from 'lucide-react';
 import type { DetailStatus } from '@/hooks/useDetailStatus';
+import { fractionalStarFill } from '@/lib/uiContracts';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
 const WatchedModal = dynamic(() => import('@/components/WatchedModal'), { ssr: false });
@@ -26,18 +27,15 @@ interface DetailButtonsProps {
 }
 
 function MiniStars({ rating }: { rating?: number }) {
-  const roundedRating = Math.round(rating || 0);
   return (
     <span className="hidden items-center gap-px text-amber-500 sm:inline-flex" aria-hidden>
-      {[1, 2, 3, 4, 5].map((index) => (
-        <svg key={index} className="h-3 w-3" viewBox="0 0 24 24">
-          <path
-            d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z"
-            fill={index * 2 <= roundedRating ? 'currentColor' : 'none'}
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-        </svg>
+      {[0, 1, 2, 3, 4].map((index) => (
+        <span key={index} className="relative inline-flex h-3 w-3">
+          <Star className="absolute inset-0 h-3 w-3" strokeWidth={1.5} />
+          <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fractionalStarFill(rating, index) * 100}%` }}>
+            <Star className="h-3 w-3 max-w-none fill-current" strokeWidth={1.5} />
+          </span>
+        </span>
       ))}
     </span>
   );
@@ -125,6 +123,8 @@ export default function DetailButtons({
           watchedListId={watchedListId}
           initialRating={status.watchedRating}
           initialNote={status.watchedNote}
+          initialWatchedAt={status.watchedAt}
+          isExisting={status.watched}
           isReadOnly={watchedReadOnly}
           onEdit={onWatchedEdit}
         />

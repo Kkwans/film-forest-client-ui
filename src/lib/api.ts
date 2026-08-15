@@ -45,7 +45,14 @@ export interface ContentDetail {
   year?: number;
   region?: string;
   scoreDouban?: number;
+  scoreDoubanCount?: number;
+  scoreDoubanVotes?: number;
+  scoreImdbCount?: number;
+  scoreRtCriticCount?: number;
+  scoreRtAudienceCount?: number;
+  ratingCount?: number;
   scoreImdb?: number;
+  scoreRt?: number;
   scoreRT?: number;
   storyline?: string;
   status?: number;
@@ -59,7 +66,15 @@ export interface ContentDetail {
   language?: string;
   releaseDate?: string;
   aka?: string;
+  alias?: string;
   updatedAt?: string;
+  tmdbId?: number;
+  tmdbMediaType?: string;
+  tmdbMatchStatus?: string;
+  tmdbDiagnosticCode?: string;
+  tmdbPosterUrl?: string;
+  tmdbScore?: number;
+  tmdbVoteCount?: number;
 }
 
 /** Search result item from unified search API */
@@ -74,9 +89,12 @@ export interface SearchRecord {
   ratingRT: number | null;
   summary: string | null;
   director?: string;
+  writer?: string;
   actor?: string;
   genre?: string;
   region?: string;
+  releaseDate?: string;
+  matchedFields?: string[] | string;
   duration?: number;
   totalEpisode?: number;
   updatedAt?: string;

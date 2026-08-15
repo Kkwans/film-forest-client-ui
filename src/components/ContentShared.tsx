@@ -6,6 +6,8 @@
  */
 
 import { getStatusConfig, TYPE_LABELS } from '@/lib/contentConstants';
+import { Bookmark, CheckCircle2, Eye, Heart, Star } from 'lucide-react';
+import { getGenreColorToken } from '@/lib/uiContracts';
 
 /* ============================================================
  * 1. 状态图标按钮（想看/在看/看过/收藏）
@@ -40,6 +42,15 @@ export function StatusIconButton({
   const iconClass = size === 'sm' ? 'w-3 h-3' : 'w-3 h-3 md:w-4 md:h-4';
 
   const defaultTitle = config ? `${config.label} · 管理片单` : '添加到片单';
+  const StatusIcon = config?.label === '看过'
+    ? CheckCircle2
+    : config?.label === '在看'
+      ? Eye
+      : config?.label === '已收藏'
+        ? Star
+        : config?.label === '想看'
+          ? Heart
+          : Bookmark;
 
   return (
     <button
@@ -54,23 +65,7 @@ export function StatusIconButton({
       aria-label={title || defaultTitle}
       aria-haspopup="dialog"
     >
-      {loading ? (
-        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-      ) : config ? (
-        config.fill ? (
-          <svg className={iconClass} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1">
-            <path d={config.icon} />
-          </svg>
-        ) : (
-          <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d={config.icon} />
-          </svg>
-        )
-      ) : (
-        <svg className={iconClass} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-        </svg>
-      )}
+      {loading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <StatusIcon className={iconClass} fill={config?.fill ? 'currentColor' : 'none'} aria-hidden />}
     </button>
   );
 }
@@ -149,15 +144,7 @@ export function GenreTags({ genres, max = 4 }: { genres: string[]; max?: number 
   return (
     <div className="flex items-center gap-1 flex-wrap overflow-hidden" style={{ maxHeight: '22px' }}>
       {genres.slice(0, max).map((g, i) => (
-        <span
-          key={i}
-          className="text-[9px] md:text-[10px] px-1 py-0.5 rounded shrink-0"
-          style={{
-            backgroundColor: 'var(--bg-primary)',
-            color: 'var(--text-secondary)',
-            border: '1px solid var(--border-color)',
-          }}
-        >
+        <span key={i} className={`genre-tag genre-tag-${getGenreColorToken(g)} text-[9px] md:text-[10px] px-1.5 py-0.5 rounded-md shrink-0`}>
           {g}
         </span>
       ))}

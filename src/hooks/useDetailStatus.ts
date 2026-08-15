@@ -9,6 +9,7 @@ export interface DetailStatus {
   watched?: boolean;
   watchedRating?: number;
   watchedNote?: string;
+  watchedAt?: string;
 }
 
 /** API 返回的片单状态条目 */
@@ -18,6 +19,7 @@ interface StatusItem {
   type: string;
   userRating?: number;
   note?: string;
+  watchedAt?: string;
 }
 
 /** API 返回的用户片单 */
@@ -78,6 +80,7 @@ export function useDetailStatus(contentId: number, contentType: string) {
               s.watched = true;
               if (item.userRating) s.watchedRating = Number(item.userRating);
               if (item.note) s.watchedNote = item.note;
+              if (item.watchedAt) s.watchedAt = item.watchedAt;
             }
           }
         });
@@ -134,9 +137,9 @@ export function useDetailStatus(contentId: number, contentType: string) {
       setCollectOpen(true);
       return;
     }
-    setWatchedReadOnly(true);
+    setWatchedReadOnly(Boolean(status.watched));
     setWatchedOpen(true);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, status.watched]);
 
   // Close watched modal and refresh
   const handleWatchedClose = useCallback(() => {

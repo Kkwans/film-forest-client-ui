@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { CloudDownload, Magnet, RefreshCw, TriangleAlert } from 'lucide-react';
 import { resourceApi } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
@@ -21,9 +22,9 @@ import {
   DetailNotFound,
 } from '@/components/detail/DetailComponents';
 import RelatedSection from '@/components/RelatedSection';
-import TagChips from '@/components/TagChips';
-import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { usePosterResolution } from '@/hooks/usePosterUrl';
 import { useToast } from '@/components/Toast';
+import { filterResourcesByDiskType } from '@/lib/uiContracts';
 
 /** 在线播放资源 */
 interface OnlineResourceItem {
@@ -55,6 +56,7 @@ interface CloudResourceItem {
   url: string;
   diskType?: string;
   extractionCode?: string;
+  password?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -125,6 +127,11 @@ export interface DetailItem {
   year: number;
   region: string;
   rating?: number;
+  scoreDoubanCount?: number;
+  scoreImdbCount?: number;
+  scoreRtCriticCount?: number;
+  scoreRtAudienceCount?: number;
+  ratingCount?: number;
   ratingImdb?: number;
   ratingRT?: number;
   summary: string;
@@ -132,11 +139,21 @@ export interface DetailItem {
   totalEpisode?: number;
   currentEpisode?: number;
   duration?: number;
-  genre?: string[];
-  director?: string[];
-  actor?: string[];
-  language?: string[];
+  genre: string[];
+  director: string[];
+  writer: string[];
+  actor: string[];
+  language: string[];
+  alias: string[];
+  releaseDate?: string;
   updatedAt?: string;
+  tmdbId?: number;
+  tmdbMediaType?: string;
+  tmdbMatchStatus?: string;
+  tmdbDiagnosticCode?: string;
+  tmdbPosterUrl?: string;
+  tmdbScore?: number;
+  tmdbVoteCount?: number;
 }
 
 /** 详情页配置 */
@@ -188,6 +205,7 @@ export default function DetailPageLayout({
   const [resourceReloadKey, setResourceReloadKey] = useState(0);
   const [downloadTab, setDownloadTab] = useState<'magnet' | 'cloud'>('magnet');
   const [magnetQuality, setMagnetQuality] = useState('全部');
+  const [cloudDiskType, setCloudDiskType] = useState('全部');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [playerSrc, setPlayerSrc] = useState<string | undefined>(undefined);
   const [playerSourceId, setPlayerSourceId] = useState<number | null>(null);
@@ -195,7 +213,10 @@ export default function DetailPageLayout({
   const requestedSourceHandledRef = useRef(false);
 
   const ds = useDetailStatus(item.id, contentType);
-  const resolvedCover = usePosterUrl(contentType, item.id, item.cover, { enrich: true });
+  const posterResolution = usePosterResolution(contentType, item.id, item.cover, { enrich: true });
+  const resolvedCover = posterResolution.url;
+  const tmdbScore = posterResolution.tmdbScore ?? item.tmdbScore;
+  const tmdbVoteCount = posterResolution.tmdbVoteCount ?? item.tmdbVoteCount;
   const { showToast } = useToast();
   const magnetCategories = useMemo(() => Array.from(new Set(
     magnetResources.map((resource) => resource.qualityCategory || '未知'),
@@ -213,6 +234,29 @@ export default function DetailPageLayout({
   const visibleMagnets = activeMagnetQuality === '全部'
     ? magnetResources
     : magnetResources.filter((resource) => resource.qualityCategory === activeMagnetQuality);
+  const cloudDiskTypes = useMemo(() => Array.from(new Set(
+    cloudResources.map((resource) => resource.diskType?.trim()).filter((value): value is string => Boolean(value)),
+  )), [cloudResources]);
+  const visibleClouds = cloudDiskType === '全部'
+    ? cloudResources
+    : filterResourcesByDiskType(cloudResources, cloudDiskType);
+
+  useEffect(() => {
+    if (cloudDiskType !== '全部' && !cloudDiskTypes.includes(cloudDiskType)) setCloudDiskType('全部');
+  }, [cloudDiskType, cloudDiskTypes]);
+
+  const filterHref = (key: 'genre' | 'region' | 'language', value: string) => `${listPath}?${key}=${encodeURIComponent(value)}`;
+  const searchHref = (value: string) => `/search?q=${encodeURIComponent(value)}`;
+  const splitValues = (value: string) => value.split(/\s*\/\s*/u).map((entry) => entry.trim()).filter(Boolean);
+  const posterStatusLabel = posterResolution.status === 'tmdb'
+    ? 'TMDB 海报已匹配'
+    : posterResolution.status === 'fallback'
+      ? 'TMDB 未匹配，已保留原图'
+      : posterResolution.status === 'unavailable'
+        ? 'TMDB 暂不可用，已保留原图'
+        : posterResolution.status === 'loading'
+          ? 'TMDB 状态读取中'
+          : '';
 
   // 播放记录卡片通过 episode/sourceId 深链回来；仅接受当前内容真实存在的集数。
   useEffect(() => {
@@ -335,9 +379,22 @@ export default function DetailPageLayout({
           <div className="flex min-w-0 flex-1 flex-col gap-4 py-1">
           <DetailTitle title={item.title} year={item.year} />
 
-          <RatingBadges douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
-
-          <TagChips contentType={contentType} contentId={item.id} />
+          <RatingBadges
+            douban={item.rating}
+            doubanCount={item.scoreDoubanCount ?? item.ratingCount}
+            imdb={item.ratingImdb}
+            imdbCount={item.scoreImdbCount}
+            rt={item.ratingRT}
+            rtCriticCount={item.scoreRtCriticCount}
+            rtAudienceCount={item.scoreRtAudienceCount}
+            tmdb={tmdbScore}
+            tmdbVoteCount={tmdbVoteCount}
+          />
+          {posterStatusLabel && (
+            <p className={`text-xs ${posterResolution.status === 'tmdb' ? 'text-accent' : 'text-muted-foreground'}`} role="status">
+              {posterStatusLabel}
+            </p>
+          )}
 
           <DetailButtons
             contentId={item.id}
@@ -358,37 +415,35 @@ export default function DetailPageLayout({
           />
 
           <div className="mt-1 grid gap-x-8 gap-y-2 border-t border-border/70 pt-4 lg:grid-cols-2">
-            {item.status && (
-              <InfoRow label="状态" accent={item.status === updatingText}>
-                {item.status}
-              </InfoRow>
-            )}
-            {item.genre && item.genre.length > 0 && (
-              <InfoRow label="类型">{item.genre.join(' / ')}</InfoRow>
-            )}
-            {item.director && item.director.length > 0 && (
-              <InfoRow label="导演" accent>{item.director.join(' / ')}</InfoRow>
-            )}
-            {item.actor && item.actor.length > 0 && (
-              <InfoRow label="主演" accent>{item.actor.join(' / ')}</InfoRow>
-            )}
-            {item.region && <InfoRow label="地区">{item.region}</InfoRow>}
-            {item.language && item.language.length > 0 && (
-              <InfoRow label="语言">{item.language.join(' / ')}</InfoRow>
-            )}
-            {item.totalEpisode && item.totalEpisode > 0 && (
-              <InfoRow label="集数">{item.totalEpisode}{episodeLabel}</InfoRow>
-            )}
-            {item.duration && item.duration > 0 && (
-              <InfoRow label="时长">{item.duration}分钟</InfoRow>
-            )}
-            {item.updatedAt && (
-              <InfoRow label="更新">
-                <span className="text-xs text-muted-foreground" >
-                  {new Date(item.updatedAt).toLocaleString('zh-CN')}
+            <InfoRow label="状态" accent={item.status === updatingText}>{item.status || '暂无'}</InfoRow>
+            <InfoRow label="类型">
+              {item.genre.length > 0 ? (
+                <span className="flex flex-wrap gap-x-2 gap-y-1">
+                  {item.genre.map((genre) => <Link key={genre} href={filterHref('genre', genre)} className="text-accent underline-offset-4 hover:underline">{genre}</Link>)}
                 </span>
-              </InfoRow>
-            )}
+              ) : '--'}
+            </InfoRow>
+            <InfoRow label="导演" accent>
+              {item.director.length > 0 ? <span className="flex flex-wrap gap-x-2 gap-y-1">{item.director.map((person) => <Link key={person} href={searchHref(person)} className="text-accent underline-offset-4 hover:underline">{person}</Link>)}</span> : '--'}
+            </InfoRow>
+            <InfoRow label="编剧" accent>
+              {item.writer.length > 0 ? <span className="flex flex-wrap gap-x-2 gap-y-1">{item.writer.map((person) => <Link key={person} href={searchHref(person)} className="text-accent underline-offset-4 hover:underline">{person}</Link>)}</span> : '--'}
+            </InfoRow>
+            <InfoRow label="主演" accent>
+              {item.actor.length > 0 ? <span className="flex flex-wrap gap-x-2 gap-y-1">{item.actor.map((person) => <Link key={person} href={searchHref(person)} className="text-accent underline-offset-4 hover:underline">{person}</Link>)}</span> : '--'}
+            </InfoRow>
+            <InfoRow label="地区">
+              {item.region ? <span className="flex flex-wrap gap-x-2 gap-y-1">{splitValues(item.region).map((region) => <Link key={region} href={filterHref('region', region)} className="text-accent underline-offset-4 hover:underline">{region}</Link>)}</span> : '--'}
+            </InfoRow>
+            <InfoRow label="语言">
+              {item.language.length > 0 ? <span className="flex flex-wrap gap-x-2 gap-y-1">{item.language.map((language) => <Link key={language} href={filterHref('language', language)} className="text-accent underline-offset-4 hover:underline">{language}</Link>)}</span> : '--'}
+            </InfoRow>
+            <InfoRow label="别名">{item.alias.length > 0 ? <span className="break-words">{item.alias.join(' / ')}</span> : '--'}</InfoRow>
+            <InfoRow label="上映日期">{item.releaseDate || '--'}</InfoRow>
+            <InfoRow label="年份">{item.year > 0 ? item.year : '--'}</InfoRow>
+            <InfoRow label="集数">{item.totalEpisode && item.totalEpisode > 0 ? `${item.totalEpisode}${episodeLabel}` : '--'}</InfoRow>
+            <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</InfoRow>
+            <InfoRow label="TMDB">{item.tmdbId ? `#${item.tmdbId}${item.tmdbMediaType ? ` · ${item.tmdbMediaType}` : ''}` : '--'}</InfoRow>
           </div>
           </div>
         </div>
@@ -399,6 +454,22 @@ export default function DetailPageLayout({
         expanded={synopsisExpanded}
         onToggle={() => setSynopsisExpanded(!synopsisExpanded)}
       />
+
+      <section className="rounded-2xl border border-border bg-card/70 px-4 py-3 sm:px-5" aria-labelledby="detail-maintenance-title">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <h2 id="detail-maintenance-title" className="text-xs font-semibold text-muted-foreground">维护信息</h2>
+          <p className="text-xs text-muted-foreground">
+            <span className="mr-2">数据更新</span>
+            <span className="text-secondary-foreground">{item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('zh-CN') : '--'}</span>
+          </p>
+          {posterResolution.diagnosticCode && (
+            <p className="text-xs text-muted-foreground">
+              <span className="mr-2">海报状态</span>
+              <span className="text-secondary-foreground">{posterResolution.diagnosticCode}</span>
+            </p>
+          )}
+        </div>
+      </section>
 
       {(
         <>
@@ -539,10 +610,33 @@ export default function DetailPageLayout({
                 />
               </div>
             ) : (
-              <CopyableResourceList
-                resources={cloudResources.map((resource) => {
+              <div className="space-y-4">
+                {cloudResources.length > 0 && (
+                  <div className="flex flex-wrap gap-2" role="group" aria-label="网盘类型筛选">
+                    {['全部', ...cloudDiskTypes].map((diskType) => {
+                      const active = cloudDiskType === diskType;
+                      const count = diskType === '全部'
+                        ? cloudResources.length
+                        : filterResourcesByDiskType(cloudResources, diskType).length;
+                      return (
+                        <button
+                          key={diskType}
+                          type="button"
+                          onClick={() => setCloudDiskType(diskType)}
+                          aria-pressed={active}
+                          className={`min-h-9 rounded-full border px-3 text-xs font-semibold transition-[color,background-color,border-color] ${active ? 'border-accent bg-accent text-white' : 'border-border bg-background text-secondary-foreground hover:border-accent/45'}`}
+                        >
+                          {DISK_LABELS[diskType] || diskType} <span className={active ? 'text-white/75' : 'text-muted-foreground'}>{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <CopyableResourceList
+                resources={visibleClouds.map((resource) => {
                   const presentation = resourcePresentation(resource.title, resource.updatedAt || resource.createdAt);
                   const extractionCode = resource.extractionCode?.trim();
+                  const password = resource.password?.trim();
                   return {
                     id: resource.id,
                     title: presentation.title,
@@ -550,19 +644,21 @@ export default function DetailPageLayout({
                     badges: [
                       DISK_LABELS[resource.diskType || ''] || resource.diskType || '网盘',
                       extractionCode ? `提取码 ${extractionCode}` : '',
+                      password ? `密码 ${password}` : '',
                     ],
                     timeLabel: presentation.timeLabel,
                     openLabel: '打开网盘',
-                    copyValue: extractionCode ? `${resource.url}\n提取码：${extractionCode}` : resource.url,
-                    copyLabel: extractionCode ? '复制链接和码' : '复制链接',
-                    copySuccessMessage: extractionCode ? '网盘链接和提取码已复制' : '网盘链接已复制',
+                    copyValue: [resource.url, extractionCode && `提取码：${extractionCode}`, password && `密码：${password}`].filter(Boolean).join('\n'),
+                    copyLabel: extractionCode || password ? '复制链接和凭据' : '复制链接',
+                    copySuccessMessage: extractionCode || password ? '网盘链接和凭据已复制' : '网盘链接已复制',
                   };
                 })}
                 copiedId={copiedId}
                 onCopy={copyResource}
                 icon={<CloudDownload aria-hidden className="h-5 w-5" />}
                 emptyText={selectedEpisode ? `该${episodeLabel}暂无网盘资源` : '暂无网盘资源'}
-              />
+                />
+              </div>
             )}
           </ResourceTabs>
         </>

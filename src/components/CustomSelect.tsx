@@ -41,7 +41,7 @@ export default function CustomSelect({
       <SelectTrigger
         aria-label={ariaLabel}
         className={cn(
-          'min-w-[6.5rem] border-border bg-card px-3 hover:border-[var(--accent)] data-[popup-open]:border-[var(--accent)] data-[popup-open]:ring-3 data-[popup-open]:ring-[var(--accent)]/15',
+          'min-w-[6.5rem] border-border bg-card px-3 hover:border-[var(--accent)] data-[popup-open]:border-[var(--accent)]',
           className,
         )}
       >

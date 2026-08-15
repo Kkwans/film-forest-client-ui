@@ -1,29 +1,10 @@
 import 'server-only';
 
 import { cache } from 'react';
-import { getContentTypeConfig, parseJsonArr, type ContentType } from './contentConstants';
-import { cleanStoryline, parseRegion } from './utils';
+import { getContentTypeConfig, type ContentType } from './contentConstants';
+import { mapDetailData, type SharedDetailItem } from './detailMapping';
 
-export interface SharedDetailItem {
-  id: number;
-  title: string;
-  cover: string;
-  year: number;
-  region: string;
-  rating?: number;
-  ratingImdb?: number;
-  ratingRT?: number;
-  summary: string;
-  status?: string;
-  totalEpisode?: number;
-  currentEpisode?: number;
-  duration?: number;
-  genre?: string[];
-  director?: string[];
-  actor?: string[];
-  language?: string[];
-  updatedAt?: string;
-}
+export type { SharedDetailItem } from './detailMapping';
 
 const BASE_URL = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
@@ -39,30 +20,5 @@ export const getContentDetail = cache(async (contentType: ContentType, id: numbe
     throw new Error(payload.message || '详情响应缺少数据');
   }
 
-  const totalEpisode = Number(item.totalEpisode) || undefined;
-  const currentEpisode = Number(item.currentEpisode) || undefined;
-  const episodeStatus = contentType === 'movie'
-    ? undefined
-    : totalEpisode && currentEpisode && currentEpisode < totalEpisode ? '更新中' : totalEpisode ? '已完结' : undefined;
-
-  return {
-    id: Number(item.id),
-    title: String(item.title || ''),
-    cover: String(item.posterUrl || ''),
-    year: Number(item.year || 0),
-    region: parseRegion(item.region as string).join(' / '),
-    rating: Number(item.scoreDouban) || undefined,
-    ratingImdb: Number(item.scoreImdb) || undefined,
-    ratingRT: Number(item.scoreRt) || undefined,
-    summary: cleanStoryline(String(item.storyline || '')),
-    status: episodeStatus,
-    totalEpisode,
-    currentEpisode,
-    duration: Number(item.duration) || undefined,
-    genre: parseJsonArr(item.genre as string | string[] | undefined),
-    director: parseJsonArr(item.director as string | string[] | undefined),
-    actor: parseJsonArr(item.actor as string | string[] | undefined),
-    language: parseJsonArr(item.language as string | string[] | undefined),
-    updatedAt: item.updatedAt ? String(item.updatedAt) : undefined,
-  };
+  return mapDetailData(item, contentType);
 });

@@ -38,7 +38,7 @@ function NoteComposer({ value, busy, onChange, onSubmit, onCancel }: {
         onChange={(event) => onChange(event.target.value)}
         placeholder="例如：周末和家人一起看"
         maxLength={200}
-        className="mt-2 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20"
+        className="mt-2 h-10 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent"
         onKeyDown={(event) => {
           if (event.key === 'Enter') onSubmit();
           if (event.key === 'Escape') onCancel();
@@ -305,7 +305,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                   onChange={(event) => setNewName(event.target.value)}
                   placeholder="例如：周末家庭影院"
                   maxLength={50}
-                  className="mt-2 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  className="mt-2 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent"
                   autoFocus
                 />
                 <div className="mt-3 flex justify-end gap-2">
