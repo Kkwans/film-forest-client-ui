@@ -37,7 +37,7 @@ export default function RootLayout({
           <Header />
           <PageTransition />
           <ToastProvider>
-          <main id="main-content" tabIndex={-1} className="flex-1 w-full max-w-[90rem] mx-auto px-4 py-6 pb-safe-bottom sm:px-6 lg:px-8">
+          <main id="main-content" tabIndex={-1} className="flex-1 w-full max-w-[120rem] mx-auto px-4 py-6 pb-safe-bottom sm:px-6 lg:px-8">
             {children}
           </main>
           </ToastProvider>

@@ -114,6 +114,29 @@ function resourceItems<T>(response: { data?: { data?: unknown } }): T[] {
   return Array.isArray(data) ? data as T[] : [];
 }
 
+function LinkedValues({ values, href }: { values: string[]; href: (value: string) => string }) {
+  if (values.length === 0) return <span className="text-muted-foreground">—</span>;
+
+  return (
+    <span>
+      {values.map((value, index) => (
+        <span key={`${value}-${index}`}>
+          <Link href={href(value)} className="underline decoration-transparent underline-offset-4 transition-[color,text-decoration-color] hover:text-accent hover:decoration-current focus-visible:decoration-current">
+            {value}
+          </Link>
+          {index < values.length - 1 && <span className="mx-1.5 text-muted-foreground/70">/</span>}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function PlainValues({ values }: { values: string[] }) {
+  return values.length > 0
+    ? <span>{values.map((value, index) => <span key={`${value}-${index}`}>{value}{index < values.length - 1 && <span className="mx-1.5 text-muted-foreground/70">/</span>}</span>)}</span>
+    : <span className="text-muted-foreground">—</span>;
+}
+
 /** 加载骨架屏（别名） */
 export function DetailPageLoading() {
   return <DetailPageSkeleton />;
@@ -247,7 +270,7 @@ export default function DetailPageLayout({
 
   const filterHref = (key: 'genre' | 'region' | 'language', value: string) => `${listPath}?${key}=${encodeURIComponent(value)}`;
   const searchHref = (value: string) => `/search?q=${encodeURIComponent(value)}`;
-  const splitValues = (value: string) => value.split(/\s*\/\s*/u).map((entry) => entry.trim()).filter(Boolean);
+  const regionValues = item.region.split(/\s*\/\s*/u).map((entry) => entry.trim()).filter(Boolean);
   const posterStatusLabel = posterResolution.status === 'tmdb'
     ? 'TMDB 海报已匹配'
     : posterResolution.status === 'fallback'
@@ -365,7 +388,7 @@ export default function DetailPageLayout({
         ]}
       />
 
-      <section className="relative isolate overflow-hidden rounded-[2rem] border border-border bg-card p-5 shadow-[var(--shadow-sm)] sm:p-7 lg:p-8">
+      <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-border bg-card p-4 shadow-[var(--shadow-sm)] sm:p-6 lg:p-7">
         {resolvedCover && (
           <div
             aria-hidden
@@ -374,9 +397,11 @@ export default function DetailPageLayout({
           />
         )}
         <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-transparent via-transparent to-accent/[0.04]" />
-        <div className="flex flex-col items-stretch gap-7 sm:flex-row lg:gap-9">
-          <DetailCover src={resolvedCover} alt={item.title} />
-          <div className="flex min-w-0 flex-1 flex-col gap-4 py-1">
+        <div className="grid items-stretch gap-x-8 gap-y-6 lg:grid-cols-[minmax(13rem,16rem)_minmax(0,1fr)] lg:gap-x-9">
+          <aside className="lg:row-span-2">
+            <DetailCover src={resolvedCover} alt={item.title} fillHeight />
+          </aside>
+          <div className="flex min-w-0 flex-col gap-4 py-1">
           <DetailTitle title={item.title} year={item.year} />
 
           <RatingBadges
@@ -414,37 +439,22 @@ export default function DetailPageLayout({
             onCollectOpen={() => ds.setCollectOpen(true)}
           />
 
-          <div className="mt-1 grid gap-x-8 gap-y-2 border-t border-border/70 pt-4 lg:grid-cols-2">
-            <InfoRow label="状态" accent={item.status === updatingText}>{item.status || '暂无'}</InfoRow>
-            <InfoRow label="类型">
-              {item.genre.length > 0 ? (
-                <span className="flex flex-wrap gap-x-2 gap-y-1">
-                  {item.genre.map((genre) => <Link key={genre} href={filterHref('genre', genre)} className="text-accent underline-offset-4 hover:underline">{genre}</Link>)}
-                </span>
-              ) : '--'}
-            </InfoRow>
-            <InfoRow label="导演" accent>
-              {item.director.length > 0 ? <span className="flex flex-wrap gap-x-2 gap-y-1">{item.director.map((person) => <Link key={person} href={searchHref(person)} className="text-accent underline-offset-4 hover:underline">{person}</Link>)}</span> : '--'}
-            </InfoRow>
-            <InfoRow label="编剧" accent>
-              {item.writer.length > 0 ? <span className="flex flex-wrap gap-x-2 gap-y-1">{item.writer.map((person) => <Link key={person} href={searchHref(person)} className="text-accent underline-offset-4 hover:underline">{person}</Link>)}</span> : '--'}
-            </InfoRow>
-            <InfoRow label="主演" accent>
-              {item.actor.length > 0 ? <span className="flex flex-wrap gap-x-2 gap-y-1">{item.actor.map((person) => <Link key={person} href={searchHref(person)} className="text-accent underline-offset-4 hover:underline">{person}</Link>)}</span> : '--'}
-            </InfoRow>
-            <InfoRow label="地区">
-              {item.region ? <span className="flex flex-wrap gap-x-2 gap-y-1">{splitValues(item.region).map((region) => <Link key={region} href={filterHref('region', region)} className="text-accent underline-offset-4 hover:underline">{region}</Link>)}</span> : '--'}
-            </InfoRow>
-            <InfoRow label="语言">
-              {item.language.length > 0 ? <span className="flex flex-wrap gap-x-2 gap-y-1">{item.language.map((language) => <Link key={language} href={filterHref('language', language)} className="text-accent underline-offset-4 hover:underline">{language}</Link>)}</span> : '--'}
-            </InfoRow>
-            <InfoRow label="别名">{item.alias.length > 0 ? <span className="break-words">{item.alias.join(' / ')}</span> : '--'}</InfoRow>
-            <InfoRow label="上映日期">{item.releaseDate || '--'}</InfoRow>
-            <InfoRow label="年份">{item.year > 0 ? item.year : '--'}</InfoRow>
-            <InfoRow label="集数">{item.totalEpisode && item.totalEpisode > 0 ? `${item.totalEpisode}${episodeLabel}` : '--'}</InfoRow>
-            <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</InfoRow>
-            <InfoRow label="TMDB">{item.tmdbId ? `#${item.tmdbId}${item.tmdbMediaType ? ` · ${item.tmdbMediaType}` : ''}` : '--'}</InfoRow>
           </div>
+          <div className="min-w-0 border-t border-border/70 pt-4 lg:col-start-2">
+            <div className="grid gap-x-9 md:grid-cols-2">
+              <InfoRow label="状态" accent={item.status === updatingText}>{item.status || '—'}</InfoRow>
+              <InfoRow label="类型"><LinkedValues values={item.genre} href={(value) => filterHref('genre', value)} /></InfoRow>
+              <InfoRow label="导演" accent><LinkedValues values={item.director} href={searchHref} /></InfoRow>
+              <InfoRow label="编剧" accent><LinkedValues values={item.writer} href={searchHref} /></InfoRow>
+              <div className="md:col-span-2"><InfoRow label="主演" accent><LinkedValues values={item.actor} href={searchHref} /></InfoRow></div>
+              <InfoRow label="地区"><LinkedValues values={regionValues} href={(value) => filterHref('region', value)} /></InfoRow>
+              <InfoRow label="语言"><LinkedValues values={item.language} href={(value) => filterHref('language', value)} /></InfoRow>
+              <div className="md:col-span-2"><InfoRow label="别名"><PlainValues values={item.alias} /></InfoRow></div>
+              <InfoRow label="上映日期">{item.releaseDate || '—'}</InfoRow>
+              <InfoRow label="年份">{item.year > 0 ? item.year : '—'}</InfoRow>
+              {hasEpisodes && <InfoRow label="集数">{item.totalEpisode && item.totalEpisode > 0 ? `${item.totalEpisode}${episodeLabel}` : '—'}</InfoRow>}
+              <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '—'}</InfoRow>
+            </div>
           </div>
         </div>
       </section>

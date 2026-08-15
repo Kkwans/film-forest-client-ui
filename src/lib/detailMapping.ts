@@ -56,15 +56,26 @@ function toStringValue(value: unknown): string | undefined {
 }
 
 function toArray(value: unknown): string[] {
+  const clean = (entries: unknown[]) => entries
+    .map((entry) => String(entry).trim().replace(/^['"]|['"]$/g, ''))
+    .filter((entry) => entry && !/^(?:\[\]|\{\}|null|undefined|暂无|--|—)$/iu.test(entry));
+
   if (Array.isArray(value)) {
-    return value.map((entry) => String(entry).trim()).filter(Boolean);
+    return clean(value);
   }
   if (typeof value !== 'string') return [];
   const raw = value.trim();
   if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (Array.isArray(parsed)) return clean(parsed);
+    if (typeof parsed === 'string') return clean([parsed]);
+  } catch {
+    // 继续按历史来源的分隔符解析。
+  }
   const parsed = parseJsonArr(raw);
-  if (parsed.length > 0) return parsed.map((entry) => entry.trim()).filter(Boolean);
-  return raw.split(/\s*(?:\/|,|，|、|\|)\s*/u).map((entry) => entry.trim()).filter(Boolean);
+  if (parsed.length > 0) return clean(parsed);
+  return clean(raw.split(/\s*(?:\/|,|，|、|\|)\s*/u));
 }
 
 /** 将详情 API 的历史/新字段统一为详情页契约。 */

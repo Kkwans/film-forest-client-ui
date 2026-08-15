@@ -41,8 +41,8 @@ function MiniStars({ rating }: { rating?: number }) {
   );
 }
 
-const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition-[border-color,background-color,color,transform] hover:border-accent/40 hover:bg-accent/5 hover:text-accent active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
-const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-3 text-sm font-semibold text-white shadow-sm transition-[background-color,transform] hover:bg-accent-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60';
+const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition-[border-color,background-color,color] hover:border-accent/40 hover:bg-accent/5 hover:text-accent disabled:cursor-not-allowed disabled:opacity-60';
+const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-3 text-sm font-semibold text-white shadow-sm transition-[background-color] hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60';
 
 export default function DetailButtons({
   contentId,

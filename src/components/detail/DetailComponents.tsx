@@ -41,15 +41,16 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
  * 2. 封面海报
  * ============================================================ */
 
-export function DetailCover({ src, alt }: { src?: string; alt: string }) {
+export function DetailCover({ src, alt, fillHeight = false }: { src?: string; alt: string; fillHeight?: boolean }) {
   return (
-    <div className="mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56">
-      <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-muted shadow-[0_1.5rem_3rem_rgba(0,0,0,0.22)]">
+    <div className={`mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56 ${fillHeight ? 'h-full max-w-none aspect-[2/3] lg:aspect-auto' : ''}`}>
+      <div className={`relative overflow-hidden rounded-2xl border border-white/15 bg-muted shadow-[0_1.5rem_3rem_rgba(0,0,0,0.22)] ${fillHeight ? 'h-full min-h-[21rem] lg:min-h-0' : ''}`}>
         <LazyImage
           src={src || '/poster-placeholder.svg'}
           alt={alt}
-          className="rounded-2xl"
+          className={`rounded-2xl ${fillHeight ? 'h-full' : ''}`}
           placeholder="skeleton"
+          aspectRatio={fillHeight ? null : '2/3'}
           fallbackSrc={'/poster-placeholder.svg'}
           lazy={false}
         />
@@ -64,10 +65,10 @@ export function DetailCover({ src, alt }: { src?: string; alt: string }) {
 
 export function DetailTitle({ title, year }: { title: string; year?: number }) {
   return (
-    <h1 className="text-3xl font-black leading-[1.12] tracking-[-0.04em] text-foreground md:text-4xl lg:text-5xl">
+    <h1 className="text-2xl font-black leading-[1.16] tracking-[-0.035em] text-foreground sm:text-3xl lg:text-4xl">
       {title}
       {year != null && year > 0 && (
-        <span className="ml-2 text-lg font-semibold tracking-normal text-muted-foreground md:text-xl">
+        <span className="ml-2 text-base font-semibold tracking-normal text-muted-foreground sm:text-lg">
           {year}
         </span>
       )}
@@ -97,7 +98,7 @@ export function RatingBadges({ douban, doubanCount, imdb, imdbCount, rt, rtCriti
     douban != null || hasCount(doubanCount) ? { label: '豆瓣', value: douban != null ? douban.toFixed(1) : '暂无', detail: hasCount(doubanCount) ? `${doubanCount!.toLocaleString('zh-CN')}人评分` : undefined, className: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : null,
     imdb != null || hasCount(imdbCount) ? { label: 'IMDb', value: imdb != null ? imdb.toFixed(1) : '暂无', detail: hasCount(imdbCount) ? `${imdbCount!.toLocaleString('zh-CN')}人评分` : undefined, className: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : null,
     rt != null || hasCount(rtCriticCount) || hasCount(rtAudienceCount) ? { label: '烂番茄', value: rt != null ? `${rt}%` : '暂无', detail: [hasCount(rtCriticCount) ? `影评人 ${rtCriticCount!.toLocaleString('zh-CN')}` : '', hasCount(rtAudienceCount) ? `观众 ${rtAudienceCount!.toLocaleString('zh-CN')}` : ''].filter(Boolean).join(' · ') || undefined, className: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300' } : null,
-    tmdb != null || hasCount(tmdbVoteCount) ? { label: 'TMDB', value: tmdb != null ? tmdb.toFixed(1) : '暂无', detail: hasCount(tmdbVoteCount) ? `${tmdbVoteCount!.toLocaleString('zh-CN')}票` : undefined, className: 'border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' } : null,
+    tmdb != null || hasCount(tmdbVoteCount) ? { label: 'TMDB 社区', value: tmdb != null ? tmdb.toFixed(1) : '暂无', detail: hasCount(tmdbVoteCount) ? `${tmdbVoteCount!.toLocaleString('zh-CN')}票` : undefined, className: 'border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' } : null,
   ].filter((b): b is NonNullable<typeof b> => b !== null);
 
   if (badges.length === 0) return null;
@@ -129,11 +130,11 @@ export function InfoRow({ label, children, accent }: {
   accent?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-3 text-sm leading-6">
+    <div className="grid min-w-0 grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-1 border-b border-border/55 py-2.5 text-sm leading-6 last:border-b-0 sm:grid-cols-[5rem_minmax(0,1fr)]">
       <span className="font-medium text-muted-foreground">
         {label}
       </span>
-      <div className={accent ? "text-accent font-medium" : "text-secondary-foreground"}>{children}</div>
+      <div className={`min-w-0 break-words ${accent ? "font-medium text-accent" : "text-secondary-foreground"}`}>{children}</div>
     </div>
   );
 }
