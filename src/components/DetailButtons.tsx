@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Bookmark, CheckCircle2, Eye, Heart, ListPlus, Loader2, Star } from 'lucide-react';
 import type { DetailStatus } from '@/hooks/useDetailStatus';
-import { fractionalStarFill } from '@/lib/uiContracts';
+import { formatWatchedAt, fractionalStarFill } from '@/lib/uiContracts';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
 const WatchedModal = dynamic(() => import('@/components/WatchedModal'), { ssr: false });
@@ -103,6 +103,16 @@ export default function DetailButtons({
           )}
         </button>
       </div>
+
+      {status.watched && (
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground" aria-label="观看记录">
+          <span className="inline-flex items-center gap-1.5">
+            <CheckCircle2 aria-hidden className="h-3.5 w-3.5 text-accent" />
+            已标记看过
+          </span>
+          {status.watchedAt ? <span>· {formatWatchedAt(status.watchedAt)}</span> : null}
+        </div>
+      )}
 
       {collectOpen && (
         <CollectModal

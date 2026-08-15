@@ -379,7 +379,7 @@ export default function DetailPageLayout({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-none flex-col gap-5">
       <DetailBreadcrumb
         items={[
           { label: '首页', href: '/' },
