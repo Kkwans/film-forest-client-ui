@@ -91,7 +91,7 @@ export function mapDetailData(item: RawRecord, contentType: string): SharedDetai
   const writer = toArray(firstDefined(item, ['writer', 'writers', 'screenwriter']));
   const scoreDoubanCount = toNumber(firstDefined(item, [
     'scoreDoubanCount', 'scoreDoubanVotes', 'doubanRatingCount', 'doubanVotes',
-    'ratingCount', 'voteCount', 'votes',
+    'ratingCount',
   ]));
   const scoreImdbCount = toNumber(firstDefined(item, [
     'scoreImdbCount', 'imdbRatingCount', 'imdbVoteCount', 'imdbVotes',
