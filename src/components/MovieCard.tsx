@@ -194,7 +194,9 @@ export default function MovieCard({
                 onClick={handleCollectClick}
                 size="sm"
                 loading={statusLoading}
-                title="单击切换想看，双击管理片单"
+                title="单击切换想看，双击加入片单"
+                variant="overlay"
+                emptyIcon="heart"
                 className="absolute right-2 top-2 z-10"
               />
             )}

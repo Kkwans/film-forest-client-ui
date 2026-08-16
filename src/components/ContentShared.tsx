@@ -6,7 +6,7 @@
  */
 
 import { CONTENT_TYPE_TONE_CLASSES, getContentTypeConfig, getStatusConfig, TYPE_LABELS } from '@/lib/contentConstants';
-import { Bookmark, BookmarkPlus, CheckCircle2, Eye, ListPlus } from 'lucide-react';
+import { BookmarkPlus, CheckCircle2, Eye, Heart } from 'lucide-react';
 import { getGenreColorToken } from '@/lib/uiContracts';
 
 /* ============================================================
@@ -27,6 +27,12 @@ interface StatusIconButtonProps {
   title?: string;
   /** 加载中 */
   loading?: boolean;
+  /** 在桌面端同时展示状态文案，移动端仍保持图标按钮 */
+  showLabel?: boolean;
+  /** 覆盖在海报上时使用透明深色底，避免白色方块遮挡图片 */
+  variant?: 'default' | 'overlay';
+  /** 无状态时的入口图标；海报卡片用心形，加入片单入口用书签加号 */
+  emptyIcon?: 'heart' | 'list';
 }
 
 export function StatusIconButton({
@@ -36,37 +42,51 @@ export function StatusIconButton({
   className = '',
   title,
   loading = false,
+  showLabel = false,
+  variant = 'default',
+  emptyIcon = 'list',
 }: StatusIconButtonProps) {
   const config = listType ? getStatusConfig(listType) : null;
   const sizeClass = size === 'sm' ? 'size-7' : 'size-8';
   const iconClass = size === 'sm' ? 'size-3.5' : 'size-4';
 
-  const defaultTitle = config ? `${config.label} · 管理片单` : '添加到片单';
-  const StatusIcon = config?.label === '看过'
+  const label = config?.label || '加入片单';
+  const defaultTitle = label;
+  const StatusIcon = listType === 'watched'
     ? CheckCircle2
-    : config?.label === '在看'
+    : listType === 'watching'
       ? Eye
-    : config?.label === '已加入片单'
-        ? ListPlus
-        : config?.label === '想看'
-          ? Bookmark
-          : BookmarkPlus;
+      : listType === 'want_to_watch'
+        ? Heart
+        : emptyIcon === 'heart' ? Heart : BookmarkPlus;
+  const isWant = listType === 'want_to_watch';
+  const buttonSize = showLabel
+    ? 'min-h-8 min-w-8 px-2.5'
+    : sizeClass;
+  const buttonStyle = variant === 'overlay'
+    ? {
+        backgroundColor: isWant && config ? `color-mix(in srgb, ${config.color} 18%, rgba(15, 23, 42, 0.28))` : 'rgba(15, 23, 42, 0.28)',
+        borderColor: isWant && config ? `color-mix(in srgb, ${config.color} 60%, rgba(255, 255, 255, 0.65))` : 'rgba(255, 255, 255, 0.65)',
+        color: config?.color && listType !== null ? config.color : '#fff',
+      }
+    : {
+        backgroundColor: config ? `color-mix(in srgb, ${config.color} 12%, transparent)` : 'var(--bg-card)',
+        borderColor: config ? `color-mix(in srgb, ${config.color} 32%, var(--border-color))` : 'var(--border-color)',
+        color: config?.color || 'var(--text-secondary)',
+      };
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`${sizeClass} shrink-0 rounded-lg border flex items-center justify-center transition-[background-color,border-color,color] hover:border-current/45 ${className}`}
-      style={{
-        backgroundColor: config ? `color-mix(in srgb, ${config.color} 12%, transparent)` : 'var(--bg-card)',
-        borderColor: config ? `color-mix(in srgb, ${config.color} 32%, var(--border-color))` : 'var(--border-color)',
-        color: config?.color || 'var(--text-secondary)',
-      }}
+      className={`${buttonSize} inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border transition-[background-color,border-color,color] hover:border-current/55 ${variant === 'overlay' ? 'backdrop-blur-[2px] hover:bg-black/40' : ''} ${className}`}
+      style={buttonStyle}
       title={title || defaultTitle}
       aria-label={title || defaultTitle}
       aria-haspopup="dialog"
     >
-      {loading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <StatusIcon className={iconClass} fill={config?.fill ? 'currentColor' : 'none'} aria-hidden />}
+      {loading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <StatusIcon className={iconClass} fill={isWant ? 'currentColor' : 'none'} aria-hidden />}
+      {showLabel && <span className="hidden text-xs font-semibold sm:inline">{label}</span>}
     </button>
   );
 }

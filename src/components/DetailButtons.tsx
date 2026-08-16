@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Bookmark, CheckCircle2, Eye, Heart, ListPlus, Loader2, Star } from 'lucide-react';
+import { CheckCircle2, Eye, Heart, HeartPlus, Loader2, Star } from 'lucide-react';
 import type { DetailStatus } from '@/hooks/useDetailStatus';
 import { formatWatchedAt, fractionalStarFill } from '@/lib/uiContracts';
 
@@ -61,7 +61,7 @@ export default function DetailButtons({
   onCollectOpen,
 }: DetailButtonsProps) {
   const statusLabel = status.watching ? '正在看' : status.want_to_watch ? '已想看' : '想看';
-  const StatusIcon = status.watching ? Eye : status.want_to_watch ? Heart : Bookmark;
+  const StatusIcon = status.watching ? Eye : Heart;
 
   return (
     <>
@@ -80,8 +80,8 @@ export default function DetailButtons({
         )}
 
         <button type="button" onClick={onCollectOpen} className={secondaryButton} aria-haspopup="dialog">
-          <ListPlus aria-hidden className="h-4 w-4" />
-          管理片单
+          <HeartPlus aria-hidden className="h-4 w-4" />
+          加入片单
         </button>
 
         <button

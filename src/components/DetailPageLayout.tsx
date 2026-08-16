@@ -155,7 +155,7 @@ function ExpandableLinkedValues({
     const updateOverflow = () => {
       const lineHeight = Number.parseFloat(window.getComputedStyle(element).lineHeight);
       const maxHeight = (Number.isFinite(lineHeight) ? lineHeight : 24) * collapsedLines;
-      setOverflowing(element.scrollHeight > maxHeight + 1);
+      setOverflowing(element.scrollHeight > maxHeight + 1 || (collapsedLines === 2 && values.length >= 6));
     };
 
     updateOverflow();
@@ -550,7 +550,7 @@ export default function DetailPageLayout({
           />
         )}
         <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-transparent via-transparent to-accent/[0.04]" />
-        <div className="grid items-start gap-x-6 gap-y-6 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] lg:gap-x-6">
+        <div className="grid items-start gap-x-5 gap-y-6 lg:grid-cols-[minmax(14rem,16rem)_minmax(0,1fr)] lg:gap-x-5">
           <aside className="self-start lg:sticky lg:top-24">
             <DetailCover src={resolvedCover} alt={item.title} />
           </aside>
@@ -590,27 +590,27 @@ export default function DetailPageLayout({
               onCollectOpen={() => ds.setCollectOpen(true)}
             />
 
-            <div className="min-w-0 border-t border-border/70 pt-3">
+            <div className="min-w-0 border-t border-border/40 pt-3">
               <div className="grid gap-x-8 md:grid-cols-2">
-                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                <div className="grid md:col-span-2 md:grid-cols-2">
                   <InfoRow label="类型">
                     <LinkedValues values={item.genre} href={(value) => filterHref('genre', value)} />
                   </InfoRow>
                   <InfoRow label="导演" accent><ExpandableLinkedValues values={item.director} href={searchHref} collapsedLines={1} label="导演" /></InfoRow>
                 </div>
-                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                <div className="grid md:col-span-2 md:grid-cols-2">
                   <InfoRow label="编剧" accent><ExpandableLinkedValues values={item.writer} href={searchHref} collapsedLines={2} label="编剧" /></InfoRow>
                   <InfoRow label="主演" accent><ExpandableLinkedValues values={item.actor} href={searchHref} collapsedLines={2} label="主演" /></InfoRow>
                 </div>
-                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                <div className="grid md:col-span-2 md:grid-cols-2">
                   <InfoRow label="地区"><LinkedValues values={regionValues} href={(value) => filterHref('region', value)} /></InfoRow>
                   <InfoRow label="语言"><LinkedValues values={item.language} href={(value) => filterHref('language', value)} /></InfoRow>
                 </div>
-                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                <div className="grid md:col-span-2 md:grid-cols-2">
                   <InfoRow label={releaseLabel}>{item.releaseDate || '--'}</InfoRow>
                   <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</InfoRow>
                 </div>
-                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                <div className="grid md:col-span-2 md:grid-cols-2">
                   <InfoRow label="别名"><PlainValues values={item.alias} /></InfoRow>
                   {contentType === 'movie' && (
                     <InfoRow label="系列">

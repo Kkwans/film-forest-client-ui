@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { Star } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import CustomSelect from '@/components/CustomSelect';
 import LazyImage from '@/components/ui/lazy-image';
@@ -28,6 +29,9 @@ interface SearchResult {
   cover?: string;
   year?: number;
   rating?: number;
+  ratingImdb?: number;
+  ratingRT?: number;
+  duration?: number;
   summary?: string;
   genre?: string;
   region?: string;
@@ -131,6 +135,26 @@ function valuesOf(value: string | string[] | undefined): string[] {
 function HighlightValues({ values, keyword }: { values: string[]; keyword: string }) {
   if (values.length === 0) return '--';
   return <>{values.map((value, index) => <span key={`${value}-${index}`}><Highlight text={value} keyword={keyword} />{index < values.length - 1 && <span className="mx-1 text-muted-foreground/60">/</span>}</span>)}</>;
+}
+
+function SearchRatingSummary({ douban, imdb, rt }: { douban?: number; imdb?: number; rt?: number }) {
+  const formatScore = (value: number | undefined, suffix = '') => (
+    typeof value === 'number' && value > 0 ? `${value.toFixed(1)}${suffix}` : '--'
+  );
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="平台评分">
+      <span className="inline-flex h-6 items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
+        <Star aria-hidden className="size-3 fill-current" />豆瓣 <strong className="tabular-nums">{formatScore(douban)}</strong>
+      </span>
+      <span className="hidden h-6 items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 sm:inline-flex">
+        <Star aria-hidden className="size-3 fill-current" />IMDb <strong className="tabular-nums">{formatScore(imdb)}</strong>
+      </span>
+      <span className="hidden h-6 items-center gap-1 rounded-md border border-red-500/20 bg-red-500/10 px-1.5 text-[10px] font-medium text-red-700 dark:text-red-300 sm:inline-flex">
+        <Star aria-hidden className="size-3 fill-current" />烂番茄 <strong className="tabular-nums">{formatScore(rt, '%')}</strong>
+      </span>
+    </div>
+  );
 }
 
 function isContentType(value: string): value is ContentType {
@@ -397,7 +421,6 @@ function SearchContent() {
             const status = statuses[contentStatusKey(type, item.id)];
             const aliases = valuesOf(item.alias);
             const directors = valuesOf(item.director);
-            const writers = valuesOf(item.writer);
             const actors = valuesOf(item.actor);
             const genres = valuesOf(item.genre);
             const displayYear = validYear(item.year);
@@ -415,7 +438,8 @@ function SearchContent() {
                       <StatusIconButton
                         listType={status?.listType}
                         size="md"
-                        title={status?.listType ? '管理片单状态' : '添加到片单'}
+                        showLabel
+                        title={status?.listType ? '切换观看状态' : '加入片单'}
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
@@ -426,9 +450,12 @@ function SearchContent() {
                     </div>
                   </div>
                   {aliases.length > 0 && <p className="mt-1 min-w-0 truncate text-xs text-muted-foreground" title={`别名：${aliases.join(' / ')}`}>别名：<HighlightValues values={aliases} keyword={q} /></p>}
+                  <div className="mt-2">
+                    <SearchRatingSummary douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
+                  </div>
                   <div className="mt-2 grid min-h-0 grid-cols-2 gap-x-6 gap-y-1 overflow-hidden text-xs leading-5 text-secondary-foreground">
                     <p className="min-w-0 truncate" title={`导演：${directors.join(' / ') || '--'}`}>导演：<HighlightValues values={directors} keyword={q} /></p>
-                    <p className="min-w-0 truncate" title={`编剧：${writers.join(' / ') || '--'}`}>编剧：<HighlightValues values={writers} keyword={q} /></p>
+                    <p className="min-w-0 truncate" title={`时长：${item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}`}>时长：{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</p>
                     <p className="min-w-0 truncate" title={`主演：${actors.join(' / ') || '--'}`}>主演：<HighlightValues values={actors} keyword={q} /></p>
                     <p className="min-w-0 truncate" title={`类型：${genres.slice(0, 4).join(' / ') || '--'}`}>类型：<HighlightValues values={genres.slice(0, 4)} keyword={q} /></p>
                     <p className="min-w-0 truncate" title={`${type === 'movie' ? '上映' : '首播'}：${releaseValue}`}>{type === 'movie' ? '上映' : '首播'}：<Highlight text={releaseValue} keyword={q} /></p>

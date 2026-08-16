@@ -12,7 +12,7 @@ export const STATUS_ICONS: Record<string, StatusIconConfig> = {
     icon: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
     label: '看过',
     color: 'var(--status-watched)',
-    fill: true,
+    fill: false,
   },
   watching: {
     icon: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',

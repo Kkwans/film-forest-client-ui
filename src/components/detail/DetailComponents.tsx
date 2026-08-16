@@ -44,7 +44,7 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
 export function DetailCover({ src, alt, fillHeight = false }: { src?: string; alt: string; fillHeight?: boolean }) {
   const wrapperClass = fillHeight
     ? 'h-full w-full max-w-none aspect-[2/3] lg:aspect-auto'
-    : 'mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56 lg:w-full lg:max-w-[20rem]';
+    : 'mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56 lg:w-full lg:max-w-[16rem]';
 
   return (
     <div className={wrapperClass}>

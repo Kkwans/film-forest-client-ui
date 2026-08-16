@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bookmark, Check, CheckCircle2, Eye, ListPlus, Loader2, Plus, RotateCcw } from 'lucide-react';
+import { BookmarkPlus, Check, CheckCircle2, Eye, Heart, Loader2, Plus, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/Toast';
@@ -17,7 +17,7 @@ interface CollectModalProps {
 }
 
 const DEFAULT_LISTS_CONFIG = [
-  { type: 'want_to_watch', label: '想看', Icon: Bookmark },
+  { type: 'want_to_watch', label: '想看', Icon: Heart },
   { type: 'watching', label: '在看', Icon: Eye },
   { type: 'watched', label: '看过', Icon: CheckCircle2 },
 ];
@@ -190,10 +190,10 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
   );
 
   return (
-    <Modal open={open} onClose={onClose} title="管理片单" description={movieTitle} width="md">
+    <Modal open={open} onClose={onClose} title="加入片单" description={movieTitle} width="md">
       {!isAuthenticated ? (
         <div className="grid place-items-center py-14 text-center">
-          <span className="grid size-12 place-items-center rounded-2xl bg-accent-light text-accent"><ListPlus className="size-5" aria-hidden /></span>
+          <span className="grid size-12 place-items-center rounded-2xl bg-accent-light text-accent"><BookmarkPlus className="size-5" aria-hidden /></span>
           <h3 className="mt-4 text-base font-semibold text-foreground">登录后管理你的片单</h3>
           <p className="mt-1 max-w-xs text-sm leading-6 text-muted-foreground">把内容加入想看、在看、看过或自定义片单，并在不同设备间同步。</p>
           <button type="button" onClick={() => { onClose(); router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`); }} className="mt-5 h-10 rounded-xl bg-accent px-5 text-sm font-semibold text-white hover:bg-accent-hover">
@@ -237,7 +237,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                     aria-pressed={isIn}
                     className={`relative flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl border px-2 py-3 text-center transition-colors ${isIn ? 'border-accent bg-accent-light text-accent' : 'border-border bg-card text-secondary-foreground hover:border-accent/50 hover:text-foreground'} disabled:cursor-not-allowed disabled:opacity-45`}
                   >
-                    {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Icon className="size-5" aria-hidden />}
+                    {busy ? <Loader2 className="size-5 animate-spin" aria-hidden /> : <Icon className={`size-5 ${type === 'want_to_watch' && isIn ? 'text-red-500' : ''}`} fill={type === 'want_to_watch' && isIn ? 'currentColor' : 'none'} aria-hidden />}
                     <span className="text-sm font-semibold">{label}</span>
                     <span className="text-[11px] text-muted-foreground">{list ? `${list.itemCount} 部` : '不可用'}</span>
                     {isIn && <Check className="absolute right-2 top-2 size-3.5" aria-hidden />}
@@ -282,7 +282,7 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
                       className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${isIn ? 'border-accent bg-accent-light' : 'border-border bg-card hover:border-accent/40'} disabled:opacity-60`}
                     >
                       <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${isIn ? 'bg-accent text-white' : 'bg-muted text-muted-foreground'}`}>
-                        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : isIn ? <Check className="size-4" aria-hidden /> : <ListPlus className="size-4" aria-hidden />}
+                        {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : isIn ? <Check className="size-4" aria-hidden /> : <BookmarkPlus className="size-4" aria-hidden />}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold text-foreground">{list.name}</span>
