@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Loader2, LogIn, Pencil } from 'lucide-react';
+import { CheckCircle2, Clock3, Loader2, LogIn, Pencil } from 'lucide-react';
 import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import { Modal } from '@/components/ui/modal';
@@ -141,7 +141,7 @@ export default function WatchedModal({
       onClose={onClose}
       title={isReadOnly ? '我的评价' : isExisting ? '编辑评价' : '标记为看过'}
       description={movieTitle}
-      width="sm"
+      width="lg"
       footer={footer}
     >
       {!isAuthenticated ? (
@@ -163,17 +163,32 @@ export default function WatchedModal({
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
+          <div className="flex items-center gap-3 rounded-2xl border border-accent/20 bg-accent/5 px-4 py-3.5">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-white shadow-sm">
+              <CheckCircle2 aria-hidden className="size-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">{isExisting ? '已记录为看过' : '准备记录为看过'}</p>
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                {isExisting && initialWatchedAt ? `记录于 ${formatWatchedAt(initialWatchedAt)}` : '评分、观后感均可选，直接保存即可完成标记'}
+              </p>
+            </div>
+          </div>
+
           <RatingField value={rating} onChange={setRating} readOnly={isReadOnly} />
 
-          {initialWatchedAt && (
-            <p className="text-xs text-muted-foreground" role="status">看过于 {formatWatchedAt(initialWatchedAt)}</p>
-          )}
-
-          <section>
-            <label htmlFor="watched-note" className="text-sm font-semibold text-foreground">观后感</label>
+          <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <label htmlFor="watched-note" className="text-sm font-semibold text-foreground">观后感</label>
+              {isExisting && initialWatchedAt && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground" role="status">
+                  <Clock3 aria-hidden className="size-3.5" />{formatWatchedAt(initialWatchedAt)}
+                </span>
+              )}
+            </div>
             {isReadOnly ? (
-              <div className="mt-2 min-h-24 whitespace-pre-wrap rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm leading-6 text-secondary-foreground">
+              <div className="mt-3 min-h-24 whitespace-pre-wrap rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm leading-6 text-secondary-foreground">
                 {note || <span className="text-muted-foreground">暂未记录观后感</span>}
               </div>
             ) : (
@@ -185,7 +200,7 @@ export default function WatchedModal({
                   placeholder="记录一下看完后的感受……"
                   rows={4}
                   maxLength={500}
-                  className="mt-2 w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent"
+                  className="mt-3 min-h-28 w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent"
                 />
                 <p className="mt-1 text-right text-xs tabular-nums text-muted-foreground">{note.length}/500</p>
               </>
