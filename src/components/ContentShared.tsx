@@ -6,7 +6,7 @@
  */
 
 import { CONTENT_TYPE_TONE_CLASSES, getContentTypeConfig, getStatusConfig, TYPE_LABELS } from '@/lib/contentConstants';
-import { Bookmark, CheckCircle2, Eye, Heart, Star } from 'lucide-react';
+import { Bookmark, BookmarkPlus, CheckCircle2, Eye, ListPlus } from 'lucide-react';
 import { getGenreColorToken } from '@/lib/uiContracts';
 
 /* ============================================================
@@ -38,28 +38,29 @@ export function StatusIconButton({
   loading = false,
 }: StatusIconButtonProps) {
   const config = listType ? getStatusConfig(listType) : null;
-  const sizeClass = size === 'sm' ? 'w-5 h-5' : 'w-6 h-6 md:w-7 md:h-7';
-  const iconClass = size === 'sm' ? 'w-3 h-3' : 'w-3 h-3 md:w-4 md:h-4';
+  const sizeClass = size === 'sm' ? 'size-7' : 'size-8';
+  const iconClass = size === 'sm' ? 'size-3.5' : 'size-4';
 
   const defaultTitle = config ? `${config.label} · 管理片单` : '添加到片单';
   const StatusIcon = config?.label === '看过'
     ? CheckCircle2
     : config?.label === '在看'
       ? Eye
-      : config?.label === '已加入片单'
-        ? Star
+    : config?.label === '已加入片单'
+        ? ListPlus
         : config?.label === '想看'
-          ? Heart
-          : Bookmark;
+          ? Bookmark
+          : BookmarkPlus;
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`${sizeClass} rounded-full flex items-center justify-center backdrop-blur-sm transition-colors hover:scale-110 ${className}`}
+      className={`${sizeClass} shrink-0 rounded-lg border flex items-center justify-center transition-[background-color,border-color,color] hover:border-current/45 ${className}`}
       style={{
-        backgroundColor: config ? `${config.color}cc` : 'rgba(0,0,0,0.4)',
-        color: '#fff',
+        backgroundColor: config ? `color-mix(in srgb, ${config.color} 12%, transparent)` : 'var(--bg-card)',
+        borderColor: config ? `color-mix(in srgb, ${config.color} 32%, var(--border-color))` : 'var(--border-color)',
+        color: config?.color || 'var(--text-secondary)',
       }}
       title={title || defaultTitle}
       aria-label={title || defaultTitle}
@@ -82,7 +83,7 @@ export function TypeBadge({ contentType, size = 'sm' }: { contentType: string; s
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 font-medium ${sizeClass} ${config ? CONTENT_TYPE_TONE_CLASSES[config.code] : 'border-border bg-background text-secondary-foreground'}`}
+      className={`inline-flex shrink-0 items-center rounded-lg border px-2 py-1 font-semibold ${sizeClass} ${config ? CONTENT_TYPE_TONE_CLASSES[config.code] : 'border-border bg-background text-secondary-foreground'}`}
     >
       {label}
     </span>

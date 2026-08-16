@@ -68,6 +68,8 @@ export interface ContentDetail {
   releaseDate?: string;
   aka?: string;
   alias?: string;
+  seriesName?: string;
+  seriesOrder?: number;
   updatedAt?: string;
   tmdbId?: number;
   tmdbMediaType?: string;
@@ -237,6 +239,17 @@ export const relatedApi = {
       ...config,
       params: { limit },
     }),
+};
+
+export interface SeriesItem {
+  id: number;
+  title: string;
+  year?: number;
+  seriesOrder?: number;
+}
+
+export const seriesApi = {
+  get: (id: number) => client.get<Result<SeriesItem[]>>(`/api/movies/${id}/series`),
 };
 
 // ---- Tags ----

@@ -26,6 +26,8 @@ export interface SharedDetailItem {
   actor: string[];
   language: string[];
   alias: string[];
+  seriesName?: string;
+  seriesOrder?: number;
   releaseDate?: string;
   updatedAt?: string;
   tmdbId?: number;
@@ -135,6 +137,8 @@ export function mapDetailData(item: RawRecord, contentType: string): SharedDetai
     actor: toArray(item.actor),
     language: toArray(item.language),
     alias,
+    seriesName: toStringValue(item.seriesName ?? item.series_name),
+    seriesOrder: toNumber(item.seriesOrder ?? item.series_order),
     releaseDate: toStringValue(item.releaseDate ?? item.release_date),
     updatedAt: toStringValue(item.updatedAt),
     tmdbId,

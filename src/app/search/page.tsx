@@ -1,20 +1,18 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Search as SearchIcon } from 'lucide-react';
 import CustomSelect from '@/components/CustomSelect';
 import LazyImage from '@/components/ui/lazy-image';
 import Pagination from '@/components/Pagination';
-import SortDirButton from '@/components/SortDirButton';
 import TagFilter from '@/components/TagFilter';
+import { StatusIconButton, TypeBadge } from '@/components/ContentShared';
 import {
   CONTENT_TYPE_REGISTRY,
-  CONTENT_TYPE_TONE_CLASSES,
   type ContentType,
   getContentTypeConfig,
-  getStatusConfig,
   normalizeContentType,
   parseJsonArr,
 } from '@/lib/contentConstants';
@@ -57,9 +55,8 @@ interface HotSearchItem {
 const SORT_OPTIONS = [
   { label: '最相关', value: 'relevance', apiSort: 'relevance', defaultDir: 'desc' },
   { label: '评分最高', value: 'rating', apiSort: 'rating', defaultDir: 'desc' },
-  { label: '年份最新', value: 'year_desc', apiSort: 'year', defaultDir: 'desc' },
-  { label: '年份最早', value: 'year_asc', apiSort: 'year', defaultDir: 'asc' },
-  { label: '数据最近更新', value: 'latest', apiSort: 'latest', defaultDir: 'desc' },
+  { label: '上映时间', value: 'year', apiSort: 'year', defaultDir: 'desc' },
+  { label: '数据更新时间', value: 'latest', apiSort: 'latest', defaultDir: 'desc' },
 ] as const;
 type SortOptionValue = (typeof SORT_OPTIONS)[number]['value'];
 
@@ -78,8 +75,8 @@ const USER_STATUS_OPTIONS = [
 ];
 type UserStatusFilter = (typeof USER_STATUS_OPTIONS)[number]['value'];
 
-function parseSortOption(rawSort: string | null, rawSortDir: string | null): SortOptionValue {
-  if (rawSort === 'year') return rawSortDir === 'asc' ? 'year_asc' : 'year_desc';
+function parseSortOption(rawSort: string | null): SortOptionValue {
+  if (rawSort === 'year' || rawSort === 'year_desc' || rawSort === 'year_asc') return 'year';
   return SORT_OPTIONS.some((option) => option.value === rawSort)
     ? rawSort as SortOptionValue
     : 'relevance';
@@ -155,6 +152,14 @@ function SearchPoster({ item, type }: { item: SearchResult; type: ContentType })
   );
 }
 
+const CollectModalClient = dynamic(() => import('@/components/CollectModal'), { ssr: false });
+
+interface CollectionTarget {
+  contentId: number;
+  contentType: string;
+  title: string;
+}
+
 function SearchContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -172,26 +177,19 @@ function SearchContent() {
   const rawUserStatus = searchParams.get('userStatus');
   const userStatus = isAuthenticated ? parseUserStatusFilter(rawUserStatus) : 'all';
   const rawSort = searchParams.get('sort');
-  const rawSortDir = searchParams.get('sortDir');
-  const sort = parseSortOption(rawSort, rawSortDir);
+  const sort = parseSortOption(rawSort);
   const sortConfig = SORT_OPTIONS.find((option) => option.value === sort) || SORT_OPTIONS[0];
-  const sortDir = sortConfig.value.startsWith('year_')
-    ? sortConfig.defaultDir
-    : rawSortDir === 'asc' ? 'asc' : 'desc';
+  const sortDir = sortConfig.defaultDir;
   const apiSort = sortConfig.apiSort;
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const size = Math.min(100, Math.max(1, Number(searchParams.get('size')) || 20));
-  const [input, setInput] = useState(q);
   const [data, setData] = useState<SearchPageData>({ records: [], total: 0, size, current: page, pages: 0 });
   const [loading, setLoading] = useState(Boolean(q));
   const [error, setError] = useState(false);
   const [requestVersion, setRequestVersion] = useState(0);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [activeSuggestion, setActiveSuggestion] = useState(-1);
   const [hot, setHot] = useState<HotSearchItem[]>([]);
   const [history, setHistory] = useState<string[]>([]);
-  const [focused, setFocused] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [collectionTarget, setCollectionTarget] = useState<CollectionTarget | null>(null);
   const requestId = useRef(0);
 
   const navigate = (updates: Record<string, string | number | null>, mode: 'push' | 'replace' = 'push') => {
@@ -214,8 +212,6 @@ function SearchContent() {
     });
   };
 
-  useEffect(() => setInput(q), [q]);
-
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('search_history') || '[]') as unknown;
@@ -231,24 +227,6 @@ function SearchContent() {
       .catch((reason) => { if (reason?.name !== 'AbortError') setHot([]); });
     return () => controller.abort();
   }, []);
-
-  useEffect(() => {
-    if (!input.trim()) {
-      setSuggestions([]);
-      return;
-    }
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      fetch(`/api/search/suggest?q=${encodeURIComponent(input.trim())}`, { signal: controller.signal })
-        .then((response) => {
-          if (!response.ok) throw new Error(`搜索建议请求失败: ${response.status}`);
-          return response.json();
-        })
-        .then((payload) => setSuggestions(Array.isArray(payload?.data) ? payload.data : []))
-        .catch((reason) => { if (reason?.name !== 'AbortError') setSuggestions([]); });
-    }, 250);
-    return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [input]);
 
   useEffect(() => {
     if (!q) {
@@ -297,20 +275,6 @@ function SearchContent() {
     return () => controller.abort();
   }, [q, selectedContentType, tagId, region, hasResource, userStatus, apiSort, sortDir, page, size, requestVersion]);
 
-  useEffect(() => {
-    const onShortcut = (event: KeyboardEvent) => {
-      if (event.key === '/' && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
-        event.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-    document.addEventListener('keydown', onShortcut);
-    return () => document.removeEventListener('keydown', onShortcut);
-  }, []);
-
-  const visibleSuggestions = input.trim() ? suggestions : [...history, ...hot.map((item) => item.title)]
-    .filter((item, index, all) => item && all.indexOf(item) === index)
-    .slice(0, 10);
   const statusQueries = useMemo(
     () => data.records.map((item) => ({ contentType: item.type, contentId: item.id })),
     [data.records],
@@ -329,63 +293,12 @@ function SearchContent() {
   const submit = (keyword: string) => {
     const normalized = keyword.trim();
     if (!normalized) return;
-    setInput(normalized);
-    setSuggestions([]);
-    setActiveSuggestion(-1);
     saveHistory(normalized);
     navigate({ q: normalized, year: null, page: 1 }, 'push');
   };
 
   return (
     <div className="mx-auto flex w-full max-w-none flex-col gap-6" aria-busy={loading || isPending}>
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">全站搜索</h1>
-      </div>
-
-      <div className="relative">
-        <form onSubmit={(event) => { event.preventDefault(); submit(input); }} className="flex gap-2">
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(event) => { setInput(event.target.value); setActiveSuggestion(-1); }}
-            onFocus={() => { setFocused(true); setActiveSuggestion(-1); }}
-            onBlur={() => setFocused(false)}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowDown' && visibleSuggestions.length) { event.preventDefault(); setActiveSuggestion((value) => (value + 1) % visibleSuggestions.length); }
-              if (event.key === 'ArrowUp' && visibleSuggestions.length) { event.preventDefault(); setActiveSuggestion((value) => value <= 0 ? visibleSuggestions.length - 1 : value - 1); }
-              if (event.key === 'Enter' && activeSuggestion >= 0) { event.preventDefault(); submit(visibleSuggestions[activeSuggestion]); }
-              if (event.key === 'Escape') { setSuggestions([]); setActiveSuggestion(-1); inputRef.current?.blur(); }
-            }}
-            placeholder="可搜索标题、别名、导演、编剧、主演、题材"
-            className="h-12 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-controls="search-suggestions"
-            aria-expanded={visibleSuggestions.length > 0}
-            aria-activedescendant={activeSuggestion >= 0 ? `search-option-${activeSuggestion}` : undefined}
-          />
-          <button type="submit" className="inline-flex h-12 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white hover:bg-accent-hover sm:px-6">
-            <SearchIcon className="size-4" aria-hidden /><span className="hidden sm:inline">搜索</span>
-          </button>
-        </form>
-        {visibleSuggestions.length > 0 && focused && (
-          <div id="search-suggestions" className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border border-border bg-card shadow-xl" role="listbox">
-            {visibleSuggestions.map((suggestion, index) => (
-              <button
-                id={`search-option-${index}`}
-                key={`${suggestion}-${index}`}
-                type="button"
-                role="option"
-                aria-selected={index === activeSuggestion}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => submit(suggestion)}
-                className={`block w-full px-4 py-2.5 text-left text-sm ${index === activeSuggestion ? 'bg-accent-light text-accent' : 'text-secondary-foreground hover:bg-background'}`}
-              >{suggestion}</button>
-            ))}
-          </div>
-        )}
-      </div>
-
       <section className="rounded-2xl border border-border bg-card/70 p-3 sm:p-4" aria-label="搜索筛选与排序">
         <div className="flex flex-wrap items-center gap-2">
           <CustomSelect
@@ -425,7 +338,6 @@ function SearchContent() {
               清除筛选 · {activeFilterCount}
             </button>
           )}
-          {q && <span className="text-sm tabular-nums text-muted-foreground" aria-live="polite">{loading ? '搜索中…' : error ? '搜索失败' : `找到 ${data.total} 条`}</span>}
           <div className="ml-auto flex shrink-0 items-center gap-2 border-l border-border pl-3">
             <span className="hidden text-xs font-medium text-muted-foreground sm:inline">排序</span>
             <CustomSelect
@@ -438,16 +350,7 @@ function SearchContent() {
                 navigate({ sort: nextSort.value, sortDir: nextSort.defaultDir, page: 1 });
               }}
             />
-            <span className="shrink-0">
-              <SortDirButton
-                direction={sortDir}
-                onToggle={() => {
-                  const nextSort = sort === 'year_desc' ? 'year_asc' : sort === 'year_asc' ? 'year_desc' : sort;
-                  const nextDir = nextSort === 'year_asc' ? 'asc' : nextSort === 'year_desc' ? 'desc' : sortDir === 'desc' ? 'asc' : 'desc';
-                  navigate({ sort: nextSort, sortDir: nextDir, page: 1 });
-                }}
-              />
-            </span>
+            {q && <span className="shrink-0 text-sm tabular-nums text-muted-foreground" aria-live="polite">{loading ? '搜索中…' : error ? '搜索失败' : `找到 ${data.total} 条`}</span>}
           </div>
         </div>
         {selectedContentType && (
@@ -492,7 +395,6 @@ function SearchContent() {
             const type = normalizeContentType(item.type);
             const config = getContentTypeConfig(type);
             const status = statuses[contentStatusKey(type, item.id)];
-            const statusConfig = getStatusConfig(status?.listType);
             const aliases = valuesOf(item.alias);
             const directors = valuesOf(item.director);
             const writers = valuesOf(item.writer);
@@ -510,19 +412,17 @@ function SearchContent() {
                       {displayYear && !hasYearSuffix(item.title, displayYear) ? <span className="ml-1 font-medium text-muted-foreground">（<Highlight text={String(displayYear)} keyword={q} />）</span> : null}
                     </h2>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <span className={`rounded-lg border px-2 py-1 text-[11px] font-medium ${CONTENT_TYPE_TONE_CLASSES[type]}`}><Highlight text={config.label} keyword={q} /></span>
-                      {statusConfig && (
-                        <span
-                          className="max-w-[6rem] truncate rounded-lg border px-2 py-1 text-[11px] font-medium"
-                          style={{
-                            color: statusConfig.color,
-                            background: 'color-mix(in srgb, currentColor 10%, transparent)',
-                            borderColor: 'color-mix(in srgb, currentColor 24%, transparent)',
-                          }}
-                        >
-                          {statusConfig.label}
-                        </span>
-                      )}
+                      <StatusIconButton
+                        listType={status?.listType}
+                        size="md"
+                        title={status?.listType ? '管理片单状态' : '添加到片单'}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setCollectionTarget({ contentId: item.id, contentType: type, title: item.title });
+                        }}
+                      />
+                      <TypeBadge contentType={type} size="sm" />
                     </div>
                   </div>
                   {aliases.length > 0 && <p className="mt-1 min-w-0 truncate text-xs text-muted-foreground" title={`别名：${aliases.join(' / ')}`}>别名：<HighlightValues values={aliases} keyword={q} /></p>}
@@ -543,6 +443,15 @@ function SearchContent() {
       )}
 
       {data.pages > 1 && <Pagination currentPage={page} totalPages={data.pages} onPageChange={(nextPage) => navigate({ page: nextPage })} />}
+      {collectionTarget && (
+        <CollectModalClient
+          open
+          onClose={() => setCollectionTarget(null)}
+          movieId={collectionTarget.contentId}
+          contentType={collectionTarget.contentType}
+          movieTitle={collectionTarget.title}
+        />
+      )}
     </div>
   );
 }

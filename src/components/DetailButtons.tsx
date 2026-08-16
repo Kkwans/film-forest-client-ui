@@ -100,18 +100,11 @@ export default function DetailButtons({
               <span className="font-bold tabular-nums">{status.watchedRating.toFixed(1)}</span>
             </>
           )}
+          {status.watched && status.watchedAt && (
+            <span className="text-xs font-medium text-muted-foreground">· {formatWatchedAt(status.watchedAt)}</span>
+          )}
         </button>
       </div>
-
-      {status.watched && (
-        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground" aria-label="观看记录">
-          <span className="inline-flex items-center gap-1.5">
-            <CheckCircle2 aria-hidden className="h-3.5 w-3.5 text-accent" />
-            已标记看过
-          </span>
-          {status.watchedAt ? <span>· {formatWatchedAt(status.watchedAt)}</span> : null}
-        </div>
-      )}
 
       {collectOpen && (
         <CollectModal

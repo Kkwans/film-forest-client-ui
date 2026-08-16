@@ -15,6 +15,8 @@ const NAV_ITEMS = [
   { label: '综艺', href: '/variety' },
   { label: '动漫', href: '/anime' },
   { label: '短剧', href: '/short' },
+  { label: '片单', href: '/profile?tab=lists' },
+  { label: '设置', href: '/profile?tab=settings' },
 ];
 
 function AvatarFallback({ name }: { name?: string }) {
@@ -27,6 +29,7 @@ function AvatarFallback({ name }: { name?: string }) {
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
+  const [profileTab, setProfileTab] = useState('');
   const [keyword, setKeyword] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -66,6 +69,14 @@ export default function Header() {
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (pathname !== '/profile') {
+      setProfileTab('');
+      return;
+    }
+    setProfileTab(new URLSearchParams(window.location.search).get('tab') || 'lists');
+  }, [pathname]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (keyword.trim()) {
@@ -99,6 +110,9 @@ export default function Header() {
   };
 
   const isActive = (href: string) => {
+    if (href === '/profile?tab=lists' || href === '/profile?tab=settings') {
+      return pathname === '/profile' && profileTab === href.split('=')[1];
+    }
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
@@ -126,7 +140,7 @@ export default function Header() {
           borderColor: 'var(--border-color)',
         }}
       >
-        <div className="mx-auto flex h-16 max-w-[90rem] items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-5 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link href="/" className="group flex shrink-0 items-center gap-2.5 no-underline" aria-label="影视森林首页">
             <span className="flex size-9 items-center justify-center rounded-xl bg-[var(--accent)] text-white shadow-[var(--shadow-sm)] transition-transform group-hover:-translate-y-0.5">
@@ -136,7 +150,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden items-center gap-1 lg:flex" aria-label="内容导航">
+          <nav className="hidden shrink-0 items-center gap-1 lg:flex" aria-label="内容导航">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
@@ -154,9 +168,9 @@ export default function Header() {
           </nav>
 
           {/* Search + Dark Toggle + Auth (desktop) */}
-          <div className="hidden items-center gap-2 lg:flex">
-            <form onSubmit={handleSearch} className="flex items-center gap-2">
-              <div className="relative" ref={searchWrapRef}>
+          <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex">
+            <form onSubmit={handleSearch} className="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <div className="relative min-w-0 flex-1" ref={searchWrapRef}>
                 {/* Search icon */}
                 <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   <Search className="size-4" aria-hidden />
@@ -172,7 +186,7 @@ export default function Header() {
                   aria-autocomplete="list"
                   aria-controls="header-search-suggestions"
                   aria-expanded={showSuggestions && (suggestions.length > 0 || suggestLoading)}
-                  className="header-search-input h-9 w-44 rounded-xl border border-border bg-card pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--accent)] lg:w-60"
+                  className="header-search-input h-9 w-full rounded-xl border border-border bg-card pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--accent)]"
                 />
                 {/* Clear button */}
                 {keyword && (

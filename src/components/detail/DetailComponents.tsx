@@ -44,7 +44,7 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
 export function DetailCover({ src, alt, fillHeight = false }: { src?: string; alt: string; fillHeight?: boolean }) {
   const wrapperClass = fillHeight
     ? 'h-full w-full max-w-none aspect-[2/3] lg:aspect-auto'
-    : 'mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56 lg:w-full lg:max-w-[18rem]';
+    : 'mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56 lg:w-full lg:max-w-[20rem]';
 
   return (
     <div className={wrapperClass}>
@@ -132,7 +132,7 @@ export function InfoRow({ label, children, accent }: {
   accent?: boolean;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-1 border-b border-border/55 py-2.5 text-sm leading-6 last:border-b-0 sm:grid-cols-[5rem_minmax(0,1fr)]">
+    <div className="grid min-w-0 grid-cols-[3.75rem_minmax(0,1fr)] items-start gap-x-2 gap-y-1 border-b border-border/55 py-2.5 text-sm leading-6 last:border-b-0 sm:grid-cols-[4rem_minmax(0,1fr)] sm:gap-x-3">
       <span className="font-medium text-muted-foreground">
         {label}
       </span>

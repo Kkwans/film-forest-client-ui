@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronDown, CloudDownload, Magnet, RefreshCw, TriangleAlert } from 'lucide-react';
-import { resourceApi } from '@/lib/api';
+import { resourceApi, seriesApi, type SeriesItem } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
 import { useDetailStatus } from '@/hooks/useDetailStatus';
 import VideoPlayer from '@/components/VideoPlayer';
@@ -207,6 +208,37 @@ function PlainValues({ values }: { values: string[] }) {
     : <span className="text-muted-foreground">--</span>;
 }
 
+function SeriesSelect({
+  items,
+  currentId,
+  listPath,
+}: {
+  items: SeriesItem[];
+  currentId: number;
+  listPath: string;
+}) {
+  const router = useRouter();
+  if (items.length === 0) return <span className="text-muted-foreground">--</span>;
+
+  return (
+    <select
+      aria-label="系列影片"
+      value={String(currentId)}
+      onChange={(event) => {
+        const nextId = Number(event.target.value);
+        if (Number.isSafeInteger(nextId) && nextId > 0 && nextId !== currentId) router.push(`${listPath}/${nextId}`);
+      }}
+      className="min-h-8 max-w-full rounded-lg border border-border bg-background px-2 text-sm text-secondary-foreground outline-none transition-[border-color,box-shadow] focus:border-accent focus:ring-1 focus:ring-accent/35"
+    >
+      {items.map((seriesItem) => (
+        <option key={seriesItem.id} value={seriesItem.id}>
+          [{seriesItem.seriesOrder ?? '-'}] {seriesItem.title}{seriesItem.year ? ` (${seriesItem.year})` : ''}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function ResourceErrorNotice({ kind, onRetry }: { kind: ResourceKind; onRetry: () => void }) {
   return (
     <div
@@ -265,6 +297,8 @@ export interface DetailItem {
   actor: string[];
   language: string[];
   alias: string[];
+  seriesName?: string;
+  seriesOrder?: number;
   releaseDate?: string;
   updatedAt?: string;
   tmdbId?: number;
@@ -328,6 +362,7 @@ export default function DetailPageLayout({
   const [onlineResources, setOnlineResources] = useState<OnlineResourceItem[]>([]);
   const [magnetResources, setMagnetResources] = useState<MagnetResourceItem[]>([]);
   const [cloudResources, setCloudResources] = useState<CloudResourceItem[]>([]);
+  const [seriesItems, setSeriesItems] = useState<SeriesItem[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [resourceErrors, setResourceErrors] = useState<ResourceKind[]>([]);
   const [resourceReloadKey, setResourceReloadKey] = useState(0);
@@ -381,6 +416,22 @@ export default function DetailPageLayout({
   const filterHref = (key: 'genre' | 'region' | 'language', value: string) => `${listPath}?${key}=${encodeURIComponent(value)}`;
   const searchHref = (value: string) => `/search?q=${encodeURIComponent(value)}`;
   const regionValues = item.region.split(/\s*\/\s*/u).map((entry) => entry.trim()).filter(Boolean);
+
+  useEffect(() => {
+    if (contentType !== 'movie' || !item.seriesName) {
+      setSeriesItems([]);
+      return;
+    }
+    let active = true;
+    seriesApi.get(item.id)
+      .then((response) => {
+        if (active) setSeriesItems(Array.isArray(response.data?.data) ? response.data.data : []);
+      })
+      .catch(() => {
+        if (active) setSeriesItems([]);
+      });
+    return () => { active = false; };
+  }, [contentType, item.id, item.seriesName]);
   // 播放记录卡片通过 episode/sourceId 深链回来；仅接受当前内容真实存在的集数。
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -488,7 +539,7 @@ export default function DetailPageLayout({
         ]}
       />
 
-      <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-border bg-card p-4 shadow-[var(--shadow-sm)] sm:p-6 lg:p-7">
+      <section className="relative isolate overflow-hidden rounded-[1.75rem] border border-border bg-card p-4 shadow-[var(--shadow-sm)] sm:p-5 lg:p-6">
         {resolvedCover && (
           <div
             aria-hidden
@@ -497,8 +548,8 @@ export default function DetailPageLayout({
           />
         )}
         <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-transparent via-transparent to-accent/[0.04]" />
-        <div className="grid items-start gap-x-8 gap-y-6 lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)] lg:gap-x-8">
-          <aside className="self-start">
+        <div className="grid items-start gap-x-6 gap-y-6 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] lg:gap-x-6">
+          <aside className="self-start lg:sticky lg:top-24">
             <DetailCover src={resolvedCover} alt={item.title} />
           </aside>
           <div className="flex min-w-0 flex-col gap-4 py-1">
@@ -549,9 +600,12 @@ export default function DetailPageLayout({
                 <InfoRow label="语言"><LinkedValues values={item.language} href={(value) => filterHref('language', value)} /></InfoRow>
                 <InfoRow label={releaseLabel}>{item.releaseDate || '--'}</InfoRow>
                 <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</InfoRow>
-              </div>
-              <div className="mt-1 border-t border-border/55">
                 <InfoRow label="别名"><PlainValues values={item.alias} /></InfoRow>
+                {contentType === 'movie' && item.seriesName && (
+                  <InfoRow label="系列">
+                    <SeriesSelect items={seriesItems} currentId={item.id} listPath={listPath} />
+                  </InfoRow>
+                )}
               </div>
             </div>
           </div>

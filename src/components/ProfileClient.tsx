@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import {
@@ -629,8 +629,11 @@ function SettingsTab() {
 
 export default function ProfileClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useUserStore();
-  const [activeTab, setActiveTab] = useState<TabKey>('lists');
+  const requestedTab = searchParams.get('tab');
+  const initialTab: TabKey = requestedTab === 'history' || requestedTab === 'settings' ? requestedTab : 'lists';
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [loadedTabs, setLoadedTabs] = useState<Set<TabKey>>(() => new Set(['lists']));
   const [stats, setStats] = useState<ProfileStats | null>(null);
 
@@ -642,11 +645,18 @@ export default function ProfileClient() {
     if (!hasStoredToken()) router.replace('/login?from=/profile');
   }, [router]);
 
+  useEffect(() => {
+    if (initialTab === activeTab) return;
+    setActiveTab(initialTab);
+    setLoadedTabs((current) => current.has(initialTab) ? current : new Set(current).add(initialTab));
+  }, [activeTab, initialTab]);
+
   if (!hasStoredToken()) return null;
 
   const selectTab = (key: TabKey) => {
     setActiveTab(key);
     setLoadedTabs((current) => current.has(key) ? current : new Set(current).add(key));
+    router.replace(`/profile?tab=${key}`, { scroll: false });
   };
 
   return (
