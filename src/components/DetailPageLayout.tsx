@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { CloudDownload, Magnet, RefreshCw, TriangleAlert } from 'lucide-react';
+import { ChevronDown, CloudDownload, Magnet, RefreshCw, TriangleAlert } from 'lucide-react';
 import { resourceApi } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
 import { useDetailStatus } from '@/hooks/useDetailStatus';
@@ -115,26 +115,123 @@ function resourceItems<T>(response: { data?: { data?: unknown } }): T[] {
 }
 
 function LinkedValues({ values, href }: { values: string[]; href: (value: string) => string }) {
-  if (values.length === 0) return <span className="text-muted-foreground">—</span>;
+  if (values.length === 0) return <span className="text-muted-foreground">--</span>;
 
   return (
     <span>
       {values.map((value, index) => (
         <span key={`${value}-${index}`}>
-          <Link href={href(value)} className="underline decoration-transparent underline-offset-4 transition-[color,text-decoration-color] hover:text-accent hover:decoration-current focus-visible:decoration-current">
+          <Link href={href(value)} className="text-accent underline decoration-transparent underline-offset-4 transition-[color,text-decoration-color] hover:text-accent-hover hover:decoration-current focus-visible:decoration-current">
             {value}
           </Link>
-          {index < values.length - 1 && <span className="mx-1.5 text-muted-foreground/70">/</span>}
+          {index < values.length - 1 && ' / '}
         </span>
       ))}
     </span>
   );
 }
 
+function ExpandableLinkedValues({
+  values,
+  href,
+  collapsedLines,
+  label,
+}: {
+  values: string[];
+  href: (value: string) => string;
+  collapsedLines: 1 | 2;
+  label: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const measurementRef = useRef<HTMLSpanElement>(null);
+  const measurementText = values.join(' / ');
+
+  useEffect(() => {
+    const element = measurementRef.current;
+    if (!element) return;
+
+    const updateOverflow = () => {
+      const lineHeight = Number.parseFloat(window.getComputedStyle(element).lineHeight);
+      const maxHeight = (Number.isFinite(lineHeight) ? lineHeight : 24) * collapsedLines;
+      setOverflowing(element.scrollHeight > maxHeight + 1);
+    };
+
+    updateOverflow();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [collapsedLines, measurementText]);
+
+  if (values.length === 0) return <span className="text-muted-foreground">--</span>;
+
+  return (
+    <div className="relative min-w-0">
+      <span
+        ref={measurementRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 block invisible whitespace-normal break-words text-sm leading-6"
+      >
+        {measurementText}
+      </span>
+      <span className={`block min-w-0 break-words ${expanded ? '' : collapsedLines === 1 ? 'line-clamp-1' : 'line-clamp-2'}`}>
+        {values.map((value, index) => (
+          <span key={`${value}-${index}`}>
+            <Link href={href(value)} className="text-accent underline decoration-transparent underline-offset-4 transition-[color,text-decoration-color] hover:text-accent-hover hover:decoration-current focus-visible:decoration-current">
+              {value}
+            </Link>
+            {index < values.length - 1 && ' / '}
+          </span>
+        ))}
+      </span>
+      {overflowing && (
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          className="mt-1 inline-flex min-h-8 items-center gap-1 rounded-md text-xs font-semibold text-accent hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? '收起' : '展开'}${label}`}
+        >
+          {expanded ? '收起' : '展开'}
+          <ChevronDown aria-hidden className={`size-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PlainValues({ values }: { values: string[] }) {
   return values.length > 0
-    ? <span>{values.map((value, index) => <span key={`${value}-${index}`}>{value}{index < values.length - 1 && <span className="mx-1.5 text-muted-foreground/70">/</span>}</span>)}</span>
-    : <span className="text-muted-foreground">—</span>;
+    ? <span>{values.map((value, index) => <span key={`${value}-${index}`}>{value}{index < values.length - 1 && ' / '}</span>)}</span>
+    : <span className="text-muted-foreground">--</span>;
+}
+
+function ResourceErrorNotice({ kind, onRetry }: { kind: ResourceKind; onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="flex min-w-0 items-start gap-3">
+        <TriangleAlert aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div>
+          <p className="text-sm font-semibold text-foreground">部分资源暂时加载失败</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {RESOURCE_KIND_LABELS[kind]}未能载入，其他可用资源仍可正常使用。
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:border-accent/40 hover:text-accent"
+      >
+        <RefreshCw aria-hidden className="h-4 w-4" />
+        重新加载资源
+      </button>
+    </div>
+  );
 }
 
 /** 加载骨架屏（别名） */
@@ -185,6 +282,7 @@ interface DetailConfig {
   listPath: string;
   listLabel: string;
   episodeLabel?: string;
+  releaseLabel?: string;
   hasEpisodes?: boolean;
   updatingText?: string;
 }
@@ -216,7 +314,14 @@ export default function DetailPageLayout({
   item: DetailItem;
   config: DetailConfig;
 }) {
-  const { contentType, listPath, listLabel, episodeLabel = '集', hasEpisodes, updatingText } = config;
+  const {
+    contentType,
+    listPath,
+    listLabel,
+    episodeLabel = '集',
+    releaseLabel = '首播',
+    hasEpisodes,
+  } = config;
 
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<number | null>(null);
@@ -226,7 +331,7 @@ export default function DetailPageLayout({
   const [loadingResources, setLoadingResources] = useState(false);
   const [resourceErrors, setResourceErrors] = useState<ResourceKind[]>([]);
   const [resourceReloadKey, setResourceReloadKey] = useState(0);
-  const [downloadTab, setDownloadTab] = useState<'magnet' | 'cloud'>('magnet');
+  const [downloadTab, setDownloadTab] = useState<ResourceKind>('magnet');
   const [magnetQuality, setMagnetQuality] = useState('全部');
   const [cloudDiskType, setCloudDiskType] = useState('全部');
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -238,8 +343,13 @@ export default function DetailPageLayout({
   const ds = useDetailStatus(item.id, contentType);
   const posterResolution = usePosterResolution(contentType, item.id, item.cover, { enrich: true });
   const resolvedCover = posterResolution.url;
-  const tmdbScore = posterResolution.tmdbScore ?? item.tmdbScore;
-  const tmdbVoteCount = posterResolution.tmdbVoteCount ?? item.tmdbVoteCount;
+  const posterStatusLabel = posterResolution.status === 'tmdb'
+    ? '已匹配外部海报'
+    : posterResolution.status === 'fallback'
+      ? '保留来源海报'
+      : posterResolution.status === 'unavailable'
+        ? '外部海报暂不可用，保留来源海报'
+        : '';
   const { showToast } = useToast();
   const magnetCategories = useMemo(() => Array.from(new Set(
     magnetResources.map((resource) => resource.qualityCategory || '未知'),
@@ -271,16 +381,6 @@ export default function DetailPageLayout({
   const filterHref = (key: 'genre' | 'region' | 'language', value: string) => `${listPath}?${key}=${encodeURIComponent(value)}`;
   const searchHref = (value: string) => `/search?q=${encodeURIComponent(value)}`;
   const regionValues = item.region.split(/\s*\/\s*/u).map((entry) => entry.trim()).filter(Boolean);
-  const posterStatusLabel = posterResolution.status === 'tmdb'
-    ? 'TMDB 海报已匹配'
-    : posterResolution.status === 'fallback'
-      ? 'TMDB 未匹配，已保留原图'
-      : posterResolution.status === 'unavailable'
-        ? 'TMDB 暂不可用，已保留原图'
-        : posterResolution.status === 'loading'
-          ? 'TMDB 状态读取中'
-          : '';
-
   // 播放记录卡片通过 episode/sourceId 深链回来；仅接受当前内容真实存在的集数。
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -397,63 +497,62 @@ export default function DetailPageLayout({
           />
         )}
         <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-transparent via-transparent to-accent/[0.04]" />
-        <div className="grid items-stretch gap-x-8 gap-y-6 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)] lg:gap-x-9">
-          <aside className="lg:row-span-2">
-            <DetailCover src={resolvedCover} alt={item.title} fillHeight />
+        <div className="grid items-start gap-x-8 gap-y-6 lg:grid-cols-[minmax(15rem,18rem)_minmax(0,1fr)] lg:gap-x-8">
+          <aside className="self-start">
+            <DetailCover src={resolvedCover} alt={item.title} />
           </aside>
           <div className="flex min-w-0 flex-col gap-4 py-1">
-          <DetailTitle title={item.title} year={item.year} />
+            <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+              <div className="min-w-0 flex-1">
+                <DetailTitle title={item.title} year={item.year} />
+              </div>
+              <div className="shrink-0">
+                <RatingBadges
+                  douban={item.rating}
+                  doubanCount={item.scoreDoubanCount ?? item.ratingCount}
+                  imdb={item.ratingImdb}
+                  imdbCount={item.scoreImdbCount}
+                  rt={item.ratingRT}
+                  rtCriticCount={item.scoreRtCriticCount}
+                  rtAudienceCount={item.scoreRtAudienceCount}
+                />
+              </div>
+            </div>
 
-          <RatingBadges
-            douban={item.rating}
-            doubanCount={item.scoreDoubanCount ?? item.ratingCount}
-            imdb={item.ratingImdb}
-            imdbCount={item.scoreImdbCount}
-            rt={item.ratingRT}
-            rtCriticCount={item.scoreRtCriticCount}
-            rtAudienceCount={item.scoreRtAudienceCount}
-            tmdb={tmdbScore}
-            tmdbVoteCount={tmdbVoteCount}
-          />
-          {posterStatusLabel && (
-            <p className={`text-xs ${posterResolution.status === 'tmdb' ? 'text-accent' : 'text-muted-foreground'}`} role="status">
-              {posterStatusLabel}
-            </p>
-          )}
+            <DetailButtons
+              contentId={item.id}
+              contentType={contentType}
+              contentTitle={item.title}
+              status={ds.status}
+              statusLoading={ds.statusLoading}
+              watchedListId={ds.watchedListId}
+              collectOpen={ds.collectOpen}
+              watchedOpen={ds.watchedOpen}
+              watchedReadOnly={ds.watchedReadOnly}
+              onWantButtonClick={ds.handleWantButtonClick}
+              onWatchedClick={ds.handleWatchedClick}
+              onCollectClose={ds.handleCollectClose}
+              onWatchedClose={ds.handleWatchedClose}
+              onWatchedEdit={ds.handleWatchedEdit}
+              onCollectOpen={() => ds.setCollectOpen(true)}
+            />
 
-          <DetailButtons
-            contentId={item.id}
-            contentType={contentType}
-            contentTitle={item.title}
-            status={ds.status}
-            statusLoading={ds.statusLoading}
-            watchedListId={ds.watchedListId}
-            collectOpen={ds.collectOpen}
-            watchedOpen={ds.watchedOpen}
-            watchedReadOnly={ds.watchedReadOnly}
-            onWantButtonClick={ds.handleWantButtonClick}
-            onWatchedClick={ds.handleWatchedClick}
-            onCollectClose={ds.handleCollectClose}
-            onWatchedClose={ds.handleWatchedClose}
-            onWatchedEdit={ds.handleWatchedEdit}
-            onCollectOpen={() => ds.setCollectOpen(true)}
-          />
-
-          </div>
-          <div className="min-w-0 border-t border-border/70 pt-4 lg:col-start-2">
-            <div className="grid gap-x-9 md:grid-cols-2">
-              <InfoRow label="状态" accent={item.status === updatingText}>{item.status || '—'}</InfoRow>
-              <InfoRow label="类型"><LinkedValues values={item.genre} href={(value) => filterHref('genre', value)} /></InfoRow>
-              <InfoRow label="导演" accent><LinkedValues values={item.director} href={searchHref} /></InfoRow>
-              <InfoRow label="编剧" accent><LinkedValues values={item.writer} href={searchHref} /></InfoRow>
-              <div className="md:col-span-2"><InfoRow label="主演" accent><LinkedValues values={item.actor} href={searchHref} /></InfoRow></div>
-              <InfoRow label="地区"><LinkedValues values={regionValues} href={(value) => filterHref('region', value)} /></InfoRow>
-              <InfoRow label="语言"><LinkedValues values={item.language} href={(value) => filterHref('language', value)} /></InfoRow>
-              <div className="md:col-span-2"><InfoRow label="别名"><PlainValues values={item.alias} /></InfoRow></div>
-              <InfoRow label="上映日期">{item.releaseDate || '—'}</InfoRow>
-              <InfoRow label="年份">{item.year > 0 ? item.year : '—'}</InfoRow>
-              {hasEpisodes && <InfoRow label="集数">{item.totalEpisode && item.totalEpisode > 0 ? `${item.totalEpisode}${episodeLabel}` : '—'}</InfoRow>}
-              <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '—'}</InfoRow>
+            <div className="min-w-0 border-t border-border/70 pt-3">
+              <div className="grid gap-x-8 md:grid-cols-2">
+                <InfoRow label="类型">
+                  <LinkedValues values={item.genre} href={(value) => filterHref('genre', value)} />
+                </InfoRow>
+                <InfoRow label="导演" accent><ExpandableLinkedValues values={item.director} href={searchHref} collapsedLines={1} label="导演" /></InfoRow>
+                <InfoRow label="编剧" accent><ExpandableLinkedValues values={item.writer} href={searchHref} collapsedLines={2} label="编剧" /></InfoRow>
+                <InfoRow label="主演" accent><ExpandableLinkedValues values={item.actor} href={searchHref} collapsedLines={2} label="主演" /></InfoRow>
+                <InfoRow label="地区"><LinkedValues values={regionValues} href={(value) => filterHref('region', value)} /></InfoRow>
+                <InfoRow label="语言"><LinkedValues values={item.language} href={(value) => filterHref('language', value)} /></InfoRow>
+                <InfoRow label={releaseLabel}>{item.releaseDate || '--'}</InfoRow>
+                <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</InfoRow>
+              </div>
+              <div className="mt-1 border-t border-border/55">
+                <InfoRow label="别名"><PlainValues values={item.alias} /></InfoRow>
+              </div>
             </div>
           </div>
         </div>
@@ -472,10 +571,10 @@ export default function DetailPageLayout({
             <span className="mr-2">数据更新</span>
             <span className="text-secondary-foreground">{item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('zh-CN') : '--'}</span>
           </p>
-          {posterResolution.diagnosticCode && (
+          {posterStatusLabel && (
             <p className="text-xs text-muted-foreground">
-              <span className="mr-2">海报状态</span>
-              <span className="text-secondary-foreground">{posterResolution.diagnosticCode}</span>
+              <span className="mr-2">海报来源</span>
+              <span className="text-secondary-foreground">{posterStatusLabel}</span>
             </p>
           )}
         </div>
@@ -492,91 +591,83 @@ export default function DetailPageLayout({
             />
           )}
 
-          {/* 视频播放器 */}
-          <VideoPlayer
-            src={playerSrc}
-            sourceId={playerSourceId ?? undefined}
-            title={item.title}
-            contentId={item.id}
-            contentType={contentType}
-            cover={resolvedCover}
-            episode={selectedEpisode ?? undefined}
-            episodeLabel={episodeLabel}
-            year={item.year}
-            rating={item.rating}
-            genres={item.genre}
-            region={item.region}
-            totalEpisodes={item.totalEpisode}
-            sources={onlineResources.map((r) => ({
-              id: r.id,
-              sourceName: r.sourceName,
-              sourceUrl: r.sourceUrl,
-              sourcePageUrl: r.sourcePageUrl,
-              playbackType: r.playbackType,
-            }))}
-            onEpisodeChange={setSelectedEpisode}
-            onSourceChange={(s) => {
-              setPlayerSrc(s.sourceUrl);
-              setPlayerSourceId(s.id);
-            }}
-            loading={loadingResources}
-          />
-
-          {resourceErrors.length > 0 && !loadingResources && (
-            <div
-              role="alert"
-              className="flex flex-col gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex min-w-0 items-start gap-3">
-                <TriangleAlert aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
-                <div>
-                  <p className="text-sm font-semibold text-foreground">部分资源暂时加载失败</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {resourceErrors.map((kind) => RESOURCE_KIND_LABELS[kind]).join('、')} 未能载入，其他可用资源仍可正常使用。
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setResourceReloadKey((key) => key + 1)}
-                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:border-accent/40 hover:text-accent"
-              >
-                <RefreshCw aria-hidden className="h-4 w-4" />
-                重新加载资源
-              </button>
-            </div>
-          )}
-
-          <OnlineResourceGrid
-            resources={onlineResources}
-            loading={loadingResources}
-            selectedEpisode={selectedEpisode}
-            episodeLabel={episodeLabel}
-            onPlay={(r) => {
-              if (r.sourceUrl) {
-                setPlayerSrc(r.sourceUrl);
-                setPlayerSourceId(r.id);
-              }
-            }}
-            activeSourceId={playerSourceId}
-          />
-
           <ResourceTabs
             tabs={[
               { key: 'magnet', label: '磁力链接', count: magnetResources.length },
               { key: 'cloud', label: '网盘资源', count: cloudResources.length },
+              { key: 'online', label: '在线播放', count: onlineResources.length },
             ]}
             activeTab={downloadTab}
-            onTabChange={(key) => setDownloadTab(key as 'magnet' | 'cloud')}
+            onTabChange={(key) => setDownloadTab(key as ResourceKind)}
           >
-            {loadingResources ? (
+            {downloadTab === 'online' ? (
+              <div className="space-y-4">
+                {resourceErrors.includes('online') && !loadingResources && (
+                  <ResourceErrorNotice
+                    kind="online"
+                    onRetry={() => setResourceReloadKey((key) => key + 1)}
+                  />
+                )}
+                <VideoPlayer
+                  src={playerSrc}
+                  sourceId={playerSourceId ?? undefined}
+                  title={item.title}
+                  contentId={item.id}
+                  contentType={contentType}
+                  cover={resolvedCover}
+                  episode={selectedEpisode ?? undefined}
+                  episodeLabel={episodeLabel}
+                  year={item.year}
+                  rating={item.rating}
+                  genres={item.genre}
+                  region={item.region}
+                  totalEpisodes={item.totalEpisode}
+                  sources={onlineResources.map((r) => ({
+                    id: r.id,
+                    sourceName: r.sourceName,
+                    sourceUrl: r.sourceUrl,
+                    sourcePageUrl: r.sourcePageUrl,
+                    playbackType: r.playbackType,
+                  }))}
+                  onEpisodeChange={setSelectedEpisode}
+                  onSourceChange={(s) => {
+                    setPlayerSrc(s.sourceUrl);
+                    setPlayerSourceId(s.id);
+                  }}
+                  loading={loadingResources}
+                />
+                <OnlineResourceGrid
+                  resources={onlineResources}
+                  loading={loadingResources}
+                  selectedEpisode={selectedEpisode}
+                  episodeLabel={episodeLabel}
+                  onPlay={(r) => {
+                    if (r.sourceUrl) {
+                      setPlayerSrc(r.sourceUrl);
+                      setPlayerSourceId(r.id);
+                    }
+                  }}
+                  activeSourceId={playerSourceId}
+                />
+              </div>
+            ) : loadingResources ? (
+              <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
               <div className="space-y-2">
                 {[1, 2].map(i => (
                   <div key={i} className="h-14 rounded-lg animate-pulse bg-background" />
                 ))}
               </div>
+              </section>
             ) : downloadTab === 'magnet' ? (
               <div className="space-y-4">
+                {resourceErrors.includes('magnet') && (
+                  <ResourceErrorNotice
+                    kind="magnet"
+                    onRetry={() => setResourceReloadKey((key) => key + 1)}
+                  />
+                )}
+                <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
+                  <div className="space-y-4">
                 {magnetResources.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="磁力资源画质筛选">
                     {['全部', ...magnetCategories].map((category) => {
@@ -618,9 +709,19 @@ export default function DetailPageLayout({
                   icon={<Magnet aria-hidden className="h-5 w-5" />}
                   emptyText={selectedEpisode ? `该${episodeLabel}暂无磁力链接` : '暂无磁力链接'}
                 />
+                  </div>
+                </section>
               </div>
             ) : (
               <div className="space-y-4">
+                {resourceErrors.includes('cloud') && (
+                  <ResourceErrorNotice
+                    kind="cloud"
+                    onRetry={() => setResourceReloadKey((key) => key + 1)}
+                  />
+                )}
+                <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
+                  <div className="space-y-4">
                 {cloudResources.length > 0 && (
                   <div className="flex flex-wrap gap-2" role="group" aria-label="网盘类型筛选">
                     {['全部', ...cloudDiskTypes].map((diskType) => {
@@ -668,6 +769,8 @@ export default function DetailPageLayout({
                 icon={<CloudDownload aria-hidden className="h-5 w-5" />}
                 emptyText={selectedEpisode ? `该${episodeLabel}暂无网盘资源` : '暂无网盘资源'}
                 />
+                  </div>
+                </section>
               </div>
             )}
           </ResourceTabs>

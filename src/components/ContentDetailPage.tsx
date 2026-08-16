@@ -20,6 +20,7 @@ export default async function ContentDetailPage({ contentType, params }: {
         listLabel: config.label,
         hasEpisodes: contentType !== 'movie',
         episodeLabel: '集',
+        releaseLabel: contentType === 'movie' ? '上映' : '首播',
         updatingText: '更新中',
       }}
     />

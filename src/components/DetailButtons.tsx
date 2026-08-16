@@ -42,7 +42,6 @@ function MiniStars({ rating }: { rating?: number }) {
 }
 
 const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition-[border-color,background-color,color] hover:border-accent/40 hover:bg-accent/5 hover:text-accent disabled:cursor-not-allowed disabled:opacity-60';
-const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-3 text-sm font-semibold text-white shadow-sm transition-[background-color] hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60';
 
 export default function DetailButtons({
   contentId,
@@ -89,7 +88,7 @@ export default function DetailButtons({
           type="button"
           onClick={onWatchedClick}
           disabled={statusLoading}
-          className={status.watched ? secondaryButton : primaryButton}
+          className={secondaryButton}
           aria-haspopup="dialog"
           aria-label={status.watched ? '查看我的评价' : '标记为看过并评价'}
         >

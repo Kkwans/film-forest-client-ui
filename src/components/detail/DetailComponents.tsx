@@ -44,7 +44,7 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
 export function DetailCover({ src, alt, fillHeight = false }: { src?: string; alt: string; fillHeight?: boolean }) {
   const wrapperClass = fillHeight
     ? 'h-full w-full max-w-none aspect-[2/3] lg:aspect-auto'
-    : 'mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56';
+    : 'mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56 lg:w-full lg:max-w-[18rem]';
 
   return (
     <div className={wrapperClass}>
@@ -53,7 +53,7 @@ export function DetailCover({ src, alt, fillHeight = false }: { src?: string; al
           src={src || '/poster-placeholder.svg'}
           alt={alt}
           className={`rounded-2xl ${fillHeight ? 'h-full' : ''}`}
-          imgClassName={fillHeight ? 'object-contain bg-muted/25' : undefined}
+          imgClassName="object-contain bg-muted/25"
           placeholder="skeleton"
           aspectRatio={fillHeight ? null : '2/3'}
           fallbackSrc={'/poster-placeholder.svg'}
@@ -93,17 +93,14 @@ interface RatingBadgesProps {
   rt?: number | null;
   rtCriticCount?: number | null;
   rtAudienceCount?: number | null;
-  tmdb?: number | null;
-  tmdbVoteCount?: number | null;
 }
 
-export function RatingBadges({ douban, doubanCount, imdb, imdbCount, rt, rtCriticCount, rtAudienceCount, tmdb, tmdbVoteCount }: RatingBadgesProps) {
+export function RatingBadges({ douban, doubanCount, imdb, imdbCount, rt, rtCriticCount, rtAudienceCount }: RatingBadgesProps) {
   const hasCount = (value?: number | null) => value != null && value > 0;
   const badges: { label: string; value: string; className: string; detail?: string }[] = [
     douban != null || hasCount(doubanCount) ? { label: '豆瓣', value: douban != null ? douban.toFixed(1) : '暂无', detail: hasCount(doubanCount) ? `${doubanCount!.toLocaleString('zh-CN')}人评分` : undefined, className: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : null,
     imdb != null || hasCount(imdbCount) ? { label: 'IMDb', value: imdb != null ? imdb.toFixed(1) : '暂无', detail: hasCount(imdbCount) ? `${imdbCount!.toLocaleString('zh-CN')}人评分` : undefined, className: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : null,
-    rt != null || hasCount(rtCriticCount) || hasCount(rtAudienceCount) ? { label: '烂番茄', value: rt != null ? `${rt}%` : '暂无', detail: [hasCount(rtCriticCount) ? `影评人 ${rtCriticCount!.toLocaleString('zh-CN')}` : '', hasCount(rtAudienceCount) ? `观众 ${rtAudienceCount!.toLocaleString('zh-CN')}` : ''].filter(Boolean).join(' · ') || undefined, className: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300' } : null,
-    tmdb != null || hasCount(tmdbVoteCount) ? { label: 'TMDB 社区', value: tmdb != null ? tmdb.toFixed(1) : '暂无', detail: hasCount(tmdbVoteCount) ? `${tmdbVoteCount!.toLocaleString('zh-CN')}票` : undefined, className: 'border-cyan-500/25 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' } : null,
+    rt != null || hasCount(rtCriticCount) || hasCount(rtAudienceCount) ? { label: '烂番茄', value: rt != null ? `${rt}%` : '暂无', detail: [hasCount(rtCriticCount) ? `影评人 ${rtCriticCount!.toLocaleString('zh-CN')}` : '', hasCount(rtAudienceCount) ? `观众 ${rtAudienceCount!.toLocaleString('zh-CN')}` : ''].filter(Boolean).join(' / ') || undefined, className: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300' } : null,
   ].filter((b): b is NonNullable<typeof b> => b !== null);
 
   if (badges.length === 0) return null;
@@ -468,7 +465,7 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
 }
 
 /* ============================================================
- * 11. 资源 Tab 容器（磁力 + 网盘）
+ * 11. 资源 Tab 容器
  * ============================================================ */
 
 export function ResourceTabs({ tabs, activeTab, onTabChange, children }: {
@@ -478,18 +475,14 @@ export function ResourceTabs({ tabs, activeTab, onTabChange, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
-      <div className="mb-5">
-        <h2 className="text-lg font-bold text-foreground">下载资源</h2>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">按画质与字幕版本精确筛选；网盘资源可直接打开或复制链接。</p>
-      </div>
+    <div className="space-y-4">
       <DetailTabBar
         tabs={tabs}
         active={activeTab}
         onChange={onTabChange}
       />
-      <div className="mt-4">{children}</div>
-    </section>
+      {children}
+    </div>
   );
 }
 
