@@ -176,7 +176,7 @@ function ExpandableLinkedValues({
       >
         {measurementText}
       </span>
-      <span className={`block min-w-0 break-words ${expanded ? '' : collapsedLines === 1 ? 'line-clamp-1' : 'line-clamp-2'}`}>
+      <span className={`block min-w-0 break-words ${expanded ? '' : collapsedLines === 1 ? 'line-clamp-1' : 'max-h-12 overflow-hidden'}`}>
         {values.map((value, index) => (
           <span key={`${value}-${index}`}>
             <Link href={href(value)} className="text-accent underline decoration-transparent underline-offset-4 transition-[color,text-decoration-color] hover:text-accent-hover hover:decoration-current focus-visible:decoration-current">
@@ -190,7 +190,9 @@ function ExpandableLinkedValues({
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className="mt-1 inline-flex min-h-8 items-center gap-1 rounded-md text-xs font-semibold text-accent hover:text-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card"
+          className={expanded
+            ? 'mt-1 inline-flex min-h-7 items-center gap-1 rounded-md px-1 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card'
+            : 'absolute bottom-0 right-0 inline-flex min-h-7 items-center gap-1 rounded-md bg-card px-1 pl-2 text-xs font-semibold text-muted-foreground shadow-[-0.75rem_0_0.75rem_var(--bg-card)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card'}
           aria-expanded={expanded}
           aria-label={`${expanded ? '收起' : '展开'}${label}`}
         >
@@ -590,22 +592,34 @@ export default function DetailPageLayout({
 
             <div className="min-w-0 border-t border-border/70 pt-3">
               <div className="grid gap-x-8 md:grid-cols-2">
-                <InfoRow label="类型">
-                  <LinkedValues values={item.genre} href={(value) => filterHref('genre', value)} />
-                </InfoRow>
-                <InfoRow label="导演" accent><ExpandableLinkedValues values={item.director} href={searchHref} collapsedLines={1} label="导演" /></InfoRow>
-                <InfoRow label="编剧" accent><ExpandableLinkedValues values={item.writer} href={searchHref} collapsedLines={2} label="编剧" /></InfoRow>
-                <InfoRow label="主演" accent><ExpandableLinkedValues values={item.actor} href={searchHref} collapsedLines={2} label="主演" /></InfoRow>
-                <InfoRow label="地区"><LinkedValues values={regionValues} href={(value) => filterHref('region', value)} /></InfoRow>
-                <InfoRow label="语言"><LinkedValues values={item.language} href={(value) => filterHref('language', value)} /></InfoRow>
-                <InfoRow label={releaseLabel}>{item.releaseDate || '--'}</InfoRow>
-                <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</InfoRow>
-                <InfoRow label="别名"><PlainValues values={item.alias} /></InfoRow>
-                {contentType === 'movie' && item.seriesName && (
-                  <InfoRow label="系列">
-                    <SeriesSelect items={seriesItems} currentId={item.id} listPath={listPath} />
+                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                  <InfoRow label="类型">
+                    <LinkedValues values={item.genre} href={(value) => filterHref('genre', value)} />
                   </InfoRow>
-                )}
+                  <InfoRow label="导演" accent><ExpandableLinkedValues values={item.director} href={searchHref} collapsedLines={1} label="导演" /></InfoRow>
+                </div>
+                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                  <InfoRow label="编剧" accent><ExpandableLinkedValues values={item.writer} href={searchHref} collapsedLines={2} label="编剧" /></InfoRow>
+                  <InfoRow label="主演" accent><ExpandableLinkedValues values={item.actor} href={searchHref} collapsedLines={2} label="主演" /></InfoRow>
+                </div>
+                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                  <InfoRow label="地区"><LinkedValues values={regionValues} href={(value) => filterHref('region', value)} /></InfoRow>
+                  <InfoRow label="语言"><LinkedValues values={item.language} href={(value) => filterHref('language', value)} /></InfoRow>
+                </div>
+                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                  <InfoRow label={releaseLabel}>{item.releaseDate || '--'}</InfoRow>
+                  <InfoRow label="时长">{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</InfoRow>
+                </div>
+                <div className="grid border-b border-border/55 md:col-span-2 md:grid-cols-2">
+                  <InfoRow label="别名"><PlainValues values={item.alias} /></InfoRow>
+                  {contentType === 'movie' && (
+                    <InfoRow label="系列">
+                      {item.seriesName
+                        ? <SeriesSelect items={seriesItems} currentId={item.id} listPath={listPath} />
+                        : <span className="text-muted-foreground">--</span>}
+                    </InfoRow>
+                  )}
+                </div>
               </div>
             </div>
           </div>

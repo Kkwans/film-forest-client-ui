@@ -132,7 +132,7 @@ export function InfoRow({ label, children, accent }: {
   accent?: boolean;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-[3.75rem_minmax(0,1fr)] items-start gap-x-2 gap-y-1 border-b border-border/55 py-2.5 text-sm leading-6 last:border-b-0 sm:grid-cols-[4rem_minmax(0,1fr)] sm:gap-x-3">
+    <div className="grid min-w-0 grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-2 gap-y-1 py-2.5 text-sm leading-6 sm:gap-x-2.5">
       <span className="font-medium text-muted-foreground">
         {label}
       </span>
