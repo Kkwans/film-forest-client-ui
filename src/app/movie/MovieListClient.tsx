@@ -7,7 +7,6 @@ import CustomSelect from '@/components/CustomSelect';
 import FilterChip from '@/components/FilterChip';
 import MovieCard from '@/components/MovieCard';
 import Pagination from '@/components/Pagination';
-import SortDirButton from '@/components/SortDirButton';
 import TagFilter from '@/components/TagFilter';
 import { getContentTypeConfig, type ContentType } from '@/lib/contentConstants';
 import { parseContentListQuery } from '@/lib/contentListQuery';
@@ -171,7 +170,6 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
             ariaLabel="每页显示数量"
           />
           <CustomSelect ariaLabel="内容排序方式" value={query.sort} options={SORT_OPTIONS} onChange={(value) => updateUrl({ sort: value })} />
-          <SortDirButton direction={query.sortDir} onToggle={() => updateUrl({ sortDir: query.sortDir === 'desc' ? 'asc' : 'desc' })} />
         </div>
       </div>
 
