@@ -25,6 +25,7 @@ import {
   SearchX,
   Settings,
   Sun,
+  Star,
   Trash2,
 } from 'lucide-react';
 import { useUserStore, hasStoredToken } from '@/stores/userStore';
@@ -32,13 +33,14 @@ import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import { cleanTitle as cleanTitleUtil, formatRelativeTime, parseRegion } from '@/lib/utils';
 import { parseJsonArr } from '@/lib/contentConstants';
-import { formatWatchedAt } from '@/lib/uiContracts';
+import { formatWatchedAt, fractionalStarFill } from '@/lib/uiContracts';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import PosterSettingsCard from '@/components/PosterSettingsCard';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
 import { Modal } from '@/components/ui/modal';
 import Dialog from '@/components/Dialog';
+import WatchedModal from '@/components/WatchedModal';
 
 interface TabDefinition {
   key: 'lists' | 'history' | 'settings';
@@ -54,6 +56,13 @@ const TABS: TabDefinition[] = [
 
 type TabKey = TabDefinition['key'];
 
+interface ProfileStats {
+  listCount: number;
+  wantCount: number;
+  watchedCount: number;
+  customCount: number;
+}
+
 const DEFAULT_LISTS = [
   { key: 'want_to_watch', label: '想看', apiName: '想看', Icon: Bookmark, tone: 'text-violet-600 bg-violet-500/10 dark:text-violet-300' },
   { key: 'watching', label: '在看', apiName: '在看', Icon: Eye, tone: 'text-amber-600 bg-amber-500/10 dark:text-amber-300' },
@@ -62,12 +71,15 @@ const DEFAULT_LISTS = [
 
 interface HistoryItem {
   id: number;
+  listId?: number;
   movieId: number;
   contentType: string;
   title: string;
   cover: string;
   year?: number;
   rating?: number;
+  userRating?: number;
+  note?: string;
   addedAt?: string;
   watchedAt?: string;
   action: string;
@@ -86,6 +98,22 @@ const contentTypeRoute: Record<string, string> = {
 
 const inputClassName = 'w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-accent';
 
+function useDelayedLoading(loading: boolean, delay = 180) {
+  const [showLoading, setShowLoading] = useState(false);
+
+  useEffect(() => {
+    if (!loading) {
+      setShowLoading(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setShowLoading(true), delay);
+    return () => window.clearTimeout(timer);
+  }, [delay, loading]);
+
+  return showLoading;
+}
+
 function InlineError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div role="alert" className="grid place-items-center rounded-2xl border border-border bg-card px-5 py-12 text-center">
@@ -98,7 +126,22 @@ function InlineError({ message, onRetry }: { message: string; onRetry: () => voi
   );
 }
 
-function ListsTab() {
+function FractionalReviewStars({ score }: { score: number }) {
+  return (
+    <span className="inline-flex items-center gap-px text-amber-500" aria-label={`${score.toFixed(1)} 分，${(score / 2).toFixed(2)} 星`}>
+      {[0, 1, 2, 3, 4].map((index) => (
+        <span key={index} className="relative inline-flex h-3.5 w-3.5">
+          <Star aria-hidden className="absolute inset-0 h-3.5 w-3.5" strokeWidth={1.5} />
+          <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${fractionalStarFill(score, index) * 100}%` }}>
+            <Star aria-hidden className="h-3.5 w-3.5 max-w-none fill-current" strokeWidth={1.5} />
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function ListsTab({ onStatsChange }: { onStatsChange?: (stats: ProfileStats) => void }) {
   const { showToast } = useToast();
   const [lists, setLists] = useState<UserList[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +157,7 @@ function ListsTab() {
   const [updating, setUpdating] = useState(false);
   const [deletingList, setDeletingList] = useState<UserList | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const showLoading = useDelayedLoading(loading);
 
   const loadLists = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -124,7 +168,6 @@ function ListsTab() {
       setLists(Array.isArray(response.data.data) ? response.data.data : []);
     } catch {
       if (!signal?.aborted) {
-        setLists([]);
         setLoadError('片单加载失败，请检查网络后重试');
       }
     } finally {
@@ -137,6 +180,17 @@ function ListsTab() {
     void loadLists(controller.signal);
     return () => controller.abort();
   }, [loadLists, reloadKey]);
+
+  useEffect(() => {
+    if (loading || loadError) return;
+    const defaultLists = lists.filter((list) => list.isDefault === 1);
+    onStatsChange?.({
+      listCount: lists.length,
+      wantCount: defaultLists.find((list) => list.type === 'want_to_watch' || list.name === '想看')?.itemCount || 0,
+      watchedCount: defaultLists.find((list) => list.type === 'watched' || list.name === '看过')?.itemCount || 0,
+      customCount: lists.filter((list) => list.isDefault !== 1).length,
+    });
+  }, [lists, loadError, loading, onStatsChange]);
 
   const handleCreate = async () => {
     const name = newName.trim();
@@ -201,22 +255,23 @@ function ListsTab() {
     }
   };
 
-  if (loading) {
-    return <div className="grid gap-3" aria-label="正在加载片单">{[1, 2, 3].map((item) => <div key={item} className="h-24 animate-pulse rounded-2xl bg-muted" />)}</div>;
+  if (loading && lists.length === 0) {
+    return <div className={`grid gap-3 transition-opacity duration-150 ${showLoading ? 'opacity-100' : 'opacity-0'}`} aria-busy="true" aria-label="正在加载片单">{[1, 2, 3].map((item) => <div key={item} className="h-20 animate-pulse rounded-2xl bg-muted" />)}</div>;
   }
-  if (loadError) return <InlineError message={loadError} onRetry={() => setReloadKey((key) => key + 1)} />;
+  if (loadError && lists.length === 0) return <InlineError message={loadError} onRetry={() => setReloadKey((key) => key + 1)} />;
 
   const defaultLists = lists.filter((list) => list.isDefault === 1);
   const customLists = lists.filter((list) => list.isDefault !== 1);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6" aria-busy={loading}>
+      {loading && showLoading && <p className="text-xs text-muted-foreground" role="status">正在更新片单…</p>}
       <section aria-labelledby="default-lists-title">
         <div>
           <h2 id="default-lists-title" className="text-base font-semibold text-foreground">观看状态</h2>
           <p className="mt-1 text-xs text-muted-foreground">想看、在看与看过互斥流转，数量来自当前真实片单。</p>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {DEFAULT_LISTS.map((definition) => {
             const matched = defaultLists.find((list) => list.type === definition.key) || defaultLists.find((list) => list.name === definition.apiName);
             const content = (
@@ -230,9 +285,9 @@ function ListsTab() {
               </>
             );
             return matched ? (
-              <Link key={definition.key} href={`/user/lists/${matched.id}`} prefetch={false} className="flex min-h-24 items-center gap-3 rounded-2xl border border-border bg-card p-4 no-underline transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-md">{content}</Link>
+              <Link key={definition.key} href={`/user/lists/${matched.id}`} prefetch={false} className="flex min-h-20 items-center gap-3 rounded-2xl border border-border bg-card p-3 no-underline transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-md">{content}</Link>
             ) : (
-              <div key={definition.key} className="flex min-h-24 items-center gap-3 rounded-2xl border border-dashed border-border bg-muted/25 p-4 opacity-70">{content}</div>
+              <div key={definition.key} className="flex min-h-20 items-center gap-3 rounded-2xl border border-dashed border-border bg-muted/25 p-3 opacity-70">{content}</div>
             );
           })}
         </div>
@@ -271,19 +326,19 @@ function ListsTab() {
             <p className="mt-1 text-xs text-muted-foreground">默认观看状态已足够使用，也可以按自己的主题继续整理。</p>
           </div>
         ) : (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {customLists.map((list) => (
-              <article key={list.id} className="flex min-h-36 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
-                <Link href={`/user/lists/${list.id}`} prefetch={false} className="flex min-h-24 min-w-0 flex-1 items-start gap-3 p-4 no-underline">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent"><FolderHeart aria-hidden className="h-4 w-4" /></span>
+              <article key={list.id} className="flex min-h-28 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
+                <Link href={`/user/lists/${list.id}`} prefetch={false} className="flex min-h-20 min-w-0 flex-1 items-start gap-3 p-3 no-underline">
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent"><FolderHeart aria-hidden className="h-4 w-4" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold text-foreground">{list.name}</span>
-                    <span className="mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground">{list.description || '为喜欢的内容留一处清晰的位置。'}</span>
+                    <span className="mt-1 block line-clamp-1 text-xs leading-5 text-muted-foreground">{list.description || '为喜欢的内容留一处清晰的位置。'}</span>
                   </span>
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{list.itemCount} 部</span>
                   <ChevronRight aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
-                <div className="flex items-center justify-end gap-1 border-t border-border px-3 py-2" aria-label={`${list.name}片单操作`}>
+                <div className="flex items-center justify-end gap-1 border-t border-border px-3 py-1.5" aria-label={`${list.name}片单操作`}>
                   <button type="button" onClick={() => openEditor(list)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`编辑片单“${list.name}”`}><Pencil aria-hidden className="h-3.5 w-3.5" />编辑</button>
                   <button type="button" onClick={() => setDeletingList(list)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={`删除片单“${list.name}”`}><Trash2 aria-hidden className="h-3.5 w-3.5" />删除</button>
                 </div>
@@ -336,31 +391,74 @@ function HistoryRow({ item }: { item: HistoryItem }) {
   const region = parseRegion(item.region).join(' / ');
   const genres = parseJsonArr(item.genre);
   const statusTone = item.listType === 'watched' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : item.listType === 'watching' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'bg-violet-500/10 text-violet-700 dark:text-violet-300';
+  const [reviewMode, setReviewMode] = useState<'view' | 'edit' | null>(null);
+  const userRating = item.userRating != null && Number(item.userRating) > 0 ? Number(item.userRating) : null;
+  const hasReview = item.listType === 'watched';
 
   return (
-    <Link href={`${route}/${item.movieId}`} prefetch={false} className="flex gap-3 rounded-2xl border border-border bg-card p-3 no-underline transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
-      <div className="relative h-24 w-[68px] shrink-0 overflow-hidden rounded-xl">
-        <LazyImage src={posterUrl} alt={item.title || ''} className="rounded-xl" aspectRatio={null} fallbackSrc="/poster-placeholder.svg" rootMargin="100px" />
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
-        <div>
-          <div className="flex items-start justify-between gap-2">
-            <p className="truncate text-sm font-semibold text-foreground">{cleanTitleUtil(item.title) || '未知标题'}</p>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusTone}`}>{item.action}</span>
+    <article className="overflow-hidden rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
+      <Link href={`${route}/${item.movieId}`} prefetch={false} className="flex gap-3 p-3 no-underline">
+        <div className="relative h-24 w-[68px] shrink-0 overflow-hidden rounded-xl">
+          <LazyImage src={posterUrl} alt={item.title || ''} className="rounded-xl" aspectRatio={null} fallbackSrc="/poster-placeholder.svg" rootMargin="100px" />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-between py-0.5">
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <p className="truncate text-sm font-semibold text-foreground">{cleanTitleUtil(item.title) || '未知标题'}</p>
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusTone}`}>{item.action}</span>
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <TypeBadge contentType={item.contentType} />
+              {item.year && <span>{item.year}</span>}
+              {region && <span className="break-words">{region}</span>}
+              {item.rating != null && Number(item.rating) > 0 && <span className="font-semibold text-amber-600 dark:text-amber-400">{Number(item.rating).toFixed(1)} 分</span>}
+            </div>
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <TypeBadge contentType={item.contentType} />
-            {item.year && <span>{item.year}</span>}
-            {region && <span className="break-words">{region}</span>}
-            {item.rating != null && Number(item.rating) > 0 && <span className="font-semibold text-amber-600 dark:text-amber-400">{Number(item.rating).toFixed(1)} 分</span>}
+          <div className="flex items-end justify-between gap-3">
+            <GenreTags genres={genres} max={2} />
+            <span className="shrink-0 text-[10px] text-muted-foreground">{item.listType === 'watched' ? formatWatchedAt(item.watchedAt || item.addedAt) : formatRelativeTime(item.addedAt || '')}</span>
           </div>
         </div>
-        <div className="flex items-end justify-between gap-3">
-          <GenreTags genres={genres} max={2} />
-          <span className="shrink-0 text-[10px] text-muted-foreground">{item.listType === 'watched' ? formatWatchedAt(item.watchedAt || item.addedAt) : formatRelativeTime(item.addedAt || '')}</span>
+      </Link>
+
+      {hasReview && (
+        <div className="flex items-stretch gap-3 border-t border-border bg-muted/25 px-3 py-2.5 sm:px-4">
+          <button type="button" onClick={() => setReviewMode('view')} className="min-w-0 flex-1 text-left">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              <span className="font-semibold text-foreground">我的评价</span>
+              {userRating ? (
+                <span className="inline-flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400">
+                  <FractionalReviewStars score={userRating} />
+                  {userRating.toFixed(1)} 分
+                </span>
+              ) : (
+                <span className="text-muted-foreground">暂未评分</span>
+              )}
+              <span className="text-muted-foreground">看过 · {formatWatchedAt(item.watchedAt || item.addedAt)}</span>
+            </div>
+            <p className="mt-1 line-clamp-2 text-xs leading-5 text-secondary-foreground">{item.note || '暂未记录观后感，点击查看或补充评价。'}</p>
+          </button>
+          <button type="button" onClick={() => setReviewMode('edit')} className="shrink-0 self-center rounded-lg px-2.5 py-1.5 text-xs font-semibold text-accent hover:bg-accent/10 hover:text-accent-hover" aria-label={`编辑《${item.title}》的评价`}>编辑评价</button>
         </div>
-      </div>
-    </Link>
+      )}
+
+      {reviewMode && (
+        <WatchedModal
+          open
+          onClose={() => setReviewMode(null)}
+          movieId={item.movieId}
+          contentType={item.contentType}
+          movieTitle={item.title}
+          watchedListId={item.listId}
+          initialRating={userRating || undefined}
+          initialNote={item.note}
+          initialWatchedAt={item.watchedAt || item.addedAt}
+          isExisting
+          isReadOnly={reviewMode === 'view'}
+          onEdit={() => setReviewMode('edit')}
+        />
+      )}
+    </article>
   );
 }
 
@@ -371,6 +469,7 @@ function HistoryTab() {
   const [partialError, setPartialError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [activeFilter, setActiveFilter] = useState('all');
+  const showLoading = useDelayedLoading(loading);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -394,14 +493,14 @@ function HistoryTab() {
         const page = itemResponse.data.data as { records?: HistoryItem[] } | undefined;
         const records = Array.isArray(page?.records) ? page.records : [];
         const action = list.type === 'want_to_watch' ? '想看' : list.type === 'watching' ? '在看' : list.type === 'watched' ? '看过' : '收藏';
-        records.forEach((item) => nextItems.push({ ...item, action, listType: list.type }));
+        records.forEach((item) => nextItems.push({ ...item, listId: list.id, action, listType: list.type }));
       }
       nextItems.sort((left, right) => new Date(right.addedAt || 0).getTime() - new Date(left.addedAt || 0).getTime());
-      setItems(nextItems);
-      setPartialError(results.some((result) => result.status === 'rejected'));
+      const hasPartialError = results.some((result) => result.status === 'rejected');
+      setItems((current) => hasPartialError && nextItems.length === 0 ? current : nextItems);
+      setPartialError(hasPartialError);
     }).catch(() => {
       if (!controller.signal.aborted) {
-        setItems([]);
         setLoadError('最近动态加载失败，请检查网络后重试');
       }
     }).finally(() => {
@@ -411,6 +510,12 @@ function HistoryTab() {
     return () => controller.abort();
   }, [reloadKey]);
 
+  useEffect(() => {
+    const handleStatusChange = () => setReloadKey((key) => key + 1);
+    window.addEventListener('movie-status-changed', handleStatusChange);
+    return () => window.removeEventListener('movie-status-changed', handleStatusChange);
+  }, []);
+
   const filters = [
     { key: 'all', label: '全部' },
     { key: 'watched', label: '看过' },
@@ -419,11 +524,13 @@ function HistoryTab() {
   ];
   const filteredItems = activeFilter === 'all' ? items : items.filter((item) => item.listType === activeFilter);
 
-  if (loading) return <div className="space-y-3" aria-label="正在加载最近动态">{[1, 2, 3, 4].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl bg-muted" />)}</div>;
-  if (loadError) return <InlineError message={loadError} onRetry={() => setReloadKey((key) => key + 1)} />;
+  if (loading && items.length === 0) return <div className={`space-y-3 transition-opacity duration-150 ${showLoading ? 'opacity-100' : 'opacity-0'}`} aria-busy="true" aria-label="正在加载最近动态">{[1, 2, 3, 4].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl bg-muted" />)}</div>;
+  if (loadError && items.length === 0) return <InlineError message={loadError} onRetry={() => setReloadKey((key) => key + 1)} />;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-busy={loading}>
+      {loading && showLoading && <p className="text-xs text-muted-foreground" role="status">正在更新最近动态…</p>}
+      {loadError && items.length > 0 && <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-secondary-foreground" role="status">最近动态更新失败，仍显示上一次成功读取的内容。</p>}
       {partialError && (
         <div role="status" className="flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-secondary-foreground">部分片单暂未加载，下面仍保留已成功读取的动态。</p>
@@ -525,6 +632,11 @@ export default function ProfileClient() {
   const { user } = useUserStore();
   const [activeTab, setActiveTab] = useState<TabKey>('lists');
   const [loadedTabs, setLoadedTabs] = useState<Set<TabKey>>(() => new Set(['lists']));
+  const [stats, setStats] = useState<ProfileStats | null>(null);
+
+  const handleStatsChange = useCallback((nextStats: ProfileStats) => {
+    setStats(nextStats);
+  }, []);
 
   useEffect(() => {
     if (!hasStoredToken()) router.replace('/login?from=/profile');
@@ -539,26 +651,35 @@ export default function ProfileClient() {
 
   return (
     <div className="space-y-6">
-      <header className="relative overflow-hidden rounded-3xl border border-border bg-card">
-        <div className="relative h-28 overflow-hidden bg-[radial-gradient(circle_at_15%_10%,color-mix(in_srgb,var(--accent)_30%,transparent),transparent_45%),linear-gradient(120deg,color-mix(in_srgb,var(--bg-secondary)_90%,var(--accent)_10%),var(--bg-secondary))]" aria-hidden>
-          <div className="absolute -right-10 -top-16 size-56 rounded-full border border-accent/20" />
-          <div className="absolute right-20 top-10 size-24 rounded-full border border-accent/10" />
-        </div>
-        <div className="relative -mt-10 flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:gap-5 sm:px-6">
-          <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-3xl border-4 border-card bg-accent text-2xl font-bold text-white shadow-md">
-            {user?.avatar ? (
+      <header className="overflow-hidden rounded-2xl border border-border bg-card" aria-label="个人信息">
+        <div className="h-1 bg-accent/80" aria-hidden />
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5">
+          <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 border-accent/20 bg-accent text-xl font-bold text-white shadow-sm">
+            {user?.avatar || user?.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatar} alt={`${user.nickname || user.username || '用户'}头像`} className="h-full w-full object-cover" />
+              <img src={user.avatar || user.avatarUrl} alt={`${user.nickname || user.username || '用户'}头像`} className="h-full w-full object-cover" />
             ) : (
               <span>{(user?.nickname || user?.username || '用').charAt(0)}</span>
             )}
           </div>
-          <div className="min-w-0 flex-1 pb-0.5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">My Forest</p>
-            <h1 className="mt-1 truncate text-xl font-bold text-foreground">{user?.nickname || user?.username || '影视森林用户'}</h1>
-            {user?.nickname && user?.username && <p className="mt-0.5 text-xs text-muted-foreground">@{user.username}</p>}
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-bold text-foreground">{user?.nickname || user?.username || '影视森林用户'}</h1>
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">{user?.username ? `@${user.username}` : '个人片单与观看记录'}</p>
           </div>
-          <p className="shrink-0 text-xs text-muted-foreground">收藏、观看与评价都在这里继续</p>
+        </div>
+
+        <div className="grid grid-cols-4 border-t border-border" aria-label="片单统计">
+          {[
+            { label: '片单', value: stats?.listCount },
+            { label: '想看', value: stats?.wantCount },
+            { label: '看过', value: stats?.watchedCount },
+            { label: '自定义', value: stats?.customCount },
+          ].map((stat, index) => (
+            <div key={stat.label} className={`min-w-0 px-2 py-2.5 text-center ${index > 0 ? 'border-l border-border' : ''}`}>
+              <p className="text-base font-bold tabular-nums text-foreground">{stat.value ?? '—'}</p>
+              <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{stat.label}</p>
+            </div>
+          ))}
         </div>
       </header>
 
@@ -572,7 +693,7 @@ export default function ProfileClient() {
 
       {TABS.map((tab) => (
         <div key={tab.key} id={`profile-panel-${tab.key}`} role="tabpanel" hidden={activeTab !== tab.key}>
-          {loadedTabs.has(tab.key) && tab.key === 'lists' && <ListsTab />}
+          {loadedTabs.has(tab.key) && tab.key === 'lists' && <ListsTab onStatsChange={handleStatsChange} />}
           {loadedTabs.has(tab.key) && tab.key === 'history' && <HistoryTab />}
           {loadedTabs.has(tab.key) && tab.key === 'settings' && <SettingsTab />}
         </div>

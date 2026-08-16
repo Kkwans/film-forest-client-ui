@@ -132,6 +132,7 @@ export default function MovieCard({
   const regionArr = parseRegion(region);
   const genreArr = parseGenre(genre);
   const regionDisplay = regionArr.join(' / ');
+  const hasRating = rating != null && Number.isFinite(rating) && rating > 0;
   const cleanTitle = cleanTitleUtil(title);
   const fallbackCover = '/poster-placeholder.svg';
 
@@ -177,13 +178,15 @@ export default function MovieCard({
               rootMargin="300px"
             />
 
-            <span
-              className="absolute left-2 top-2 inline-flex min-h-6 items-center gap-1 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm"
-              aria-label={`豆瓣评分 ${rating != null && rating > 0 ? rating.toFixed(1) : '暂无'}`}
-            >
-              {rating != null && rating > 0 && <Star aria-hidden className="size-3 fill-current" />}
-              <span>{rating != null && rating > 0 ? rating.toFixed(1) : '--'}</span>
-            </span>
+            {hasRating && (
+              <span
+                className="absolute left-2 top-2 inline-flex min-h-6 items-center gap-1 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm"
+                aria-label={`豆瓣评分 ${rating.toFixed(1)}`}
+              >
+                <Star aria-hidden className="size-3 fill-current" />
+                <span>{rating.toFixed(1)}</span>
+              </span>
+            )}
 
             {showCollect && (
               <StatusIconButton
@@ -198,7 +201,7 @@ export default function MovieCard({
 
             {status && (
               <span
-                className="absolute left-2 top-10 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm"
+                className={`absolute left-2 ${hasRating ? 'top-10' : 'top-2'} rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm`}
                 style={{
                   color: status === '更新中' || status === '连载中'
                     ? 'var(--status-updating)'
@@ -220,7 +223,14 @@ export default function MovieCard({
             <div className="flex flex-wrap items-start gap-x-1.5 gap-y-0.5">
               {year ? <span className="text-[10px] text-muted-foreground md:text-xs">{year}</span> : null}
               {year && regionDisplay ? <span className="mt-1 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground" /> : null}
-              {regionDisplay ? <span className="break-words text-[10px] leading-4 text-muted-foreground md:text-xs">{regionDisplay}</span> : null}
+              {regionDisplay ? (
+                <span
+                  className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[10px] leading-4 text-muted-foreground md:overflow-visible md:whitespace-normal md:text-xs"
+                  title={regionDisplay}
+                >
+                  {regionDisplay}
+                </span>
+              ) : null}
             </div>
             <GenreTags genres={genreArr} />
           </div>
