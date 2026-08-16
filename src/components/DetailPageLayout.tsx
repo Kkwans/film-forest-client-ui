@@ -397,7 +397,7 @@ export default function DetailPageLayout({
           />
         )}
         <div aria-hidden className="absolute inset-0 -z-10 bg-gradient-to-br from-transparent via-transparent to-accent/[0.04]" />
-        <div className="grid items-stretch gap-x-8 gap-y-6 lg:grid-cols-[minmax(13rem,16rem)_minmax(0,1fr)] lg:gap-x-9">
+        <div className="grid items-stretch gap-x-8 gap-y-6 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)] lg:gap-x-9">
           <aside className="lg:row-span-2">
             <DetailCover src={resolvedCover} alt={item.title} fillHeight />
           </aside>

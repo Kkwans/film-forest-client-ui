@@ -42,13 +42,18 @@ export function DetailBreadcrumb({ items }: { items: BreadcrumbItem[] }) {
  * ============================================================ */
 
 export function DetailCover({ src, alt, fillHeight = false }: { src?: string; alt: string; fillHeight?: boolean }) {
+  const wrapperClass = fillHeight
+    ? 'h-full w-full max-w-none aspect-[2/3] lg:aspect-auto'
+    : 'mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56';
+
   return (
-    <div className={`mx-auto w-full max-w-[15rem] shrink-0 sm:mx-0 sm:w-48 md:w-56 ${fillHeight ? 'h-full max-w-none aspect-[2/3] lg:aspect-auto' : ''}`}>
+    <div className={wrapperClass}>
       <div className={`relative overflow-hidden rounded-2xl border border-white/15 bg-muted shadow-[0_1.5rem_3rem_rgba(0,0,0,0.22)] ${fillHeight ? 'h-full min-h-[21rem] lg:min-h-0' : ''}`}>
         <LazyImage
           src={src || '/poster-placeholder.svg'}
           alt={alt}
           className={`rounded-2xl ${fillHeight ? 'h-full' : ''}`}
+          imgClassName={fillHeight ? 'object-contain bg-muted/25' : undefined}
           placeholder="skeleton"
           aspectRatio={fillHeight ? null : '2/3'}
           fallbackSrc={'/poster-placeholder.svg'}
