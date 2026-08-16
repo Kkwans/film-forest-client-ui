@@ -35,6 +35,7 @@ export interface SearchParams {
   size?: number;
   sort?: string;
   sortDir?: string;
+  userStatus?: 'all' | 'unwatched' | 'watched' | 'unlisted' | 'listed';
 }
 
 /** Detail response for movie/drama/anime/variety/short-drama */

@@ -18,7 +18,7 @@ const LIST_PAGE_CONFIG: Record<
   home: {
     title: `${SITE_NAME} - 影视资源聚合平台`,
     description:
-      '影视森林汇集最新电影、电视剧、综艺、动漫、短剧资源，提供豆瓣/IMDB评分、磁力链接、网盘资源一站式聚合服务。',
+      '影视森林汇集最新电影、剧集、综艺、动漫、短剧资源，提供豆瓣/IMDB评分、磁力链接、网盘资源一站式聚合服务。',
     ogType: 'website',
   },
   movie: {
@@ -26,7 +26,7 @@ const LIST_PAGE_CONFIG: Record<
     description: '最新最热电影资源，提供豆瓣/IMDB/烂番茄评分、磁力链接、网盘资源下载。',
   },
   drama: {
-    title: `电视剧${TITLE_SUFFIX}`,
+    title: `剧集${TITLE_SUFFIX}`,
     description: '热播剧集资源，提供评分、磁力链接、网盘资源下载。',
   },
   variety: {
@@ -77,7 +77,7 @@ const DETAIL_TYPE_CONFIG: Record<
     notFoundTitle: '电影未找到',
   },
   drama: {
-    label: '电视剧',
+    label: '剧集',
     ogType: 'video.tv_show',
     notFoundTitle: '剧集未找到',
   },

@@ -28,7 +28,7 @@ export const STATUS_ICONS: Record<string, StatusIconConfig> = {
   },
   custom: {
     icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
-    label: '已收藏',
+    label: '已加入片单',
     color: 'var(--status-custom)',
     fill: true,
   },
@@ -44,7 +44,7 @@ export const CONTENT_TYPE_REGISTRY = {
     code: 'movie', route: 'movie', apiPath: '/api/movies', label: '电影', metadataKey: 'movie',
   },
   drama: {
-    code: 'drama', route: 'drama', apiPath: '/api/dramas', label: '电视剧', metadataKey: 'drama',
+    code: 'drama', route: 'drama', apiPath: '/api/dramas', label: '剧集', metadataKey: 'drama',
   },
   variety: {
     code: 'variety', route: 'variety', apiPath: '/api/varieties', label: '综艺', metadataKey: 'variety',
@@ -59,6 +59,15 @@ export const CONTENT_TYPE_REGISTRY = {
 
 export type ContentType = keyof typeof CONTENT_TYPE_REGISTRY;
 export type ContentTypeConfig = (typeof CONTENT_TYPE_REGISTRY)[ContentType];
+
+/** 用户端低饱和内容类型标签色，code 与 API/路由保持解耦。 */
+export const CONTENT_TYPE_TONE_CLASSES: Record<ContentType, string> = {
+  movie: 'border-sky-200/80 bg-sky-50 text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-200',
+  drama: 'border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-200',
+  variety: 'border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200',
+  anime: 'border-violet-200/80 bg-violet-50 text-violet-700 dark:border-violet-400/25 dark:bg-violet-400/10 dark:text-violet-200',
+  short_drama: 'border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-400/25 dark:bg-rose-400/10 dark:text-rose-200',
+};
 
 const CONTENT_TYPE_ALIASES: Record<string, ContentType> = {
   movie: 'movie',

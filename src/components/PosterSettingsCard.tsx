@@ -33,7 +33,7 @@ const jobStatusText: Record<PosterEnrichmentJob['status'], string> = {
 };
 
 const jobTypeOptions = [
-  { value: '', label: '全部内容' }, { value: 'movie', label: '电影' }, { value: 'drama', label: '电视剧' },
+  { value: '', label: '全部内容' }, { value: 'movie', label: '电影' }, { value: 'drama', label: '剧集' },
   { value: 'variety', label: '综艺' }, { value: 'anime', label: '动漫' },
   { value: 'short_drama', label: '短剧' },
 ];

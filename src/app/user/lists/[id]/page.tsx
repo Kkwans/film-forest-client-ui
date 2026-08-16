@@ -48,7 +48,7 @@ const SORT_OPTIONS_BY_TYPE: Record<string, { label: string; value: string }[]> =
 const TYPE_FILTERS = [
   { label: '全部', value: '' },
   { label: '电影', value: 'movie' },
-  { label: '电视剧', value: 'drama' },
+  { label: '剧集', value: 'drama' },
   { label: '综艺', value: 'variety' },
   { label: '动漫', value: 'anime' },
   { label: '短剧', value: 'short_drama' },

@@ -32,7 +32,7 @@ const CATEGORIES: CategoryDefinition[] = [
   },
   {
     type: 'drama',
-    label: '电视剧',
+    label: '剧集',
     eyebrow: 'SERIES',
     description: '持续更新的剧集目录，清晰呈现集数、进度与可用观看资源。',
     href: '/drama',

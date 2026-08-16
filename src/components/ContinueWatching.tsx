@@ -39,7 +39,7 @@ function getDetailPath(item: PlayHistoryItem): string {
 function getTypeName(type: string): string {
   const nameMap: Record<string, string> = {
     movie: '电影',
-    drama: '电视剧',
+    drama: '剧集',
     anime: '动漫',
     variety: '综艺',
     short_drama: '短剧',

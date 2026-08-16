@@ -5,17 +5,17 @@
  * 从 MovieCard / SearchPage / ListDetailPage 等多处提取的重复渲染逻辑
  */
 
-import { getStatusConfig, TYPE_LABELS } from '@/lib/contentConstants';
+import { CONTENT_TYPE_TONE_CLASSES, getContentTypeConfig, getStatusConfig, TYPE_LABELS } from '@/lib/contentConstants';
 import { Bookmark, CheckCircle2, Eye, Heart, Star } from 'lucide-react';
 import { getGenreColorToken } from '@/lib/uiContracts';
 
 /* ============================================================
- * 1. 状态图标按钮（想看/在看/看过/收藏）
+ * 1. 状态图标按钮（想看/在看/看过/片单）
  * 用于：MovieCard 左上角、SearchPage 右上角等
  * ============================================================ */
 
 interface StatusIconButtonProps {
-  /** 当前状态（listType），null 表示未收藏 */
+  /** 当前状态（listType），null 表示未加入片单 */
   listType: string | null | undefined;
   /** 打开片单管理 */
   onClick: (e: React.MouseEvent) => void;
@@ -46,7 +46,7 @@ export function StatusIconButton({
     ? CheckCircle2
     : config?.label === '在看'
       ? Eye
-      : config?.label === '已收藏'
+      : config?.label === '已加入片单'
         ? Star
         : config?.label === '想看'
           ? Heart
@@ -71,20 +71,18 @@ export function StatusIconButton({
 }
 
 /* ============================================================
- * 2. 类型标签（电影/电视剧/综艺/动漫/短剧）
+ * 2. 类型标签（电影/剧集/综艺/动漫/短剧）
  * ============================================================ */
 
 export function TypeBadge({ contentType, size = 'sm' }: { contentType: string; size?: 'xs' | 'sm' }) {
-  const label = TYPE_LABELS[contentType] || contentType;
+  const normalizedType = contentType === 'short' || contentType === 'short-drama' ? 'short_drama' : contentType;
+  const config = Object.prototype.hasOwnProperty.call(TYPE_LABELS, normalizedType) ? getContentTypeConfig(normalizedType) : null;
+  const label = config?.label || TYPE_LABELS[contentType] || contentType;
   const sizeClass = size === 'xs' ? 'text-[10px]' : 'text-[10px] md:text-xs';
 
   return (
     <span
-      className={`px-1.5 py-0.5 rounded font-medium ${sizeClass}`}
-      style={{
-        backgroundColor: 'var(--accent-light)',
-        color: 'var(--accent)',
-      }}
+      className={`inline-flex shrink-0 items-center rounded-md border px-1.5 py-0.5 font-medium ${sizeClass} ${config ? CONTENT_TYPE_TONE_CLASSES[config.code] : 'border-border bg-background text-secondary-foreground'}`}
     >
       {label}
     </span>
@@ -105,7 +103,7 @@ interface TypeFilterProps {
 const DEFAULT_TYPES = [
   { label: '全部', value: '' },
   { label: '电影', value: 'movie' },
-  { label: '电视剧', value: 'drama' },
+  { label: '剧集', value: 'drama' },
   { label: '综艺', value: 'variety' },
   { label: '动漫', value: 'anime' },
   { label: '短剧', value: 'short_drama' },

@@ -11,6 +11,7 @@ import SortDirButton from '@/components/SortDirButton';
 import TagFilter from '@/components/TagFilter';
 import {
   CONTENT_TYPE_REGISTRY,
+  CONTENT_TYPE_TONE_CLASSES,
   type ContentType,
   getContentTypeConfig,
   getStatusConfig,
@@ -20,6 +21,7 @@ import {
 import { parseRegion } from '@/lib/utils';
 import { contentStatusKey, useContentStatuses } from '@/hooks/useMovieStatuses';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { useUserStore } from '@/stores/userStore';
 
 interface SearchResult {
   id: number;
@@ -36,7 +38,7 @@ interface SearchResult {
   writer?: string | string[];
   actor?: string | string[];
   releaseDate?: string;
-  matchedFields?: string[] | string;
+  updatedAt?: number | string;
 }
 
 interface SearchPageData {
@@ -53,22 +55,75 @@ interface HotSearchItem {
 }
 
 const SORT_OPTIONS = [
-  { label: '最相关', value: 'relevance' },
-  { label: '最近更新', value: 'latest' },
-  { label: '评分最高', value: 'rating' },
-];
+  { label: '最相关', value: 'relevance', apiSort: 'relevance', defaultDir: 'desc' },
+  { label: '评分最高', value: 'rating', apiSort: 'rating', defaultDir: 'desc' },
+  { label: '年份最新', value: 'year_desc', apiSort: 'year', defaultDir: 'desc' },
+  { label: '年份最早', value: 'year_asc', apiSort: 'year', defaultDir: 'asc' },
+  { label: '数据最近更新', value: 'latest', apiSort: 'latest', defaultDir: 'desc' },
+] as const;
+type SortOptionValue = (typeof SORT_OPTIONS)[number]['value'];
+
 const REGIONS = ['大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国'];
 const RESOURCE_OPTIONS = [
   { label: '全部资源状态', value: 'all' },
   { label: '有可用资源', value: 'true' },
   { label: '暂无可用资源', value: 'false' },
 ];
+const USER_STATUS_OPTIONS = [
+  { label: '全部观看状态', value: 'all' },
+  { label: '未看过', value: 'unwatched' },
+  { label: '已看过', value: 'watched' },
+  { label: '未加入片单', value: 'unlisted' },
+  { label: '已加入片单', value: 'listed' },
+];
+type UserStatusFilter = (typeof USER_STATUS_OPTIONS)[number]['value'];
+
+function parseSortOption(rawSort: string | null, rawSortDir: string | null): SortOptionValue {
+  if (rawSort === 'year') return rawSortDir === 'asc' ? 'year_asc' : 'year_desc';
+  return SORT_OPTIONS.some((option) => option.value === rawSort)
+    ? rawSort as SortOptionValue
+    : 'relevance';
+}
+
+function parseUserStatusFilter(rawValue: string | null): UserStatusFilter {
+  return USER_STATUS_OPTIONS.some((option) => option.value === rawValue)
+    ? rawValue as UserStatusFilter
+    : 'all';
+}
+
+function validYear(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1888 && value <= 9999 ? value : null;
+}
+
+function hasYearSuffix(title: string, year: number): boolean {
+  return new RegExp(`[（(]\\s*${year}\\s*[）)]$`).test(title.trim());
+}
+
+function statusMatchesFilter(filter: UserStatusFilter, status: { listType: string } | null | undefined): boolean {
+  if (filter === 'watched') return status?.listType === 'watched';
+  if (filter === 'unwatched') return status?.listType !== 'watched';
+  if (filter === 'listed') return status != null;
+  if (filter === 'unlisted') return status == null;
+  return true;
+}
 
 function Highlight({ text, keyword }: { text: string; keyword: string }) {
   if (!keyword.trim()) return text;
-  const index = text.toLocaleLowerCase().indexOf(keyword.toLocaleLowerCase());
-  if (index < 0) return text;
-  return <>{text.slice(0, index)}<mark className="rounded bg-accent/20 px-0.5 text-inherit">{text.slice(index, index + keyword.length)}</mark>{text.slice(index + keyword.length)}</>;
+  const normalizedKeyword = keyword.trim();
+  const lowerText = text.toLocaleLowerCase();
+  const lowerKeyword = normalizedKeyword.toLocaleLowerCase();
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+  let index = lowerText.indexOf(lowerKeyword);
+  while (index >= 0) {
+    if (index > cursor) parts.push(text.slice(cursor, index));
+    parts.push(<mark key={`${index}-${cursor}`} className="bg-transparent font-semibold text-accent">{text.slice(index, index + normalizedKeyword.length)}</mark>);
+    cursor = index + normalizedKeyword.length;
+    index = lowerText.indexOf(lowerKeyword, cursor);
+  }
+  if (cursor === 0) return text;
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return <>{parts}</>;
 }
 
 function valuesOf(value: string | string[] | undefined): string[] {
@@ -76,13 +131,9 @@ function valuesOf(value: string | string[] | undefined): string[] {
   return parseJsonArr(value);
 }
 
-const MATCHED_FIELD_LABELS: Record<string, string> = {
-  title: '标题', alias: '别名', director: '导演', writer: '编剧', actor: '主演', genre: '类型', year: '上映年份', region: '地区', language: '语言',
-};
-
-function matchedFieldLabels(value: string[] | string | undefined): string[] {
-  const fields = Array.isArray(value) ? value : parseJsonArr(value);
-  return fields.map((field) => MATCHED_FIELD_LABELS[field] || field).filter(Boolean);
+function HighlightValues({ values, keyword }: { values: string[]; keyword: string }) {
+  if (values.length === 0) return '--';
+  return <>{values.map((value, index) => <span key={`${value}-${index}`}><Highlight text={value} keyword={keyword} />{index < values.length - 1 && <span className="mx-1 text-muted-foreground/60">/</span>}</span>)}</>;
 }
 
 function isContentType(value: string): value is ContentType {
@@ -96,7 +147,8 @@ function SearchPoster({ item, type }: { item: SearchResult; type: ContentType })
       src={poster}
       fallbackSrc="/poster-placeholder.svg"
       alt={item.title}
-      className="h-[138px] w-[92px] shrink-0 rounded-xl sm:h-[162px] sm:w-[108px]"
+      className="h-full w-auto shrink-0 aspect-[2/3] rounded-xl"
+      imgClassName="object-contain bg-muted/25"
       aspectRatio={null}
       rootMargin="240px"
     />
@@ -108,19 +160,25 @@ function SearchContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const q = searchParams.get('q')?.trim() || '';
   const typeFilter = searchParams.get('typeFilter') || '';
   const selectedContentType = isContentType(typeFilter) ? typeFilter : null;
   const rawTagId = Number(searchParams.get('tagId'));
   const tagId = selectedContentType && Number.isSafeInteger(rawTagId) && rawTagId > 0 ? rawTagId : null;
-  const rawYear = Number(searchParams.get('year'));
-  const year = Number.isSafeInteger(rawYear) && rawYear >= 1888 && rawYear <= 9999 ? rawYear : null;
   const region = searchParams.get('region')?.trim() || '';
   const rawResourceFilter = searchParams.get('hasResource');
   const hasResource = rawResourceFilter === 'true' || rawResourceFilter === 'false' ? rawResourceFilter : 'all';
+  const rawUserStatus = searchParams.get('userStatus');
+  const userStatus = isAuthenticated ? parseUserStatusFilter(rawUserStatus) : 'all';
   const rawSort = searchParams.get('sort');
-  const sort = SORT_OPTIONS.some((option) => option.value === rawSort) ? rawSort! : 'relevance';
-  const sortDir = searchParams.get('sortDir') === 'asc' ? 'asc' : 'desc';
+  const rawSortDir = searchParams.get('sortDir');
+  const sort = parseSortOption(rawSort, rawSortDir);
+  const sortConfig = SORT_OPTIONS.find((option) => option.value === sort) || SORT_OPTIONS[0];
+  const sortDir = sortConfig.value.startsWith('year_')
+    ? sortConfig.defaultDir
+    : rawSortDir === 'asc' ? 'asc' : 'desc';
+  const apiSort = sortConfig.apiSort;
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const size = Math.min(100, Math.max(1, Number(searchParams.get('size')) || 20));
   const [input, setInput] = useState(q);
@@ -203,13 +261,17 @@ function SearchContent() {
     const currentRequest = ++requestId.current;
     setLoading(true);
     setError(false);
-    const params = new URLSearchParams({ keyword: q, page: String(page), size: String(size), sort, sortDir });
+    const params = new URLSearchParams({ keyword: q, page: String(page), size: String(size), sort: apiSort, sortDir });
     if (selectedContentType) params.set('typeFilter', selectedContentType);
     if (tagId) params.set('tagId', String(tagId));
-    if (year) params.set('year', String(year));
     if (region) params.set('region', region);
     if (hasResource !== 'all') params.set('hasResource', hasResource);
-    fetch(`/api/search?${params}`, { signal: controller.signal })
+    if (userStatus !== 'all') params.set('userStatus', userStatus);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('ff_token') : null;
+    fetch(`/api/search?${params}`, {
+      signal: controller.signal,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
       .then((response) => {
         if (!response.ok) throw new Error(`搜索请求失败: ${response.status}`);
         return response.json();
@@ -233,7 +295,7 @@ function SearchContent() {
       })
       .finally(() => { if (currentRequest === requestId.current) setLoading(false); });
     return () => controller.abort();
-  }, [q, selectedContentType, tagId, year, region, hasResource, sort, sortDir, page, size, requestVersion]);
+  }, [q, selectedContentType, tagId, region, hasResource, userStatus, apiSort, sortDir, page, size, requestVersion]);
 
   useEffect(() => {
     const onShortcut = (event: KeyboardEvent) => {
@@ -254,7 +316,14 @@ function SearchContent() {
     [data.records],
   );
   const statuses = useContentStatuses(statusQueries);
-  const activeFilterCount = [selectedContentType, tagId, year, region, hasResource === 'all' ? null : hasResource]
+  const statusFilterReady = !isAuthenticated || userStatus === 'all' || statusQueries.length === 0 || statusQueries.every((query) => Object.prototype.hasOwnProperty.call(statuses, contentStatusKey(query.contentType, query.contentId)));
+  const visibleRecords = useMemo(
+    () => !isAuthenticated || userStatus === 'all' || !statusFilterReady
+      ? data.records
+      : data.records.filter((item) => statusMatchesFilter(userStatus, statuses[contentStatusKey(item.type, item.id)])),
+    [data.records, isAuthenticated, statusFilterReady, statuses, userStatus],
+  );
+  const activeFilterCount = [selectedContentType, tagId, region, hasResource === 'all' ? null : hasResource, userStatus === 'all' ? null : userStatus]
     .filter(Boolean).length;
 
   const submit = (keyword: string) => {
@@ -264,14 +333,13 @@ function SearchContent() {
     setSuggestions([]);
     setActiveSuggestion(-1);
     saveHistory(normalized);
-    navigate({ q: normalized, page: 1 }, 'push');
+    navigate({ q: normalized, year: null, page: 1 }, 'push');
   };
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6" aria-busy={loading || isPending}>
+    <div className="mx-auto flex w-full max-w-none flex-col gap-6" aria-busy={loading || isPending}>
       <div>
         <h1 className="text-2xl font-bold text-foreground">全站搜索</h1>
-        <p className="mt-1 text-sm text-muted-foreground">按标题、别名、主创、年份、题材和内容类型查找五类影视</p>
       </div>
 
       <div className="relative">
@@ -288,7 +356,7 @@ function SearchContent() {
               if (event.key === 'Enter' && activeSuggestion >= 0) { event.preventDefault(); submit(visibleSuggestions[activeSuggestion]); }
               if (event.key === 'Escape') { setSuggestions([]); setActiveSuggestion(-1); inputRef.current?.blur(); }
             }}
-            placeholder="片名、别名、主创、年份或题材（按 / 快速聚焦）"
+            placeholder="可搜索标题、别名、导演、编剧、主演、题材"
             className="h-12 min-w-0 flex-1 rounded-xl border border-border bg-card px-4 text-foreground outline-none placeholder:text-muted-foreground focus:border-accent"
             role="combobox"
             aria-autocomplete="list"
@@ -326,27 +394,6 @@ function SearchContent() {
             options={[{ label: '全部类型', value: 'all' }, ...Object.values(CONTENT_TYPE_REGISTRY).map((config) => ({ label: config.label, value: config.code }))]}
             onChange={(value) => navigate({ typeFilter: value === 'all' ? null : value, tagId: null, page: 1 })}
           />
-          <form
-            key={year || 'all-years'}
-            className="flex h-8 overflow-hidden rounded-lg border border-border bg-card"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const value = new FormData(event.currentTarget).get('year');
-              navigate({ year: value ? String(value) : null, page: 1 });
-            }}
-          >
-            <input
-              aria-label="上映年份"
-              name="year"
-              type="number"
-              min="1888"
-              max="9999"
-              defaultValue={year || ''}
-              placeholder="年份"
-              className="w-[4.75rem] bg-transparent px-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
-            />
-            <button type="submit" className="border-l border-border px-2 text-xs font-medium text-secondary-foreground hover:text-accent">应用</button>
-          </form>
           <CustomSelect
             ariaLabel="搜索地区"
             value={region || 'all'}
@@ -359,18 +406,49 @@ function SearchContent() {
             options={RESOURCE_OPTIONS}
             onChange={(value) => navigate({ hasResource: value === 'all' ? null : value, page: 1 })}
           />
-          <CustomSelect ariaLabel="搜索结果排序" value={sort} options={SORT_OPTIONS} onChange={(value) => navigate({ sort: value, sortDir: value === 'relevance' ? 'desc' : sortDir, page: 1 })} />
-          {sort !== 'relevance' && <SortDirButton direction={sortDir} onToggle={() => navigate({ sortDir: sortDir === 'desc' ? 'asc' : 'desc', page: 1 })} />}
+          {isAuthenticated && (
+            <CustomSelect
+              ariaLabel="观看状态"
+              value={userStatus}
+              options={USER_STATUS_OPTIONS.map(({ label, value }) => ({ label, value }))}
+              onChange={(value) => navigate({ userStatus: value === 'all' ? null : value, page: 1 })}
+            />
+          )}
+          {!isAuthenticated && <span className="inline-flex h-8 items-center rounded-lg border border-dashed border-border px-3 text-xs text-muted-foreground" title="登录后可筛选观看状态">观看状态（登录后可筛选）</span>}
+          {isAuthenticated && userStatus !== 'all' && !statusFilterReady && <span className="text-xs text-muted-foreground" aria-live="polite">正在同步观看状态…</span>}
           {activeFilterCount > 0 && (
             <button
               type="button"
-              onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, hasResource: null, page: 1 })}
+              onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, hasResource: null, userStatus: null, page: 1 })}
               className="h-8 rounded-lg border border-border px-3 text-xs font-medium text-secondary-foreground hover:border-accent hover:text-accent"
             >
               清除筛选 · {activeFilterCount}
             </button>
           )}
-          {q && <span className="ml-auto text-sm tabular-nums text-muted-foreground" aria-live="polite">{loading ? '搜索中…' : error ? '搜索失败' : `找到 ${data.total} 条`}</span>}
+          {q && <span className="text-sm tabular-nums text-muted-foreground" aria-live="polite">{loading ? '搜索中…' : error ? '搜索失败' : `找到 ${data.total} 条`}</span>}
+          <div className="ml-auto flex shrink-0 items-center gap-2 border-l border-border pl-3">
+            <span className="hidden text-xs font-medium text-muted-foreground sm:inline">排序</span>
+            <CustomSelect
+              ariaLabel="搜索结果排序"
+              value={sort}
+              options={SORT_OPTIONS.map(({ label, value }) => ({ label, value }))}
+              className="w-[9rem] shrink-0"
+              onChange={(value) => {
+                const nextSort = SORT_OPTIONS.find((option) => option.value === value) || SORT_OPTIONS[0];
+                navigate({ sort: nextSort.value, sortDir: nextSort.defaultDir, page: 1 });
+              }}
+            />
+            <span className="shrink-0">
+              <SortDirButton
+                direction={sortDir}
+                onToggle={() => {
+                  const nextSort = sort === 'year_desc' ? 'year_asc' : sort === 'year_asc' ? 'year_desc' : sort;
+                  const nextDir = nextSort === 'year_asc' ? 'asc' : nextSort === 'year_desc' ? 'desc' : sortDir === 'desc' ? 'asc' : 'desc';
+                  navigate({ sort: nextSort, sortDir: nextDir, page: 1 });
+                }}
+              />
+            </span>
+          </div>
         </div>
         {selectedContentType && (
           <div className="mt-4 border-t border-border pt-4">
@@ -393,24 +471,24 @@ function SearchContent() {
       ) : loading && data.records.length === 0 ? (
         <div className="grid gap-3" aria-label="正在加载搜索结果">
           {Array.from({ length: 5 }, (_, index) => (
-            <div key={index} className="flex gap-4 rounded-2xl border border-border bg-card p-3">
-              <div className="h-[138px] w-[92px] shrink-0 animate-pulse rounded-xl bg-muted sm:h-[162px] sm:w-[108px]" />
-              <div className="flex flex-1 flex-col gap-3 py-2"><span className="h-4 w-1/2 animate-pulse rounded bg-muted" /><span className="h-3 w-1/3 animate-pulse rounded bg-muted" /><span className="h-3 w-full animate-pulse rounded bg-muted" /><span className="h-3 w-2/3 animate-pulse rounded bg-muted" /></div>
+            <div key={index} className="flex h-[12.5rem] gap-4 overflow-hidden rounded-2xl border border-border bg-card p-3 sm:h-[14rem]">
+              <div className="h-full w-auto shrink-0 aspect-[2/3] animate-pulse rounded-xl bg-muted" />
+              <div className="flex min-w-0 flex-1 flex-col gap-3 py-2"><span className="h-4 w-1/2 animate-pulse rounded bg-muted" /><span className="h-3 w-1/3 animate-pulse rounded bg-muted" /><span className="h-3 w-full animate-pulse rounded bg-muted" /><span className="h-3 w-2/3 animate-pulse rounded bg-muted" /></div>
             </div>
           ))}
         </div>
-      ) : !loading && data.records.length === 0 ? (
+      ) : !loading && visibleRecords.length === 0 ? (
         <div className="py-16 text-center">
-          <p className="text-sm text-secondary-foreground">没有找到“{q}”</p>
+          <p className="text-sm text-secondary-foreground">{userStatus !== 'all' && statusFilterReady ? `当前结果没有符合“${USER_STATUS_OPTIONS.find((option) => option.value === userStatus)?.label || '观看状态'}”的内容` : `没有找到“${q}”`}</p>
           <p className="mt-2 text-xs text-muted-foreground">可尝试缩短关键词或减少筛选条件</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {tagId && <button type="button" onClick={() => navigate({ tagId: null, page: 1 })} className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-secondary-foreground">清除题材</button>}
-            {activeFilterCount > 0 && <button type="button" onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, hasResource: null, page: 1 })} className="rounded-xl border border-accent px-4 py-2 text-xs font-medium text-accent">清除全部筛选</button>}
+            {activeFilterCount > 0 && <button type="button" onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, hasResource: null, userStatus: null, page: 1 })} className="rounded-xl border border-accent px-4 py-2 text-xs font-medium text-accent">清除全部筛选</button>}
           </div>
         </div>
       ) : (
         <div className={`grid gap-3 transition-opacity ${loading ? 'opacity-50' : 'opacity-100'}`}>
-          {data.records.map((item) => {
+          {visibleRecords.map((item) => {
             const type = normalizeContentType(item.type);
             const config = getContentTypeConfig(type);
             const status = statuses[contentStatusKey(type, item.id)];
@@ -420,24 +498,43 @@ function SearchContent() {
             const writers = valuesOf(item.writer);
             const actors = valuesOf(item.actor);
             const genres = valuesOf(item.genre);
-            const matched = matchedFieldLabels(item.matchedFields);
+            const displayYear = validYear(item.year);
+            const releaseValue = item.releaseDate?.trim() || (displayYear ? String(displayYear) : '--');
             return (
-              <Link key={`${type}-${item.id}`} href={`/${config.route}/${item.id}`} prefetch={false} className="flex gap-3 rounded-2xl border border-border bg-card p-3 transition-colors hover:border-accent/40 sm:gap-4">
+              <Link key={`${type}-${item.id}`} href={`/${config.route}/${item.id}`} prefetch={false} className="flex h-[12.5rem] gap-3 overflow-hidden rounded-2xl border border-border bg-card p-3 transition-[border-color,box-shadow] hover:border-accent/40 hover:shadow-sm sm:h-[14rem] sm:gap-4">
                 <SearchPoster item={item} type={type} />
-                <div className="min-w-0 flex-1 py-1">
-                  <div className="flex items-start justify-between gap-3"><h2 className="text-pretty font-semibold leading-6 text-foreground"><Highlight text={item.title} keyword={q} /></h2><span className="shrink-0 rounded-lg bg-background px-2 py-1 text-[11px] text-muted-foreground">{config.label}</span></div>
-                  {aliases.length > 0 && <p className="mt-1 text-xs text-muted-foreground">别名：{aliases.join(' / ')}</p>}
-                  <div className="mt-2 grid gap-1 text-xs text-secondary-foreground sm:grid-cols-2">
-                    <p>导演：{directors.length > 0 ? directors.join(' / ') : '--'}</p>
-                    <p>编剧：{writers.length > 0 ? writers.join(' / ') : '--'}</p>
-                    <p>主演：{actors.length > 0 ? actors.join(' / ') : '--'}</p>
-                    <p>类型：{genres.length > 0 ? genres.slice(0, 4).join(' / ') : '--'}</p>
-                    <p>上映：{item.releaseDate || item.year || '--'}</p>
-                    <p>地区：{parseRegion(item.region).join(' / ') || '--'}</p>
+                <div className="flex h-full min-w-0 min-h-0 flex-1 flex-col overflow-hidden py-1">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <h2 className="min-w-0 truncate font-semibold leading-6 text-foreground">
+                      <Highlight text={item.title} keyword={q} />
+                      {displayYear && !hasYearSuffix(item.title, displayYear) ? <span className="ml-1 font-medium text-muted-foreground">（<Highlight text={String(displayYear)} keyword={q} />）</span> : null}
+                    </h2>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <span className={`rounded-lg border px-2 py-1 text-[11px] font-medium ${CONTENT_TYPE_TONE_CLASSES[type]}`}><Highlight text={config.label} keyword={q} /></span>
+                      {statusConfig && (
+                        <span
+                          className="max-w-[6rem] truncate rounded-lg border px-2 py-1 text-[11px] font-medium"
+                          style={{
+                            color: statusConfig.color,
+                            background: 'color-mix(in srgb, currentColor 10%, transparent)',
+                            borderColor: 'color-mix(in srgb, currentColor 24%, transparent)',
+                          }}
+                        >
+                          {statusConfig.label}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {matched.length > 0 && <p className="mt-2 text-xs font-medium text-accent">命中字段：{matched.join('、')}</p>}
-                  {item.summary && <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground"><Highlight text={item.summary} keyword={q} /></p>}
-                  {statusConfig && <span className="mt-3 inline-flex rounded-full px-2 py-1 text-[11px]" style={{ color: statusConfig.color, background: 'var(--bg-primary)' }}>{statusConfig.label}</span>}
+                  {aliases.length > 0 && <p className="mt-1 min-w-0 truncate text-xs text-muted-foreground" title={`别名：${aliases.join(' / ')}`}>别名：<HighlightValues values={aliases} keyword={q} /></p>}
+                  <div className="mt-2 grid min-h-0 grid-cols-2 gap-x-6 gap-y-1 overflow-hidden text-xs leading-5 text-secondary-foreground">
+                    <p className="min-w-0 truncate" title={`导演：${directors.join(' / ') || '--'}`}>导演：<HighlightValues values={directors} keyword={q} /></p>
+                    <p className="min-w-0 truncate" title={`编剧：${writers.join(' / ') || '--'}`}>编剧：<HighlightValues values={writers} keyword={q} /></p>
+                    <p className="min-w-0 truncate" title={`主演：${actors.join(' / ') || '--'}`}>主演：<HighlightValues values={actors} keyword={q} /></p>
+                    <p className="min-w-0 truncate" title={`类型：${genres.slice(0, 4).join(' / ') || '--'}`}>类型：<HighlightValues values={genres.slice(0, 4)} keyword={q} /></p>
+                    <p className="min-w-0 truncate" title={`${type === 'movie' ? '上映' : '首播'}：${releaseValue}`}>{type === 'movie' ? '上映' : '首播'}：<Highlight text={releaseValue} keyword={q} /></p>
+                    <p className="min-w-0 truncate" title={`地区：${parseRegion(item.region).join(' / ') || '--'}`}>地区：<HighlightValues values={parseRegion(item.region)} keyword={q} /></p>
+                  </div>
+                  {item.summary && <p className="mt-3 line-clamp-2 overflow-hidden text-sm leading-6 text-muted-foreground"><Highlight text={item.summary} keyword={q} /></p>}
                 </div>
               </Link>
             );

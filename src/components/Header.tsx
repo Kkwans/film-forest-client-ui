@@ -11,7 +11,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 const NAV_ITEMS = [
   { label: '首页', href: '/' },
   { label: '电影', href: '/movie' },
-  { label: '电视剧', href: '/drama' },
+  { label: '剧集', href: '/drama' },
   { label: '综艺', href: '/variety' },
   { label: '动漫', href: '/anime' },
   { label: '短剧', href: '/short' },
