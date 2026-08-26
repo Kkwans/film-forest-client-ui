@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, CirclePlay, Clapperboard, Clock3, Copy, ExternalLink, Inbox, Star } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
@@ -242,33 +242,47 @@ export function EpisodeGrid({ total, selected, onSelect, label = '集', gridCols
 }
 
 /* ============================================================
- * 9. 在线播放资源网格（按平台分组展示）
+ * 9. 在线播放资源网格（按来源页动态线路分组展示）
  * ============================================================ */
 
-interface OnlineResource {
+export interface OnlineResource {
   id: number;
   sourceName?: string;
+  providerName?: string;
   sourceUrl?: string;
   sourcePageUrl?: string;
   playbackType?: string;
+  season?: number;
+  episodeNumber?: number;
+  episodeTitle?: string;
 }
 
-/** 平台名称到品牌颜色的映射 */
-const PLATFORM_STYLES: Record<string, { color: string }> = {
-  '优酷': { color: '#00BEFF' },
-  '腾讯视频': { color: '#FF6A00' },
-  '爱奇艺': { color: '#00BE06' },
-  '芒果TV': { color: '#FF7F00' },
-  'bilibili': { color: '#FB7299' },
-  '哔哩哔哩': { color: '#FB7299' },
-  '搜狐视频': { color: '#EE2F2F' },
-  'PPTV': { color: '#0099FF' },
-  '乐视': { color: '#E60012' },
-};
+/**
+ * 兼容 V27 之前写成“线路名 · 画质/集名”的电影记录。
+ * 新记录的 providerName 来自来源页，不在前端维护任何来源名称白名单。
+ */
+function legacyProviderParts(resource: OnlineResource) {
+  const provider = resource.providerName?.trim();
+  const source = resource.sourceName?.trim() || '';
+  if (provider) return { provider, label: source };
 
-function getPlatformStyle(name: string) {
-  const key = Object.keys(PLATFORM_STYLES).find(k => name.includes(k));
-  return key ? PLATFORM_STYLES[key] : { color: 'var(--accent)' };
+  const separator = source.indexOf(' · ');
+  if (separator > 0 && separator < source.length - 3) {
+    return {
+      provider: source.slice(0, separator).trim(),
+      label: source.slice(separator + 3).trim(),
+    };
+  }
+  return { provider: source || '来源未标注', label: source };
+}
+
+function resourceLabel(resource: OnlineResource, selectedEpisode?: number | null) {
+  const { label } = legacyProviderParts(resource);
+  const episode = resource.episodeTitle?.trim()
+    || (resource.episodeNumber != null ? `第${resource.episodeNumber}集` : '');
+  if (label) return label;
+  if (selectedEpisode == null && episode) return episode;
+  return '播放源';
 }
 
 export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在线播放资源', selectedEpisode, episodeLabel = '集', onPlay, activeSourceId }: {
@@ -283,22 +297,39 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
   activeSourceId?: number | null;
 }) {
   const title = selectedEpisode ? `第${selectedEpisode}${episodeLabel} 播放源` : '在线播放';
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
 
-  // 按平台（sourceName）分组
+  // providerName 是来源播放页中的动态线路标题，例如“非凡”“量子”；不维护固定来源列表。
   const grouped = useMemo(() => {
     const map = new Map<string, OnlineResource[]>();
     for (const r of resources) {
-      const name = r.sourceName || '未知来源';
-      const arr = map.get(name) || [];
+      const { provider } = legacyProviderParts(r);
+      const arr = map.get(provider) || [];
       arr.push(r);
-      map.set(name, arr);
+      map.set(provider, arr);
     }
     return Array.from(map.entries());
   }, [resources]);
 
+  useEffect(() => {
+    if (selectedProvider && !grouped.some(([provider]) => provider === selectedProvider)) {
+      setSelectedProvider(null);
+    }
+  }, [grouped, selectedProvider]);
+
+  const visibleGroups = selectedProvider
+    ? grouped.filter(([provider]) => provider === selectedProvider)
+    : grouped;
+
   return (
     <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Streaming</p><h3 className="mt-2 text-xl font-black tracking-tight text-foreground">{title}</h3></div><p className="text-xs text-muted-foreground">选择线路后在上方播放器观看</p></div>
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Streaming</p>
+          <h3 className="mt-2 text-xl font-black tracking-tight text-foreground">{title}</h3>
+        </div>
+        <p className="text-xs text-muted-foreground">选择线路后在上方播放器观看</p>
+      </div>
       {loading ? (
         <div className="space-y-3">
           {[1, 2].map(i => (
@@ -314,20 +345,44 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
         </div>
       ) : (
         <div className="space-y-4">
-          {grouped.map(([platformName, items]) => {
-            const style = getPlatformStyle(platformName);
+          {grouped.length > 1 && (
+            <div className="flex flex-wrap gap-2 border-b border-border pb-4" role="tablist" aria-label="播放来源">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selectedProvider == null}
+                onClick={() => setSelectedProvider(null)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors ${selectedProvider == null ? 'border-accent bg-accent text-white' : 'border-border text-secondary-foreground hover:border-accent/50 hover:text-accent'}`}
+              >
+                全部来源
+              </button>
+              {grouped.map(([providerName, items]) => (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={selectedProvider === providerName}
+                  key={providerName}
+                  onClick={() => setSelectedProvider(providerName)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors ${selectedProvider === providerName ? 'border-accent bg-accent text-white' : 'border-border text-secondary-foreground hover:border-accent/50 hover:text-accent'}`}
+                >
+                  {providerName} <span className="text-xs opacity-75">{items.length}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {visibleGroups.map(([providerName, items]) => {
             return (
-              <div key={platformName}>
-                <div className="flex items-center gap-2 mb-2">
-                  <CirclePlay aria-hidden className="h-4 w-4" style={{ color: style.color }} />
-                  <span className="text-sm font-semibold text-foreground">{platformName}</span>
-                  <span className="text-xs text-muted-foreground">({items.length}条线路)</span>
+              <div key={providerName}>
+                <div className="mb-2 flex items-center gap-2">
+                  <CirclePlay aria-hidden className="size-4 text-accent" />
+                  <span className="text-sm font-semibold text-foreground">{providerName}</span>
+                  <span className="text-xs text-muted-foreground">{items.length} 条线路</span>
                 </div>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {items.map(r => {
                     const isActive = activeSourceId === r.id;
                     const opensExternally = getPlaybackSourceMode(r.sourceUrl, r.playbackType) === 'external-page';
-                    const label = items.length > 1 ? `线路${items.indexOf(r) + 1}` : platformName;
+                    const label = resourceLabel(r, selectedEpisode);
                     return onPlay ? (
                       <button
                         key={r.id}
@@ -342,8 +397,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                           {label}
                         </span>
                         <span
-                          className="rounded-md px-2 py-1 text-xs font-semibold text-white"
-                          style={{ backgroundColor: isActive ? 'var(--accent)' : style.color }}
+                          className={`rounded-md px-2 py-1 text-xs font-semibold ${isActive ? 'bg-accent text-white' : 'bg-accent/10 text-accent'}`}
                         >
                           {isActive
                             ? (opensExternally ? '已选择' : '播放中')
@@ -356,14 +410,13 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                         href={r.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-between px-4 py-2.5 rounded-lg border transition-all hover:border-accent/40 hover:shadow-sm active:scale-[0.98]"
+                        className="flex items-center justify-between rounded-lg border px-4 py-2.5 transition-[color,background-color,border-color,box-shadow] hover:border-accent/40 hover:shadow-sm"
                       >
                         <span className="text-sm font-medium truncate text-foreground">
                           {label}
                         </span>
                         <span
-                          className="text-xs px-2 py-0.5 rounded text-white"
-                          style={{ backgroundColor: style.color }}
+                          className="rounded-md bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent"
                         >
                           播放
                         </span>

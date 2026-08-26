@@ -31,6 +31,7 @@ import { filterResourcesByDiskType } from '@/lib/uiContracts';
 interface OnlineResourceItem {
   id: number;
   sourceName: string;
+  providerName?: string;
   sourceUrl: string;
   sourcePageUrl?: string;
   playbackType?: string;
@@ -693,6 +694,7 @@ export default function DetailPageLayout({
                   sources={onlineResources.map((r) => ({
                     id: r.id,
                     sourceName: r.sourceName,
+                    providerName: r.providerName,
                     sourceUrl: r.sourceUrl,
                     sourcePageUrl: r.sourcePageUrl,
                     playbackType: r.playbackType,

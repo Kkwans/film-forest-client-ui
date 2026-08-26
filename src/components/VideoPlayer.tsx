@@ -9,6 +9,7 @@ import { getPlaybackSourceMode } from '@/lib/playbackSource';
 export interface PlayerSource {
   id: number;
   sourceName?: string;
+  providerName?: string;
   sourceUrl?: string;
   sourcePageUrl?: string;
   playbackType?: string;
@@ -105,6 +106,9 @@ export default function VideoPlayer({
   const sourceMode = getPlaybackSourceMode(src, activePlaybackType);
   const isPlayable = sourceMode === 'hls' || sourceMode === 'video' || sourceMode === 'embed';
   const fallbackUrl = activeSource?.sourcePageUrl || src;
+  const sourceLabel = (source: PlayerSource) => [source.providerName?.trim(), source.sourceName?.trim()]
+    .filter(Boolean)
+    .join(' · ') || `来源 ${source.id}`;
 
   const clearPlayerTimeout = useCallback(() => {
     if (playerTimeoutRef.current) {
@@ -679,7 +683,7 @@ export default function VideoPlayer({
                           : 'text-white/80 hover:bg-white/10'
                       }`}
                     >
-                      {s.sourceName || `来源 ${s.id}`}
+                      {sourceLabel(s)}
                     </button>
                   ))}
                 </div>
