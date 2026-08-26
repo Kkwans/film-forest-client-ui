@@ -170,7 +170,7 @@ export default function MovieCard({
             <LazyImage
               src={resolvedCover || fallbackCover}
               alt={title}
-              className="rounded-none"
+              className="h-full rounded-none"
               imgClassName="img-zoom"
               placeholder="blur"
               aspectRatio={null}
