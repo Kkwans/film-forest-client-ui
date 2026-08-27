@@ -48,12 +48,12 @@ function RelatedCard({ item }: { item: RelatedItem }) {
           )}
         </div>
 
-        <div className="flex min-h-14 flex-col gap-0.5 p-2">
-          <p className="truncate text-xs font-medium text-foreground transition-colors group-hover:text-accent">
+        <div className="flex min-h-20 flex-col gap-1 p-2.5">
+          <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground transition-colors group-hover:text-accent">
             {item.title}
           </p>
           {item.year ? (
-            <span className="text-[10px] text-muted-foreground">{item.year}</span>
+            <span className="text-xs text-muted-foreground">{item.year}</span>
           ) : null}
         </div>
       </article>

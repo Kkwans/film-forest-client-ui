@@ -25,7 +25,7 @@ import {
 import RelatedSection from '@/components/RelatedSection';
 import { usePosterResolution } from '@/hooks/usePosterUrl';
 import { useToast } from '@/components/Toast';
-import { filterResourcesByDiskType } from '@/lib/uiContracts';
+import { filterResourcesByDiskType, getGenreColorToken } from '@/lib/uiContracts';
 
 /** 在线播放资源 */
 interface OnlineResourceItem {
@@ -133,6 +133,19 @@ function LinkedValues({ values, href }: { values: string[]; href: (value: string
   );
 }
 
+function GenreLinkedValues({ values, href }: { values: string[]; href: (value: string) => string }) {
+  if (values.length === 0) return <span className="text-muted-foreground">--</span>;
+  return (
+    <span className="flex flex-wrap gap-1.5">
+      {values.map((value) => (
+        <Link key={value} href={href(value)} className={`genre-tag genre-tag-${getGenreColorToken(value)} inline-flex min-h-7 items-center rounded-md px-2.5 text-xs font-medium no-underline`}>
+          {value}
+        </Link>
+      ))}
+    </span>
+  );
+}
+
 function ExpandableLinkedValues({
   values,
   href,
@@ -164,7 +177,7 @@ function ExpandableLinkedValues({
     const observer = new ResizeObserver(updateOverflow);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [collapsedLines, measurementText]);
+  }, [collapsedLines, measurementText, values.length]);
 
   if (values.length === 0) return <span className="text-muted-foreground">--</span>;
 
@@ -533,7 +546,7 @@ export default function DetailPageLayout({
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-none flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-5">
       <DetailBreadcrumb
         items={[
           { label: '首页', href: '/' },
@@ -595,7 +608,7 @@ export default function DetailPageLayout({
               <div className="grid gap-x-8 md:grid-cols-2">
                 <div className="grid md:col-span-2 md:grid-cols-2">
                   <InfoRow label="类型">
-                    <LinkedValues values={item.genre} href={(value) => filterHref('genre', value)} />
+                    <GenreLinkedValues values={item.genre} href={(value) => filterHref('genre', value)} />
                   </InfoRow>
                   <InfoRow label="导演" accent><ExpandableLinkedValues values={item.director} href={searchHref} collapsedLines={1} label="导演" /></InfoRow>
                 </div>
@@ -757,7 +770,7 @@ export default function DetailPageLayout({
                               : 'border-border bg-background text-secondary-foreground hover:border-accent/45'
                           }`}
                         >
-                          {category} <span className={active ? 'text-white/75' : 'text-muted-foreground'}>{count}</span>
+                          {category} <span className={active ? 'text-white' : 'text-muted-foreground'}>{count}</span>
                         </button>
                       );
                     })}
@@ -807,7 +820,7 @@ export default function DetailPageLayout({
                           aria-pressed={active}
                           className={`min-h-9 rounded-full border px-3 text-xs font-semibold transition-[color,background-color,border-color] ${active ? 'border-accent bg-accent text-white' : 'border-border bg-background text-secondary-foreground hover:border-accent/45'}`}
                         >
-                          {DISK_LABELS[diskType] || diskType} <span className={active ? 'text-white/75' : 'text-muted-foreground'}>{count}</span>
+                          {DISK_LABELS[diskType] || diskType} <span className={active ? 'text-white' : 'text-muted-foreground'}>{count}</span>
                         </button>
                       );
                     })}
