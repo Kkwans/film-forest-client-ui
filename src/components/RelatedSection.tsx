@@ -42,7 +42,7 @@ function RelatedCard({ item }: { item: RelatedItem }) {
             rootMargin="300px"
           />
           {item.scoreDouban != null && item.scoreDouban > 0 && (
-            <span className="absolute right-2 top-2 rounded bg-[var(--rating-8)] px-1.5 py-0.5 text-xs font-bold text-white">
+            <span className="absolute right-2 top-2 rounded bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white backdrop-blur-sm">
               {item.scoreDouban.toFixed(1)}
             </span>
           )}
