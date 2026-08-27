@@ -125,26 +125,28 @@ function ListItemCard({
           </div>
           <div className="mt-2"><GenreTags genres={genres} max={3} /></div>
           {directors.length > 0 && <p className="mt-2 truncate text-xs text-muted-foreground">导演：{directors.join(' / ')}</p>}
+          {(hasNote || hasRating) && (
+            <button type="button" onClick={() => onEdit(true)} disabled={batchMode} className="mt-3 min-h-11 border-l-2 border-accent/35 pl-3 text-left disabled:pointer-events-none">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">我的记录</span>
+                {hasRating && (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: ratingColor(Number(item.userRating)) }}>
+                    <Star aria-hidden className="h-3.5 w-3.5 fill-current" />{Number(item.userRating).toFixed(1)}
+                  </span>
+                )}
+              </span>
+              <span className="mt-1 line-clamp-3 block text-sm leading-6 text-secondary-foreground">{item.note || '查看我的评分'}</span>
+            </button>
+          )}
           <p className="mt-auto pt-2 text-[11px] text-muted-foreground">{listType === 'watched' ? formatWatchedAt(item.watchedAt || item.addedAt) : formatRelativeTime(item.addedAt || '')} · {activityLabel(listType)}</p>
         </div>
       </div>
 
-      {(hasNote || hasRating) && (
-        <button type="button" onClick={() => onEdit(true)} disabled={batchMode} className="flex w-full items-start gap-3 border-t border-border bg-muted/35 px-3 py-3 text-left disabled:pointer-events-none sm:px-4">
-          {hasRating && (
-            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold" style={{ color: ratingColor(Number(item.userRating)) }}>
-              <Star aria-hidden className="h-3.5 w-3.5 fill-current" />{Number(item.userRating).toFixed(1)}
-            </span>
-          )}
-          <span className="line-clamp-2 text-xs leading-5 text-secondary-foreground">{item.note || '查看我的评分'}</span>
-        </button>
-      )}
-
       {!batchMode && (
         <div className="flex items-center justify-end gap-2 border-t border-border px-3 py-2.5 sm:px-4">
-          <Link href={href} prefetch={false} className="mr-auto inline-flex min-h-9 items-center gap-1 text-xs font-medium text-accent no-underline">查看详情<ChevronRight aria-hidden className="h-3.5 w-3.5" /></Link>
-          <button type="button" onClick={() => onEdit(false)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground hover:border-accent/30 hover:text-accent"><Edit3 aria-hidden className="h-3.5 w-3.5" />{listType === 'watched' ? '评价' : '备注'}</button>
-          <button type="button" onClick={onRemove} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-red-500/25 px-3 text-xs font-medium text-red-600 hover:bg-red-500/10 dark:text-red-400"><Trash2 aria-hidden className="h-3.5 w-3.5" />移除</button>
+          <Link href={href} prefetch={false} className="mr-auto inline-flex min-h-11 items-center gap-1 text-xs font-medium text-accent no-underline">查看详情<ChevronRight aria-hidden className="h-3.5 w-3.5" /></Link>
+          <button type="button" onClick={() => onEdit(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground hover:border-accent/30 hover:text-accent"><Edit3 aria-hidden className="h-3.5 w-3.5" />{listType === 'watched' ? '评价' : '备注'}</button>
+          <button type="button" onClick={onRemove} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-red-500/25 px-3 text-xs font-medium text-red-600 hover:bg-red-500/10 dark:text-red-400"><Trash2 aria-hidden className="h-3.5 w-3.5" />移除</button>
         </div>
       )}
     </article>

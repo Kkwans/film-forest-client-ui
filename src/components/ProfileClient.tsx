@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import {
@@ -27,13 +27,14 @@ import {
   Sun,
   Star,
   Trash2,
+  UserRound,
 } from 'lucide-react';
 import { useUserStore, hasStoredToken } from '@/stores/userStore';
 import { listApi, type UserList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import { cleanTitle as cleanTitleUtil, formatRelativeTime, parseRegion } from '@/lib/utils';
 import { parseJsonArr } from '@/lib/contentConstants';
-import { formatWatchedAt, fractionalStarFill } from '@/lib/uiContracts';
+import { formatWatchedAt, fractionalStarFill, parseProfileArchiveQuery } from '@/lib/uiContracts';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import PosterSettingsCard from '@/components/PosterSettingsCard';
@@ -41,20 +42,25 @@ import { usePosterUrl } from '@/hooks/usePosterUrl';
 import { Modal } from '@/components/ui/modal';
 import Dialog from '@/components/Dialog';
 import WatchedModal from '@/components/WatchedModal';
+import CustomSelect from '@/components/CustomSelect';
+import Pagination from '@/components/Pagination';
 
 interface TabDefinition {
-  key: 'lists' | 'history' | 'settings';
+  key: ProfileView;
   label: string;
+  description: string;
+  href: string;
   Icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 }
 
-const TABS: TabDefinition[] = [
-  { key: 'lists', label: '我的片单', Icon: FolderHeart },
-  { key: 'history', label: '最近动态', Icon: History },
-  { key: 'settings', label: '设置', Icon: Settings },
-];
+export type ProfileView = 'home' | 'lists' | 'archive' | 'settings';
 
-type TabKey = TabDefinition['key'];
+const PROFILE_NAV: TabDefinition[] = [
+  { key: 'home', label: '个人主页', description: '账户与收藏概览', href: '/profile', Icon: UserRound },
+  { key: 'lists', label: '我的片单', description: '整理观看计划', href: '/profile/lists', Icon: FolderHeart },
+  { key: 'archive', label: '影视档案', description: '评分与观看记录', href: '/profile/archive', Icon: History },
+  { key: 'settings', label: '设置', description: '外观、账户与数据源', href: '/profile/settings', Icon: Settings },
+];
 
 interface ProfileStats {
   listCount: number;
@@ -299,7 +305,7 @@ function ListsTab({ onStatsChange }: { onStatsChange?: (stats: ProfileStats) => 
             <h2 id="custom-lists-title" className="text-base font-semibold text-foreground">自定义片单</h2>
             <p className="mt-1 text-xs text-muted-foreground">为主题、档期或共同观看计划建立独立收藏。</p>
           </div>
-          <button type="button" onClick={() => setShowCreate((open) => !open)} aria-expanded={showCreate} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium text-foreground hover:border-accent/40 hover:text-accent">
+          <button type="button" onClick={() => setShowCreate((open) => !open)} aria-expanded={showCreate} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-3 text-sm font-medium text-foreground hover:border-accent/40 hover:text-accent">
             <ListPlus aria-hidden className="h-4 w-4" />新建片单
           </button>
         </div>
@@ -307,7 +313,7 @@ function ListsTab({ onStatsChange }: { onStatsChange?: (stats: ProfileStats) => 
         {showCreate && (
           <form className="mt-4 rounded-2xl border border-border bg-card p-4" onSubmit={(event) => { event.preventDefault(); void handleCreate(); }}>
             <label htmlFor="new-list-name" className="text-sm font-medium text-foreground">片单名称</label>
-            <input id="new-list-name" value={newName} onChange={(event) => setNewName(event.target.value)} maxLength={30} autoFocus className={`mt-2 h-10 ${inputClassName}`} placeholder="例如：周末合家欢" />
+            <input id="new-list-name" value={newName} onChange={(event) => setNewName(event.target.value)} maxLength={30} className={`mt-2 h-11 ${inputClassName}`} placeholder="例如：周末合家欢" />
             <label htmlFor="new-list-description" className="mt-4 block text-sm font-medium text-foreground">片单描述 <span className="font-normal text-muted-foreground">（可选）</span></label>
             <textarea id="new-list-description" value={newDesc} onChange={(event) => setNewDesc(event.target.value)} maxLength={200} rows={3} className={`mt-2 resize-y py-2.5 ${inputClassName}`} placeholder="说明这个片单的用途" />
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -328,7 +334,7 @@ function ListsTab({ onStatsChange }: { onStatsChange?: (stats: ProfileStats) => 
         ) : (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {customLists.map((list) => (
-              <article key={list.id} className="flex min-h-28 flex-col overflow-hidden rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
+              <article key={list.id} className="flex min-h-28 flex-col rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm sm:flex-row">
                 <Link href={`/user/lists/${list.id}`} prefetch={false} className="flex min-h-20 min-w-0 flex-1 items-start gap-3 p-3 no-underline">
                   <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent"><FolderHeart aria-hidden className="h-4 w-4" /></span>
                   <span className="min-w-0 flex-1">
@@ -338,9 +344,9 @@ function ListsTab({ onStatsChange }: { onStatsChange?: (stats: ProfileStats) => 
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{list.itemCount} 部</span>
                   <ChevronRight aria-hidden className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 </Link>
-                <div className="flex items-center justify-end gap-1 border-t border-border px-3 py-1.5" aria-label={`${list.name}片单操作`}>
-                  <button type="button" onClick={() => openEditor(list)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`编辑片单“${list.name}”`}><Pencil aria-hidden className="h-3.5 w-3.5" />编辑</button>
-                  <button type="button" onClick={() => setDeletingList(list)} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={`删除片单“${list.name}”`}><Trash2 aria-hidden className="h-3.5 w-3.5" />删除</button>
+                <div className="flex items-center justify-end gap-1 px-3 pb-3 sm:flex-col sm:justify-center sm:border-l sm:border-border sm:py-3" aria-label={`${list.name}片单操作`}>
+                  <button type="button" onClick={() => openEditor(list)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`编辑片单“${list.name}”`}><Pencil aria-hidden className="h-3.5 w-3.5" />编辑</button>
+                  <button type="button" onClick={() => setDeletingList(list)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-600" aria-label={`删除片单“${list.name}”`}><Trash2 aria-hidden className="h-3.5 w-3.5" />删除</button>
                 </div>
               </article>
             ))}
@@ -396,8 +402,8 @@ function HistoryRow({ item }: { item: HistoryItem }) {
   const hasReview = item.listType === 'watched';
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm">
-      <Link href={`${route}/${item.movieId}`} prefetch={false} className="flex gap-3 p-3 no-underline">
+    <article className="rounded-2xl border border-border bg-card p-3 transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-sm sm:p-4">
+      <Link href={`${route}/${item.movieId}`} prefetch={false} className="flex gap-3 no-underline">
         <div className="relative h-24 w-[68px] shrink-0 overflow-hidden rounded-xl">
           <LazyImage src={posterUrl} alt={item.title || ''} className="rounded-xl" aspectRatio={null} fallbackSrc="/poster-placeholder.svg" rootMargin="100px" />
         </div>
@@ -411,7 +417,7 @@ function HistoryRow({ item }: { item: HistoryItem }) {
               <TypeBadge contentType={item.contentType} />
               {item.year && <span>{item.year}</span>}
               {region && <span className="break-words">{region}</span>}
-              {item.rating != null && Number(item.rating) > 0 && <span className="font-semibold text-amber-600 dark:text-amber-400">{Number(item.rating).toFixed(1)} 分</span>}
+              {item.rating != null && Number(item.rating) > 0 && <span className="font-semibold text-amber-700 dark:text-amber-400">{Number(item.rating).toFixed(1)} 分</span>}
             </div>
           </div>
           <div className="flex items-end justify-between gap-3">
@@ -422,12 +428,12 @@ function HistoryRow({ item }: { item: HistoryItem }) {
       </Link>
 
       {hasReview && (
-        <div className="flex items-stretch gap-3 border-t border-border bg-muted/25 px-3 py-2.5 sm:px-4">
-          <button type="button" onClick={() => setReviewMode('view')} className="min-w-0 flex-1 text-left">
+        <section className="mt-4 flex items-stretch gap-3 border-l-2 border-accent/35 pl-4" aria-label={`《${item.title}》的评价`}>
+          <button type="button" onClick={() => setReviewMode('view')} className="min-h-11 min-w-0 flex-1 text-left">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-              <span className="font-semibold text-foreground">我的评价</span>
+              <span className="font-semibold text-foreground">我的记录</span>
               {userRating ? (
-                <span className="inline-flex items-center gap-1 font-bold text-amber-600 dark:text-amber-400">
+                <span className="inline-flex items-center gap-1 font-bold text-amber-700 dark:text-amber-400">
                   <FractionalReviewStars score={userRating} />
                   {userRating.toFixed(1)} 分
                 </span>
@@ -436,10 +442,10 @@ function HistoryRow({ item }: { item: HistoryItem }) {
               )}
               <span className="text-muted-foreground">看过 · {formatWatchedAt(item.watchedAt || item.addedAt)}</span>
             </div>
-            <p className="mt-1 line-clamp-2 text-xs leading-5 text-secondary-foreground">{item.note || '暂未记录观后感，点击查看或补充评价。'}</p>
+            <p className="mt-1 line-clamp-3 text-sm leading-6 text-secondary-foreground">{item.note || '暂未记录观后感，点击查看或补充评价。'}</p>
           </button>
-          <button type="button" onClick={() => setReviewMode('edit')} className="shrink-0 self-center rounded-lg px-2.5 py-1.5 text-xs font-semibold text-accent hover:bg-accent/10 hover:text-accent-hover" aria-label={`编辑《${item.title}》的评价`}>编辑评价</button>
-        </div>
+          <button type="button" onClick={() => setReviewMode('edit')} className="min-h-11 shrink-0 self-center rounded-lg px-3 text-xs font-semibold text-accent hover:bg-accent/10 hover:text-accent-hover" aria-label={`编辑《${item.title}》的评价`}>编辑</button>
+        </section>
       )}
 
       {reviewMode && (
@@ -463,52 +469,73 @@ function HistoryRow({ item }: { item: HistoryItem }) {
 }
 
 function HistoryTab() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const archiveQuery = parseProfileArchiveQuery({
+    status: searchParams.get('status'),
+    type: searchParams.get('type'),
+    page: searchParams.get('page'),
+    sort: searchParams.get('sort'),
+  });
+  const activeFilter = archiveQuery.status;
+  const contentType = archiveQuery.type;
+  const sort = archiveQuery.sort;
+  const page = archiveQuery.page;
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [partialError, setPartialError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [totalPages, setTotalPages] = useState(1);
   const showLoading = useDelayedLoading(loading);
+
+  const navigate = (updates: Record<string, string | number | null>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '') next.delete(key);
+      else next.set(key, String(value));
+    });
+    router.push(`${pathname}?${next.toString()}`, { scroll: false });
+  };
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setLoadError(null);
-    setPartialError(false);
 
     void listApi.getAll({ signal: controller.signal }).then(async (response) => {
       const allLists = Array.isArray(response.data.data) ? response.data.data : [];
-      const defaultLists = allLists.filter((list) => list.isDefault === 1);
-      const results = await Promise.allSettled(defaultLists.map(async (list) => ({
-        list,
-        response: await listApi.getItems(list.id, { page: 1, size: 20, sort: 'addedAt', sortDir: 'desc' }, { signal: controller.signal }),
-      })));
-      if (controller.signal.aborted) return;
-
-      const nextItems: HistoryItem[] = [];
-      for (const result of results) {
-        if (result.status === 'rejected') continue;
-        const { list, response: itemResponse } = result.value;
-        const page = itemResponse.data.data as { records?: HistoryItem[] } | undefined;
-        const records = Array.isArray(page?.records) ? page.records : [];
-        const action = list.type === 'want_to_watch' ? '想看' : list.type === 'watching' ? '在看' : list.type === 'watched' ? '看过' : '收藏';
-        records.forEach((item) => nextItems.push({ ...item, listId: list.id, action, listType: list.type }));
+      const list = allLists.find((candidate) => candidate.isDefault === 1 && candidate.type === activeFilter);
+      if (!list) {
+        setItems([]);
+        setTotalPages(1);
+        return;
       }
-      nextItems.sort((left, right) => new Date(right.addedAt || 0).getTime() - new Date(left.addedAt || 0).getTime());
-      const hasPartialError = results.some((result) => result.status === 'rejected');
-      setItems((current) => hasPartialError && nextItems.length === 0 ? current : nextItems);
-      setPartialError(hasPartialError);
+      const itemResponse = await listApi.getItems(list.id, {
+        page,
+        size: 20,
+        sort,
+        sortDir: 'desc',
+        contentType: contentType || undefined,
+      }, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      const resultPage = itemResponse.data.data as { records?: HistoryItem[]; total?: number; size?: number } | undefined;
+      const records = Array.isArray(resultPage?.records) ? resultPage.records : [];
+      const action = activeFilter === 'want_to_watch' ? '想看' : activeFilter === 'watching' ? '在看' : '看过';
+      setItems(records.map((item) => ({ ...item, listId: list.id, action, listType: activeFilter })));
+      const total = Number(resultPage?.total || 0);
+      const size = Number(resultPage?.size || 20);
+      setTotalPages(Math.max(1, Math.ceil(total / size)));
     }).catch(() => {
       if (!controller.signal.aborted) {
-        setLoadError('最近动态加载失败，请检查网络后重试');
+        setLoadError('影视档案加载失败，请检查网络后重试');
       }
     }).finally(() => {
       if (!controller.signal.aborted) setLoading(false);
     });
 
     return () => controller.abort();
-  }, [reloadKey]);
+  }, [activeFilter, contentType, page, reloadKey, sort]);
 
   useEffect(() => {
     const handleStatusChange = () => setReloadKey((key) => key + 1);
@@ -517,40 +544,39 @@ function HistoryTab() {
   }, []);
 
   const filters = [
-    { key: 'all', label: '全部' },
     { key: 'watched', label: '看过' },
     { key: 'watching', label: '在看' },
     { key: 'want_to_watch', label: '想看' },
   ];
-  const filteredItems = activeFilter === 'all' ? items : items.filter((item) => item.listType === activeFilter);
 
-  if (loading && items.length === 0) return <div className={`space-y-3 transition-opacity duration-150 ${showLoading ? 'opacity-100' : 'opacity-0'}`} aria-busy="true" aria-label="正在加载最近动态">{[1, 2, 3, 4].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl bg-muted" />)}</div>;
+  if (loading && items.length === 0) return <div className={`space-y-3 transition-opacity duration-150 ${showLoading ? 'opacity-100' : 'opacity-0'}`} aria-busy="true" aria-label="正在加载影视档案">{[1, 2, 3, 4].map((item) => <div key={item} className="h-36 animate-pulse rounded-2xl bg-muted" />)}</div>;
   if (loadError && items.length === 0) return <InlineError message={loadError} onRetry={() => setReloadKey((key) => key + 1)} />;
 
   return (
     <div className="space-y-4" aria-busy={loading}>
-      {loading && showLoading && <p className="text-xs text-muted-foreground" role="status">正在更新最近动态…</p>}
-      {loadError && items.length > 0 && <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-secondary-foreground" role="status">最近动态更新失败，仍显示上一次成功读取的内容。</p>}
-      {partialError && (
-        <div role="status" className="flex flex-col gap-2 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-secondary-foreground">部分片单暂未加载，下面仍保留已成功读取的动态。</p>
-          <button type="button" onClick={() => setReloadKey((key) => key + 1)} className="text-sm font-medium text-accent">重新加载</button>
+      {loading && showLoading && <p className="text-xs text-muted-foreground" role="status">正在更新影视档案…</p>}
+      {loadError && items.length > 0 && <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-secondary-foreground" role="status">影视档案更新失败，仍显示上一次成功读取的内容。</p>}
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="filter-scroll-row" role="group" aria-label="档案状态筛选">
+          {filters.map((filter) => (
+            <button key={filter.key} type="button" onClick={() => navigate({ status: filter.key === 'watched' ? null : filter.key, page: 1 })} aria-pressed={activeFilter === filter.key} className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors sm:min-h-9 ${activeFilter === filter.key ? 'border-accent bg-accent text-white' : 'border-border bg-card text-secondary-foreground hover:border-accent/30'}`}>{filter.label}</button>
+          ))}
         </div>
-      )}
-      <div className="filter-scroll-row" role="group" aria-label="动态类型筛选">
-        {filters.map((filter) => (
-          <button key={filter.key} type="button" onClick={() => setActiveFilter(filter.key)} aria-pressed={activeFilter === filter.key} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${activeFilter === filter.key ? 'border-accent bg-accent text-white' : 'border-border bg-card text-secondary-foreground hover:border-accent/30'}`}>{filter.label}</button>
-        ))}
+        <div className="flex flex-wrap gap-2">
+          <CustomSelect ariaLabel="档案内容类型" value={contentType || 'all'} options={[{ label: '全部类型', value: 'all' }, { label: '电影', value: 'movie' }, { label: '剧集', value: 'drama' }, { label: '综艺', value: 'variety' }, { label: '动漫', value: 'anime' }, { label: '短剧', value: 'short_drama' }]} onChange={(value) => navigate({ type: value === 'all' ? null : value, page: 1 })} />
+          <CustomSelect ariaLabel="档案排序" value={sort} options={activeFilter === 'watched' ? [{ label: '最近记录', value: 'addedAt' }, { label: '我的评分', value: 'userRating' }, { label: '上映年份', value: 'year' }, { label: '豆瓣评分', value: 'douban' }] : [{ label: '最近加入', value: 'addedAt' }, { label: '上映年份', value: 'year' }, { label: '豆瓣评分', value: 'douban' }]} onChange={(value) => navigate({ sort: value === 'addedAt' ? null : value, page: 1 })} />
+        </div>
       </div>
-      {filteredItems.length === 0 ? (
+      {items.length === 0 ? (
         <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card px-5 py-12 text-center">
           <Clock3 aria-hidden className="h-8 w-8 text-muted-foreground" />
-          <p className="mt-3 text-sm font-medium text-foreground">{activeFilter === 'all' ? '还没有观看动态' : '该状态下暂无动态'}</p>
+          <p className="mt-3 text-sm font-medium text-foreground">该状态下暂无档案</p>
           <p className="mt-1 text-xs text-muted-foreground">浏览内容并加入片单后，记录会出现在这里。</p>
         </div>
       ) : (
-        <div className="grid gap-2">{filteredItems.map((item) => <HistoryRow key={`${item.listType}-${item.id}`} item={item} />)}</div>
+        <div className="grid gap-3">{items.map((item) => <HistoryRow key={`${item.listType}-${item.id}`} item={item} />)}</div>
       )}
+      {totalPages > 1 && <Pagination currentPage={page} totalPages={totalPages} onPageChange={(nextPage) => navigate({ page: nextPage })} />}
     </div>
   );
 }
@@ -580,7 +606,7 @@ function SettingsTab() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-2"><Info aria-hidden className="h-4 w-4 text-accent" /><h2 className="text-sm font-semibold text-foreground">账户信息</h2></div>
         <dl className="mt-4 grid gap-3 text-sm">
@@ -606,68 +632,116 @@ function SettingsTab() {
         </div>
       </section>
 
-      <div className="lg:col-span-2"><PosterSettingsCard /></div>
+      <div className="order-5 md:col-span-2">
+        <div className="mb-3">
+          <p className="text-xs font-semibold text-accent">高级设置</p>
+          <h2 className="mt-1 text-base font-semibold text-foreground">海报与数据源</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">只有需要替换来源站海报时才需要配置；所有失败都会保留原图。</p>
+        </div>
+        <PosterSettingsCard />
+      </div>
 
-      <section className="rounded-2xl border border-border bg-card p-5">
+      <section className="order-3 rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-2"><SearchX aria-hidden className="h-4 w-4 text-accent" /><h2 className="text-sm font-semibold text-foreground">本地数据</h2></div>
         <p className="mt-2 text-xs leading-5 text-muted-foreground">搜索历史仅保存在当前浏览器，清除不会影响片单或账户数据。</p>
-        <button type="button" onClick={clearSearchHistory} className="mt-4 min-h-10 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:border-accent/40 hover:text-accent">清除搜索历史</button>
+        <button type="button" onClick={clearSearchHistory} className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:border-accent/40 hover:text-accent">清除搜索历史</button>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-5">
+      <section className="order-4 rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-2"><Info aria-hidden className="h-4 w-4 text-accent" /><h2 className="text-sm font-semibold text-foreground">项目信息</h2></div>
         <p className="mt-2 text-xs leading-5 text-muted-foreground">查看影视森林的数据来源、TMDB 署名与项目说明。</p>
-        <Link href="/about" className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-foreground no-underline hover:border-accent/40 hover:text-accent">查看项目说明<ChevronRight aria-hidden className="h-4 w-4" /></Link>
+        <Link href="/about" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-foreground no-underline hover:border-accent/40 hover:text-accent">查看项目说明<ChevronRight aria-hidden className="h-4 w-4" /></Link>
       </section>
 
-      <button type="button" onClick={() => { logout(); router.replace('/'); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/40 text-sm font-semibold text-red-600 hover:bg-red-500/10 dark:text-red-400 lg:col-span-2">
+      <button type="button" onClick={() => { logout(); router.replace('/'); }} className="order-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/40 text-sm font-semibold text-red-600 hover:bg-red-500/10 dark:text-red-400 md:col-span-2">
         <LogOut aria-hidden className="h-4 w-4" />退出登录
       </button>
     </div>
   );
 }
 
-export default function ProfileClient() {
+function ProfileOverview({ stats }: { stats: ProfileStats | null }) {
+  const entries = PROFILE_NAV.filter((item) => item.key !== 'home');
+
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      {entries.map((entry) => (
+        <Link
+          key={entry.key}
+          href={entry.href}
+          className="group flex min-h-36 flex-col rounded-2xl border border-border bg-card p-5 no-underline transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-accent/35 hover:shadow-md"
+        >
+          <span className="grid size-11 place-items-center rounded-xl bg-accent/10 text-accent">
+            <entry.Icon aria-hidden className="size-5" />
+          </span>
+          <span className="mt-5 flex items-end justify-between gap-3">
+            <span>
+              <span className="block text-base font-semibold text-foreground">{entry.label}</span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">{entry.description}</span>
+            </span>
+            <ChevronRight aria-hidden className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
+          </span>
+        </Link>
+      ))}
+      <section className="rounded-2xl border border-border bg-card p-5 md:col-span-3" aria-labelledby="profile-summary-title">
+        <h2 id="profile-summary-title" className="text-sm font-semibold text-foreground">收藏概览</h2>
+        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: '全部片单', value: stats?.listCount },
+            { label: '想看', value: stats?.wantCount },
+            { label: '看过', value: stats?.watchedCount },
+            { label: '自定义片单', value: stats?.customCount },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-xl bg-background px-4 py-3">
+              <dt className="text-xs text-muted-foreground">{stat.label}</dt>
+              <dd className="mt-1 text-xl font-bold tabular-nums text-foreground">{stat.value ?? '—'}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </div>
+  );
+}
+
+export default function ProfileClient({ view = 'home' }: { view?: ProfileView }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { user } = useUserStore();
-  const requestedTab = searchParams.get('tab');
-  const initialTab: TabKey = requestedTab === 'history' || requestedTab === 'settings' ? requestedTab : 'lists';
-  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
-  const [loadedTabs, setLoadedTabs] = useState<Set<TabKey>>(() => new Set(['lists']));
   const [stats, setStats] = useState<ProfileStats | null>(null);
 
-  const handleStatsChange = useCallback((nextStats: ProfileStats) => {
-    setStats(nextStats);
-  }, []);
-
   useEffect(() => {
-    if (!hasStoredToken()) router.replace('/login?from=/profile');
-  }, [router]);
-
-  useEffect(() => {
-    if (initialTab === activeTab) return;
-    setActiveTab(initialTab);
-    setLoadedTabs((current) => current.has(initialTab) ? current : new Set(current).add(initialTab));
-  }, [activeTab, initialTab]);
+    if (!hasStoredToken()) {
+      router.replace(`/login?from=${encodeURIComponent(pathname)}`);
+      return;
+    }
+    const controller = new AbortController();
+    void listApi.getAll({ signal: controller.signal }).then((response) => {
+      if (controller.signal.aborted) return;
+      const lists = Array.isArray(response.data.data) ? response.data.data : [];
+      const defaults = lists.filter((list) => list.isDefault === 1);
+      setStats({
+        listCount: lists.length,
+        wantCount: defaults.find((list) => list.type === 'want_to_watch' || list.name === '想看')?.itemCount || 0,
+        watchedCount: defaults.find((list) => list.type === 'watched' || list.name === '看过')?.itemCount || 0,
+        customCount: lists.filter((list) => list.isDefault !== 1).length,
+      });
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, [pathname, router]);
 
   if (!hasStoredToken()) return null;
 
-  const selectTab = (key: TabKey) => {
-    setActiveTab(key);
-    setLoadedTabs((current) => current.has(key) ? current : new Set(current).add(key));
-    router.replace(`/profile?tab=${key}`, { scroll: false });
-  };
+  const current = PROFILE_NAV.find((item) => item.key === view) || PROFILE_NAV[0];
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-6xl space-y-6">
       <header className="overflow-hidden rounded-2xl border border-border bg-card" aria-label="个人信息">
         <div className="h-1 bg-accent/80" aria-hidden />
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-5 sm:p-5">
+        <div className="flex items-center gap-4 p-4 sm:gap-5 sm:p-5">
           <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 border-accent/20 bg-accent text-xl font-bold text-white shadow-sm">
             {user?.avatar || user?.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatar || user.avatarUrl} alt={`${user.nickname || user.username || '用户'}头像`} className="h-full w-full object-cover" />
+              <img src={user.avatar || user.avatarUrl} alt={`${user.nickname || user.username || '用户'}头像`} width={56} height={56} className="h-full w-full object-cover" />
             ) : (
               <span>{(user?.nickname || user?.username || '用').charAt(0)}</span>
             )}
@@ -678,36 +752,28 @@ export default function ProfileClient() {
           </div>
         </div>
 
-        <div className="grid grid-cols-4 border-t border-border" aria-label="片单统计">
-          {[
-            { label: '片单', value: stats?.listCount },
-            { label: '想看', value: stats?.wantCount },
-            { label: '看过', value: stats?.watchedCount },
-            { label: '自定义', value: stats?.customCount },
-          ].map((stat, index) => (
-            <div key={stat.label} className={`min-w-0 px-2 py-2.5 text-center ${index > 0 ? 'border-l border-border' : ''}`}>
-              <p className="text-base font-bold tabular-nums text-foreground">{stat.value ?? '—'}</p>
-              <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{stat.label}</p>
-            </div>
-          ))}
-        </div>
       </header>
 
-      <div className="filter-scroll-row rounded-2xl border border-border bg-card p-1.5" role="tablist" aria-label="个人中心">
-        {TABS.map((tab) => (
-          <button key={tab.key} type="button" role="tab" aria-selected={activeTab === tab.key} aria-controls={`profile-panel-${tab.key}`} onClick={() => selectTab(tab.key)} className={`inline-flex min-h-10 flex-1 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-accent text-white shadow-sm' : 'text-secondary-foreground hover:bg-muted'}`}>
-            <tab.Icon aria-hidden className="h-4 w-4" />{tab.label}
-          </button>
+      <nav className="filter-scroll-row rounded-2xl border border-border bg-card p-1.5" aria-label="个人中心">
+        {PROFILE_NAV.map((item) => (
+          <Link key={item.key} href={item.href} aria-current={view === item.key ? 'page' : undefined} className={`inline-flex min-h-11 flex-1 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium no-underline transition-colors ${view === item.key ? 'bg-accent text-white shadow-sm' : 'text-secondary-foreground hover:bg-muted'}`}>
+            <item.Icon aria-hidden className="h-4 w-4" />{item.label}
+          </Link>
         ))}
+      </nav>
+
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold text-accent">个人中心</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">{current.label}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{current.description}</p>
+        </div>
       </div>
 
-      {TABS.map((tab) => (
-        <div key={tab.key} id={`profile-panel-${tab.key}`} role="tabpanel" hidden={activeTab !== tab.key}>
-          {loadedTabs.has(tab.key) && tab.key === 'lists' && <ListsTab onStatsChange={handleStatsChange} />}
-          {loadedTabs.has(tab.key) && tab.key === 'history' && <HistoryTab />}
-          {loadedTabs.has(tab.key) && tab.key === 'settings' && <SettingsTab />}
-        </div>
-      ))}
+      {view === 'home' && <ProfileOverview stats={stats} />}
+      {view === 'lists' && <ListsTab onStatsChange={setStats} />}
+      {view === 'archive' && <HistoryTab />}
+      {view === 'settings' && <SettingsTab />}
     </div>
   );
 }
