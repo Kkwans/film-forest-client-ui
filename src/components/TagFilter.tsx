@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { ChevronDown, RotateCcw } from 'lucide-react';
 import { tagApi, type GenreOption } from '@/lib/api';
 import type { ContentType } from '@/lib/contentConstants';
 import FilterChip from '@/components/FilterChip';
@@ -17,6 +17,7 @@ export default function TagFilter({ contentType, selectedTagId, onSelect }: TagF
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [requestVersion, setRequestVersion] = useState(0);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -61,10 +62,18 @@ export default function TagFilter({ contentType, selectedTagId, onSelect }: TagF
     );
   }
 
+  const primaryGenres = genres.slice(0, 12);
+  const selectedGenre = genres.find((genre) => genre.id === selectedTagId);
+  const visibleGenres = expanded || genres.length <= 12
+    ? genres
+    : selectedGenre && !primaryGenres.some((genre) => genre.id === selectedGenre.id)
+      ? [...primaryGenres, selectedGenre]
+      : primaryGenres;
+
   return (
     <div className="filter-scroll-row" aria-label="标准题材筛选">
       <FilterChip label="全部题材" active={selectedTagId === null} onClick={() => onSelect(null)} />
-      {genres.map((genre) => (
+      {visibleGenres.map((genre) => (
         <FilterChip
           key={genre.id}
           label={`${genre.name} ${genre.contentCount}`}
@@ -72,6 +81,12 @@ export default function TagFilter({ contentType, selectedTagId, onSelect }: TagF
           onClick={() => onSelect(selectedTagId === genre.id ? null : genre.id)}
         />
       ))}
+      {genres.length > 12 && (
+        <button type="button" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-border bg-card px-3 text-sm font-medium text-secondary-foreground sm:min-h-9">
+          {expanded ? '收起题材' : `更多题材 · ${genres.length - 12}`}
+          <ChevronDown aria-hidden className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+      )}
     </div>
   );
 }

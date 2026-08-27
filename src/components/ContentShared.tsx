@@ -47,8 +47,8 @@ export function StatusIconButton({
   emptyIcon = 'list',
 }: StatusIconButtonProps) {
   const config = listType ? getStatusConfig(listType) : null;
-  const sizeClass = size === 'sm' ? 'size-7' : 'size-8';
-  const iconClass = size === 'sm' ? 'size-3.5' : 'size-4';
+  const sizeClass = size === 'sm' ? 'size-11 sm:size-9' : 'size-11';
+  const iconClass = size === 'sm' ? 'size-4' : 'size-[18px]';
 
   const label = config?.label || '加入片单';
   const defaultTitle = label;
@@ -61,7 +61,7 @@ export function StatusIconButton({
         : emptyIcon === 'heart' ? Heart : BookmarkPlus;
   const isWant = listType === 'want_to_watch';
   const buttonSize = showLabel
-    ? 'min-h-8 min-w-8 px-2.5'
+    ? 'min-h-11 min-w-11 px-3'
     : sizeClass;
   const buttonStyle = variant === 'overlay'
     ? {
@@ -99,7 +99,7 @@ export function TypeBadge({ contentType, size = 'sm' }: { contentType: string; s
   const normalizedType = contentType === 'short' || contentType === 'short-drama' ? 'short_drama' : contentType;
   const config = Object.prototype.hasOwnProperty.call(TYPE_LABELS, normalizedType) ? getContentTypeConfig(normalizedType) : null;
   const label = config?.label || TYPE_LABELS[contentType] || contentType;
-  const sizeClass = size === 'xs' ? 'text-[10px]' : 'text-[10px] md:text-xs';
+  const sizeClass = size === 'xs' ? 'text-[11px]' : 'text-[11px] md:text-xs';
 
   return (
     <span
@@ -161,9 +161,9 @@ export function GenreTags({ genres, max = 4 }: { genres: string[]; max?: number 
   if (genres.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1 flex-wrap overflow-hidden" style={{ maxHeight: '22px' }}>
+    <div className="flex max-h-12 flex-wrap items-center gap-1 overflow-hidden">
       {genres.slice(0, max).map((g, i) => (
-        <span key={i} className={`genre-tag genre-tag-${getGenreColorToken(g)} text-[9px] md:text-[10px] px-1.5 py-0.5 rounded-md shrink-0`}>
+        <span key={i} className={`genre-tag genre-tag-${getGenreColorToken(g)} shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium leading-4 md:text-xs`}>
           {g}
         </span>
       ))}

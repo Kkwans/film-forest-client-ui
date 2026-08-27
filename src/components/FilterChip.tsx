@@ -16,11 +16,12 @@ interface FilterChipProps {
 
 export default function FilterChip({ label, active, onClick, size = 'md' }: FilterChipProps) {
   const sizeClasses = size === 'sm'
-    ? 'px-2.5 py-1 rounded-lg text-xs'
-    : 'px-3 py-1.5 rounded-full text-sm';
+    ? 'min-h-10 px-3 py-1 rounded-lg text-xs'
+    : 'min-h-11 sm:min-h-9 px-3 py-1.5 rounded-full text-sm';
 
   return (
     <button
+      type="button"
       onClick={onClick}
       className={`${sizeClasses} font-medium cursor-pointer transition-colors`}
       style={

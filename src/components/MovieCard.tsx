@@ -2,17 +2,14 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { StatusIconButton, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
-import { listApi } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
-import { useToast } from '@/components/Toast';
-import { createSingleDoubleClickGuard } from '@/lib/uiContracts';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
 
@@ -55,78 +52,20 @@ export default function MovieCard({
   movieStatus,
 }: MovieCardProps) {
   const router = useRouter();
-  const { showToast } = useToast();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const [navigating, setNavigating] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<MovieStatus | null>(movieStatus || null);
-  const singleActionRef = useRef<() => void>(() => undefined);
-  const doubleActionRef = useRef<() => void>(() => undefined);
-  const clickGuardRef = useRef<ReturnType<typeof createSingleDoubleClickGuard> | null>(null);
   const contentType = type || 'movie';
   const resolvedCover = usePosterUrl(contentType, id, cover);
-
-  useEffect(() => setCurrentStatus(movieStatus || null), [movieStatus]);
-
-  const handleWantToggle = useCallback(async () => {
-    if (!isAuthenticated) {
-      router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
-    if (statusLoading) return;
-
-    setStatusLoading(true);
-    try {
-      const response = await listApi.getAll();
-      const lists = Array.isArray(response.data.data) ? response.data.data : [];
-      const wantList = lists.find((list) => list.type === 'want_to_watch');
-      if (!wantList) {
-        showToast('想看片单暂不可用，请稍后重试', 'error');
-        return;
-      }
-
-      if (currentStatus?.listType === 'want_to_watch') {
-        await listApi.removeItem(wantList.id, { movieId: id, contentType });
-        setCurrentStatus(null);
-        showToast('已从想看移除', 'info');
-      } else if (currentStatus) {
-        showToast('当前观看状态请在片单管理中调整', 'info');
-        return;
-      } else {
-        await listApi.addItem(wantList.id, { movieId: id, contentType });
-        setCurrentStatus({ listType: 'want_to_watch', listName: wantList.name });
-        showToast('已加入想看', 'success');
-      }
-      window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: id, contentType } }));
-    } catch {
-      showToast('想看状态更新失败，请重试', 'error');
-    } finally {
-      setStatusLoading(false);
-    }
-  }, [contentType, currentStatus, id, isAuthenticated, router, showToast, statusLoading]);
-
-  useEffect(() => {
-    singleActionRef.current = () => { void handleWantToggle(); };
-    doubleActionRef.current = () => setCollectOpen(true);
-  }, [handleWantToggle]);
-
-  useEffect(() => {
-    const guard = createSingleDoubleClickGuard(
-      () => singleActionRef.current(),
-      () => doubleActionRef.current(),
-    );
-    clickGuardRef.current = guard;
-    return () => {
-      guard.dispose();
-      if (clickGuardRef.current === guard) clickGuardRef.current = null;
-    };
-  }, []);
 
   const handleCollectClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    clickGuardRef.current?.handle();
+    if (!isAuthenticated) {
+      router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    setCollectOpen(true);
   };
 
   const regionArr = parseRegion(region);
@@ -190,11 +129,10 @@ export default function MovieCard({
 
             {showCollect && (
               <StatusIconButton
-                listType={currentStatus?.listType || null}
+                listType={movieStatus?.listType || null}
                 onClick={handleCollectClick}
                 size="sm"
-                loading={statusLoading}
-                title="单击切换想看，双击加入片单"
+                title={movieStatus?.listType ? '管理观看状态' : '加入片单'}
                 variant="overlay"
                 emptyIcon="heart"
                 className="absolute right-2 top-2 z-10"
@@ -218,16 +156,16 @@ export default function MovieCard({
             {badgeText && <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">{badgeText}</span>}
           </div>
 
-          <div className="flex min-h-[92px] flex-col gap-1 p-2.5 md:p-3">
-            <p className="min-w-0 truncate text-xs font-semibold transition-colors group-hover:text-[var(--accent)] md:text-sm">
+          <div className="flex min-h-[104px] flex-col gap-1.5 p-2.5 md:p-3">
+            <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 transition-colors group-hover:text-[var(--accent)]">
               {cleanTitle || '\u00A0'}
             </p>
             <div className="flex flex-wrap items-start gap-x-1.5 gap-y-0.5">
-              {year ? <span className="text-[10px] text-muted-foreground md:text-xs">{year}</span> : null}
+              {year ? <span className="text-xs text-muted-foreground">{year}</span> : null}
               {year && regionDisplay ? <span className="mt-1 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground" /> : null}
               {regionDisplay ? (
                 <span
-                  className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[10px] leading-4 text-muted-foreground md:overflow-visible md:whitespace-normal md:text-xs"
+                  className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-xs leading-4 text-muted-foreground md:overflow-visible md:whitespace-normal"
                   title={regionDisplay}
                 >
                   {regionDisplay}

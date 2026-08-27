@@ -131,6 +131,38 @@ export function getGenreColorToken(genre: string | null | undefined): GenreColor
   return 'default';
 }
 
+const PROFILE_LEGACY_ROUTES: Record<string, string> = {
+  lists: '/profile/lists',
+  history: '/profile/archive',
+  settings: '/profile/settings',
+};
+
+export function profileRouteFromLegacyTab(tab: string | null | undefined): string | null {
+  return tab ? PROFILE_LEGACY_ROUTES[tab] || null : null;
+}
+
+export type ProfileArchiveStatus = 'watched' | 'watching' | 'want_to_watch';
+
+export function parseProfileArchiveQuery(input: {
+  status?: string | null;
+  type?: string | null;
+  page?: string | number | null;
+  sort?: string | null;
+}) {
+  const status: ProfileArchiveStatus = input.status === 'watching' || input.status === 'want_to_watch'
+    ? input.status
+    : 'watched';
+  const allowedTypes = new Set(['movie', 'drama', 'variety', 'anime', 'short_drama']);
+  const allowedSorts = new Set(['addedAt', 'userRating', 'year', 'douban']);
+  const requestedSort = input.sort && allowedSorts.has(input.sort) ? input.sort : 'addedAt';
+  return {
+    status,
+    type: input.type && allowedTypes.has(input.type) ? input.type : '',
+    page: Math.max(1, Number(input.page) || 1),
+    sort: status === 'watched' || requestedSort !== 'userRating' ? requestedSort : 'addedAt',
+  };
+}
+
 export interface DiskResourceLike {
   diskType?: string | null;
 }
@@ -142,39 +174,4 @@ export function filterResourcesByDiskType<T extends DiskResourceLike>(
   const selected = diskType?.trim().toLocaleLowerCase('zh-CN');
   if (!selected || selected === 'all') return resources;
   return resources.filter((resource) => resource.diskType?.trim().toLocaleLowerCase('zh-CN') === selected);
-}
-
-export interface DoubleClickGuard {
-  handle: () => void;
-  dispose: () => void;
-}
-
-/** 将两次快速 click 合并为一次 double-click，避免单击副作用先于管理弹窗触发。 */
-export function createSingleDoubleClickGuard(
-  onSingle: () => void,
-  onDouble: () => void,
-  windowMs = 240,
-  setTimer: (callback: () => void, delay: number) => ReturnType<typeof setTimeout> = setTimeout,
-  clearTimer: (timer: ReturnType<typeof setTimeout>) => void = clearTimeout,
-): DoubleClickGuard {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-
-  return {
-    handle() {
-      if (timer !== null) {
-        clearTimer(timer);
-        timer = null;
-        onDouble();
-        return;
-      }
-      timer = setTimer(() => {
-        timer = null;
-        onSingle();
-      }, windowMs);
-    },
-    dispose() {
-      if (timer !== null) clearTimer(timer);
-      timer = null;
-    },
-  };
 }

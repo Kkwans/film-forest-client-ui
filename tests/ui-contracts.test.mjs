@@ -3,11 +3,12 @@ import test from 'node:test';
 
 import { mapDetailData } from '../src/lib/detailMapping.ts';
 import {
-  createSingleDoubleClickGuard,
   filterResourcesByDiskType,
   formatWatchedAt,
   fractionalStarFill,
   getGenreColorToken,
+  parseProfileArchiveQuery,
+  profileRouteFromLegacyTab,
   resolvePosterDisplay,
 } from '../src/lib/uiContracts.ts';
 
@@ -106,6 +107,23 @@ test('genre color tokens distinguish semantic categories', () => {
   assert.equal(getGenreColorToken('科幻'), 'scifi');
 });
 
+test('legacy profile tabs map to the archive-style routes', () => {
+  assert.equal(profileRouteFromLegacyTab('lists'), '/profile/lists');
+  assert.equal(profileRouteFromLegacyTab('history'), '/profile/archive');
+  assert.equal(profileRouteFromLegacyTab('settings'), '/profile/settings');
+  assert.equal(profileRouteFromLegacyTab('unknown'), null);
+});
+
+test('profile archive query parser applies safe defaults', () => {
+  assert.deepEqual(parseProfileArchiveQuery({ status: 'watching', type: 'drama', page: '3', sort: 'year' }), {
+    status: 'watching', type: 'drama', page: 3, sort: 'year',
+  });
+  assert.deepEqual(parseProfileArchiveQuery({ status: 'invalid', type: 'invalid', page: '-2', sort: 'invalid' }), {
+    status: 'watched', type: '', page: 1, sort: 'addedAt',
+  });
+  assert.equal(parseProfileArchiveQuery({ status: 'watching', sort: 'userRating' }).sort, 'addedAt');
+});
+
 test('TMDB failure keeps the original poster and exposes truthful status', () => {
   const original = 'https://source.example/poster.jpg';
   const unmatched = resolvePosterDisplay(original, {
@@ -130,39 +148,4 @@ test('resource filter matches diskType and keeps all resources for the all selec
 
   assert.deepEqual(filterResourcesByDiskType(resources, 'quark'), [resources[0]]);
   assert.deepEqual(filterResourcesByDiskType(resources, 'ALL'), resources);
-});
-
-test('single and double clicks are mutually exclusive within the short window', () => {
-  let nextTimer = 0;
-  const timers = new Map();
-  const singles = [];
-  const doubles = [];
-  const setTimer = (callback) => {
-    const id = ++nextTimer;
-    timers.set(id, callback);
-    return id;
-  };
-  const clearTimer = (timer) => {
-    timers.delete(timer);
-  };
-  const guard = createSingleDoubleClickGuard(
-    () => singles.push(1),
-    () => doubles.push(1),
-    240,
-    setTimer,
-    clearTimer,
-  );
-
-  guard.handle();
-  guard.handle();
-  assert.deepEqual(singles, []);
-  assert.deepEqual(doubles, [1]);
-  assert.equal(timers.size, 0);
-
-  guard.handle();
-  const pending = timers.values().next().value;
-  assert.equal(typeof pending, 'function');
-  pending();
-  assert.deepEqual(singles, [1]);
-  guard.dispose();
 });

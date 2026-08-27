@@ -27,6 +27,8 @@ const cache = new Map<string, PosterResolutionView>();
 const active = new Map<string, ActivePoster>();
 const subscribers = new Map<string, Set<Subscriber>>();
 const queued = new Set<string>();
+const posterPreferences = new Map<string, 'original' | 'tmdb'>();
+const preferenceRequests = new Map<string, Promise<'original' | 'tmdb'>>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let invalidationReady = false;
 
@@ -63,12 +65,34 @@ function schedule(key: string) {
   }, 0);
 }
 
+async function posterPreference(identityKey: string): Promise<'original' | 'tmdb'> {
+  const cached = posterPreferences.get(identityKey);
+  if (cached) return cached;
+  const pending = preferenceRequests.get(identityKey);
+  if (pending) return pending;
+  const request = posterApi.getSettings()
+    .then((response) => response.data.data.posterSource === 'tmdb' ? 'tmdb' as const : 'original' as const)
+    .catch(() => 'original' as const)
+    .then((value) => {
+      posterPreferences.set(identityKey, value);
+      preferenceRequests.delete(identityKey);
+      return value;
+    });
+  preferenceRequests.set(identityKey, request);
+  return request;
+}
+
 async function flush() {
   const keys = Array.from(queued);
   queued.clear();
   const requests = keys.map((key) => active.get(key)).filter((item): item is ActivePoster => Boolean(item));
   const enrich = requests.filter((item) => item.enrich);
   const resolve = requests.filter((item) => !item.enrich);
+  const identityKey = requests[0]?.cacheKey.split(':', 2).join(':') || '';
+  if (!identityKey || await posterPreference(identityKey) !== 'tmdb') {
+    requests.forEach((request) => notify(request.cacheKey, { posterUrl: null, status: 'original', diagnosticCode: 'preference_original' }));
+    return;
+  }
 
   for (let offset = 0; offset < resolve.length; offset += 100) {
     const batch = resolve.slice(offset, offset + 100);
@@ -106,6 +130,8 @@ function ensureInvalidationListener() {
   invalidationReady = true;
   window.addEventListener('poster-settings-changed', () => {
     cache.clear();
+    posterPreferences.clear();
+    preferenceRequests.clear();
     active.forEach((_, key) => {
       subscribers.get(key)?.forEach((subscriber) => subscriber({ posterUrl: null, status: 'loading' }));
       schedule(key);

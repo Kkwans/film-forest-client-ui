@@ -9,7 +9,7 @@ import CustomSelect from '@/components/CustomSelect';
 import LazyImage from '@/components/ui/lazy-image';
 import Pagination from '@/components/Pagination';
 import TagFilter from '@/components/TagFilter';
-import { StatusIconButton, TypeBadge } from '@/components/ContentShared';
+import { GenreTags, StatusIconButton, TypeBadge } from '@/components/ContentShared';
 import {
   CONTENT_TYPE_REGISTRY,
   type ContentType,
@@ -168,8 +168,8 @@ function SearchPoster({ item, type }: { item: SearchResult; type: ContentType })
       src={poster}
       fallbackSrc="/poster-placeholder.svg"
       alt={item.title}
-      className="h-full w-auto shrink-0 aspect-[2/3] rounded-xl"
-      imgClassName="object-contain bg-muted/25"
+      className="aspect-[2/3] h-auto w-full shrink-0 self-start rounded-xl"
+      imgClassName="object-cover bg-muted/25"
       aspectRatio={null}
       rootMargin="240px"
     />
@@ -322,7 +322,7 @@ function SearchContent() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-none flex-col gap-6" aria-busy={loading || isPending}>
+    <div className="mx-auto flex w-full max-w-[80rem] flex-col gap-6" aria-busy={loading || isPending}>
       <section className="rounded-2xl border border-border bg-card/70 p-3 sm:p-4" aria-label="搜索筛选与排序">
         <div className="flex flex-wrap items-center gap-2">
           <CustomSelect
@@ -362,7 +362,7 @@ function SearchContent() {
               清除筛选 · {activeFilterCount}
             </button>
           )}
-          <div className="ml-auto flex shrink-0 items-center gap-2 border-l border-border pl-3">
+          <div className="flex w-full items-center justify-between gap-2 border-t border-border pt-3 sm:ml-auto sm:w-auto sm:shrink-0 sm:justify-start sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
             <span className="hidden text-xs font-medium text-muted-foreground sm:inline">排序</span>
             <CustomSelect
               ariaLabel="搜索结果排序"
@@ -398,8 +398,8 @@ function SearchContent() {
       ) : loading && data.records.length === 0 ? (
         <div className="grid gap-3" aria-label="正在加载搜索结果">
           {Array.from({ length: 5 }, (_, index) => (
-            <div key={index} className="flex h-[12.5rem] gap-4 overflow-hidden rounded-2xl border border-border bg-card p-3 sm:h-[14rem]">
-              <div className="h-full w-auto shrink-0 aspect-[2/3] animate-pulse rounded-xl bg-muted" />
+            <div key={index} className="grid min-h-[10.5rem] grid-cols-[6.5rem_minmax(0,1fr)] gap-3 rounded-2xl border border-border bg-card p-3 sm:min-h-[12rem] sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
+              <div className="aspect-[2/3] w-full animate-pulse rounded-xl bg-muted" />
               <div className="flex min-w-0 flex-1 flex-col gap-3 py-2"><span className="h-4 w-1/2 animate-pulse rounded bg-muted" /><span className="h-3 w-1/3 animate-pulse rounded bg-muted" /><span className="h-3 w-full animate-pulse rounded bg-muted" /><span className="h-3 w-2/3 animate-pulse rounded bg-muted" /></div>
             </div>
           ))}
@@ -426,11 +426,11 @@ function SearchContent() {
             const displayYear = validYear(item.year);
             const releaseValue = item.releaseDate?.trim() || (displayYear ? String(displayYear) : '--');
             return (
-              <Link key={`${type}-${item.id}`} href={`/${config.route}/${item.id}`} prefetch={false} className="flex h-[12.5rem] gap-3 overflow-hidden rounded-2xl border border-border bg-card p-3 transition-[border-color,box-shadow] hover:border-accent/40 hover:shadow-sm sm:h-[14rem] sm:gap-4">
+              <Link key={`${type}-${item.id}`} href={`/${config.route}/${item.id}`} prefetch={false} className="grid min-h-[10.5rem] grid-cols-[6.5rem_minmax(0,1fr)] gap-3 rounded-2xl border border-border bg-card p-3 transition-[border-color,box-shadow] hover:border-accent/40 hover:shadow-sm sm:min-h-[12rem] sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
                 <SearchPoster item={item} type={type} />
-                <div className="flex h-full min-w-0 min-h-0 flex-1 flex-col overflow-hidden py-1">
+                <div className="flex min-w-0 flex-col py-0.5 sm:py-1">
                   <div className="flex min-w-0 items-start justify-between gap-3">
-                    <h2 className="min-w-0 truncate font-semibold leading-6 text-foreground">
+                    <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-foreground sm:text-base sm:leading-6">
                       <Highlight text={item.title} keyword={q} />
                       {displayYear && !hasYearSuffix(item.title, displayYear) ? <span className="ml-1 font-medium text-muted-foreground">（<Highlight text={String(displayYear)} keyword={q} />）</span> : null}
                     </h2>
@@ -449,11 +449,16 @@ function SearchContent() {
                       <TypeBadge contentType={type} size="sm" />
                     </div>
                   </div>
-                  {aliases.length > 0 && <p className="mt-1 min-w-0 truncate text-xs text-muted-foreground" title={`别名：${aliases.join(' / ')}`}>别名：<HighlightValues values={aliases} keyword={q} /></p>}
+                  {aliases.length > 0 && <p className="mt-1 hidden min-w-0 truncate text-xs text-muted-foreground sm:block" title={`别名：${aliases.join(' / ')}`}>别名：<HighlightValues values={aliases} keyword={q} /></p>}
                   <div className="mt-2">
                     <SearchRatingSummary douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
                   </div>
-                  <div className="mt-2 grid min-h-0 grid-cols-2 gap-x-6 gap-y-1 overflow-hidden text-xs leading-5 text-secondary-foreground">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-secondary-foreground sm:hidden">
+                    {displayYear && <span>{displayYear}</span>}
+                    {parseRegion(item.region).slice(0, 1).map((entry) => <span key={entry}>{entry}</span>)}
+                  </div>
+                  <div className="mt-2 sm:hidden"><GenreTags genres={genres} max={2} /></div>
+                  <div className="mt-2 hidden grid-cols-2 gap-x-6 gap-y-1 text-xs leading-5 text-secondary-foreground sm:grid">
                     <p className="min-w-0 truncate" title={`导演：${directors.join(' / ') || '--'}`}>导演：<HighlightValues values={directors} keyword={q} /></p>
                     <p className="min-w-0 truncate" title={`时长：${item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}`}>时长：{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</p>
                     <p className="min-w-0 truncate" title={`主演：${actors.join(' / ') || '--'}`}>主演：<HighlightValues values={actors} keyword={q} /></p>
@@ -461,7 +466,7 @@ function SearchContent() {
                     <p className="min-w-0 truncate" title={`${type === 'movie' ? '上映' : '首播'}：${releaseValue}`}>{type === 'movie' ? '上映' : '首播'}：<Highlight text={releaseValue} keyword={q} /></p>
                     <p className="min-w-0 truncate" title={`地区：${parseRegion(item.region).join(' / ') || '--'}`}>地区：<HighlightValues values={parseRegion(item.region)} keyword={q} /></p>
                   </div>
-                  {item.summary && <p className="mt-3 line-clamp-2 overflow-hidden text-sm leading-6 text-muted-foreground"><Highlight text={item.summary} keyword={q} /></p>}
+                  {item.summary && <p className="mt-3 hidden text-sm leading-6 text-muted-foreground sm:line-clamp-2"><Highlight text={item.summary} keyword={q} /></p>}
                 </div>
               </Link>
             );
