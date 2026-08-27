@@ -42,7 +42,7 @@ export default function TagFilter({ contentType, selectedTagId, onSelect }: TagF
 
   if (loading) {
     return (
-      <div className="flex gap-2 overflow-hidden" aria-label="正在加载标准题材">
+      <div className="flex gap-2 overflow-hidden" role="group" aria-label="正在加载标准题材">
         {Array.from({ length: 6 }, (_, index) => (
           <span key={index} className="h-8 w-16 shrink-0 animate-pulse rounded-full bg-muted" aria-hidden />
         ))}
@@ -71,7 +71,7 @@ export default function TagFilter({ contentType, selectedTagId, onSelect }: TagF
       : primaryGenres;
 
   return (
-    <div className="filter-scroll-row" aria-label="标准题材筛选">
+    <div className="filter-scroll-row" role="group" aria-label="标准题材筛选">
       <FilterChip label="全部题材" active={selectedTagId === null} onClick={() => onSelect(null)} />
       {visibleGenres.map((genre) => (
         <FilterChip
