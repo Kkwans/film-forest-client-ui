@@ -134,8 +134,8 @@ function ListItemCard({
               <span className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-foreground">我的记录</span>
                 {hasRating && (
-                  <span className="inline-flex items-center gap-1 text-xs font-bold" style={{ color: ratingColor(Number(item.userRating)) }}>
-                    <Star aria-hidden className="h-3.5 w-3.5 fill-current" />{Number(item.userRating).toFixed(1)}
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-foreground">
+                    <Star aria-hidden className="h-3.5 w-3.5 fill-current" style={{ color: ratingColor(Number(item.userRating)) }} />{Number(item.userRating).toFixed(1)}
                   </span>
                 )}
               </span>
