@@ -563,12 +563,12 @@ export function MagnetResourceList({ resources, copiedId, onCopy, emptyText }: {
                   {resource.title || '资源链接'}
                 </p>
               </div>
-              <div role="cell">
+              <div className="flex items-center justify-center md:h-full md:self-stretch" role="cell">
                 <button
                   type="button"
                   onClick={() => onCopy(value, resource.id, '磁力链接已复制')}
                   disabled={!value}
-                  className={`inline-flex min-h-9 w-full items-center justify-center rounded-lg px-3 text-xs font-semibold transition-colors md:min-h-8 md:w-auto md:whitespace-nowrap ${copiedId === resource.id ? 'bg-copied text-white' : 'bg-accent text-white hover:bg-accent-hover'} disabled:cursor-not-allowed disabled:opacity-50`}
+                  className={`inline-flex min-h-9 w-full items-center justify-center rounded-lg px-3 text-xs font-semibold leading-none transition-colors md:min-h-9 md:w-auto md:whitespace-nowrap ${copiedId === resource.id ? 'bg-copied text-white' : 'bg-accent text-white hover:bg-accent-hover'} disabled:cursor-not-allowed disabled:opacity-50`}
                   aria-label={`${copiedId === resource.id ? '已复制' : '磁力链接'}：${resource.title || '资源'}`}
                 >
                   {copiedId === resource.id ? '已复制' : '磁力链接'}
