@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, CirclePlay, Clapperboard, Clock3, Copy, ExternalLink, Inbox, Star } from 'lucide-react';
+import { ChevronDown, ChevronRight, CirclePlay, Clapperboard, Clock3, Copy, ExternalLink, Inbox, Magnet, Star } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
 import { getPlaybackSourceMode } from '@/lib/playbackSource';
 
@@ -513,6 +513,80 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+export interface MagnetResourceListItem {
+  id: number;
+  title?: string;
+  url?: string;
+  sizeLabel?: string;
+  seeders?: number | null;
+  timeLabel?: string;
+}
+
+/** 磁力资源使用表格化桌面布局和信息优先的移动布局，避免下载名与元信息互相挤压。 */
+export function MagnetResourceList({ resources, copiedId, onCopy, emptyText }: {
+  resources: MagnetResourceListItem[];
+  copiedId: number | null;
+  onCopy: (text: string, id: number, successMessage?: string) => void | Promise<void>;
+  emptyText: string;
+}) {
+  if (resources.length === 0) {
+    return (
+      <div className="py-10 text-center">
+        <Inbox aria-hidden className="mx-auto mb-2 h-8 w-8 text-muted-foreground/70" />
+        <p className="text-sm text-muted-foreground">{emptyText}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-background/40" role="table" aria-label="磁力资源列表">
+      <div className="hidden border-b border-border bg-muted/55 px-4 py-2.5 text-xs font-semibold text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_auto_7rem_5rem_8rem] md:items-center md:gap-4" role="row">
+        <span role="columnheader">名称</span>
+        <span role="columnheader">下载</span>
+        <span role="columnheader" className="text-center">大小</span>
+        <span role="columnheader" className="text-center">做种</span>
+        <span role="columnheader" className="text-right">发布时间</span>
+      </div>
+      <div>
+        {resources.map((resource) => {
+          const value = resource.url || '';
+          const seeders = resource.seeders == null ? '--' : String(resource.seeders);
+          return (
+            <div key={resource.id} className="grid gap-x-4 gap-y-2 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1fr)_auto_7rem_5rem_8rem] md:items-center md:py-3" role="row">
+              <div className="col-span-2 flex min-w-0 items-start gap-2.5 md:col-span-1 md:items-center">
+                <Magnet aria-hidden className="mt-0.5 size-4 shrink-0 text-accent md:mt-0" />
+                <p className="min-w-0 break-all text-sm font-medium leading-5 text-accent md:truncate" title={resource.title || '资源链接'} role="cell">
+                  {resource.title || '资源链接'}
+                </p>
+              </div>
+              <div role="cell">
+                <button
+                  type="button"
+                  onClick={() => onCopy(value, resource.id, '磁力链接已复制')}
+                  disabled={!value}
+                  className={`inline-flex min-h-9 w-full items-center justify-center rounded-lg px-3 text-xs font-semibold transition-colors md:min-h-8 md:w-auto md:whitespace-nowrap ${copiedId === resource.id ? 'bg-copied text-white' : 'bg-accent text-white hover:bg-accent-hover'} disabled:cursor-not-allowed disabled:opacity-50`}
+                  aria-label={`${copiedId === resource.id ? '已复制' : '磁力链接'}：${resource.title || '资源'}`}
+                >
+                  {copiedId === resource.id ? '已复制' : '磁力链接'}
+                </button>
+              </div>
+              <span className="hidden text-center text-sm text-secondary-foreground md:block" role="cell">{resource.sizeLabel || '未知'}</span>
+              <span className="hidden text-center text-sm text-secondary-foreground md:block" role="cell">{seeders}</span>
+              <span className="hidden text-right text-sm text-secondary-foreground md:block" role="cell">{resource.timeLabel || '--'}</span>
+
+              <div className="col-span-1 grid grid-cols-3 gap-2 text-xs text-secondary-foreground md:hidden">
+                <span className="min-w-0 truncate">{resource.timeLabel || '--'}</span>
+                <span className="min-w-0 truncate">做种：{seeders}</span>
+                <span className="min-w-0 truncate">大小：{resource.sizeLabel || '未知'}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, CloudDownload, Magnet, RefreshCw, TriangleAlert } from 'lucide-react';
+import { ChevronDown, CloudDownload, RefreshCw, TriangleAlert } from 'lucide-react';
 import { resourceApi, seriesApi, type SeriesItem } from '@/lib/api';
 import DetailButtons from '@/components/DetailButtons';
 import { useDetailStatus } from '@/hooks/useDetailStatus';
@@ -19,6 +19,7 @@ import {
   OnlineResourceGrid,
   ResourceTabs,
   CopyableResourceList,
+  MagnetResourceList,
   DetailPageSkeleton,
   DetailNotFound,
 } from '@/components/detail/DetailComponents';
@@ -47,6 +48,8 @@ interface MagnetResourceItem {
   hasSubtitle: boolean;
   specialSubtitle: boolean;
   qualityCategory: string;
+  sizeBytes?: number | null;
+  seeders?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -90,10 +93,26 @@ const DISK_LABELS: Record<string, string> = {
 };
 
 const SOURCE_TIME_SUFFIX = /\s+(今天|昨天|\d+\s*(?:分钟|小时|天|个月|年)前)$/u;
+const RESOURCE_SIZE_SUFFIX = /\s*[\[\(]\s*[0-9]+(?:[.,][0-9]+)?\s*(?:B|KB|K|MB|M|GB|G|TB|T)\s*[\]\)]\s*$/iu;
+
+function formatResourceSize(sizeBytes?: number | null) {
+  if (sizeBytes == null || !Number.isFinite(sizeBytes) || sizeBytes <= 0) return '未知';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = sizeBytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const digits = value >= 100 || unitIndex === 0 ? 0 : value >= 10 ? 1 : 2;
+  const formatted = value.toFixed(digits);
+  return `${formatted.includes('.') ? formatted.replace(/0+$/u, '').replace(/\.$/u, '') : formatted}${units[unitIndex]}`;
+}
 
 function resourcePresentation(title: string, timestamp?: string) {
   const match = title.match(SOURCE_TIME_SUFFIX);
-  const cleanTitle = match ? title.slice(0, match.index).trim() : title;
+  const cleanTitle = (match ? title.slice(0, match.index).trim() : title)
+    .replace(RESOURCE_SIZE_SUFFIX, '').trim();
   if (match) return { title: cleanTitle, timeLabel: match[1] };
   if (!timestamp) return { title: cleanTitle };
   const date = new Date(timestamp);
@@ -776,20 +795,20 @@ export default function DetailPageLayout({
                     })}
                   </div>
                 )}
-                <CopyableResourceList
+                <MagnetResourceList
                   resources={visibleMagnets.map((resource) => {
                     const presentation = resourcePresentation(resource.title, resource.updatedAt || resource.createdAt);
                     return {
                       id: resource.id,
                       title: presentation.title,
                       url: resource.magnetUrl,
-                      badges: [resource.qualityCategory || '未知'],
+                      sizeLabel: formatResourceSize(resource.sizeBytes),
+                      seeders: resource.seeders,
                       timeLabel: presentation.timeLabel,
                     };
                   })}
                   copiedId={copiedId}
                   onCopy={copyResource}
-                  icon={<Magnet aria-hidden className="h-5 w-5" />}
                   emptyText={selectedEpisode ? `该${episodeLabel}暂无磁力链接` : '暂无磁力链接'}
                 />
                   </div>
