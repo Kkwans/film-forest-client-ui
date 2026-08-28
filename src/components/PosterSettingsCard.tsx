@@ -212,7 +212,7 @@ export default function PosterSettingsCard() {
     ? Math.min(100, Math.round((job.processedCount / job.totalCount) * 100)) : 0;
 
   return (
-    <section className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}>
+    <section>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div><h3 className="text-sm font-bold text-foreground">海报来源</h3><p className="mt-1 text-xs text-muted-foreground">原图始终保留；TMDB 未匹配、超时、限流或密钥无效时自动回退。</p></div>
         <Link href="/about#tmdb" className="text-xs font-medium" style={{ color: 'var(--accent)' }}>TMDB 署名与说明 →</Link>

@@ -10,9 +10,13 @@ interface TagFilterProps {
   contentType: ContentType;
   selectedTagId: number | null;
   onSelect: (tagId: number | null) => void;
+  selectedLegacyGenre?: string | null;
+  onSelectLegacyGenre?: (genre: string | null) => void;
 }
 
-export default function TagFilter({ contentType, selectedTagId, onSelect }: TagFilterProps) {
+const MOVIE_SUPPLEMENTAL_GENRES = ['情色', '儿童', '同性', '黑色电影'];
+
+export default function TagFilter({ contentType, selectedTagId, onSelect, selectedLegacyGenre, onSelectLegacyGenre }: TagFilterProps) {
   const [genres, setGenres] = useState<GenreOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -79,6 +83,14 @@ export default function TagFilter({ contentType, selectedTagId, onSelect }: TagF
           label={`${genre.name} ${genre.contentCount}`}
           active={selectedTagId === genre.id}
           onClick={() => onSelect(selectedTagId === genre.id ? null : genre.id)}
+        />
+      ))}
+      {contentType === 'movie' && onSelectLegacyGenre && MOVIE_SUPPLEMENTAL_GENRES.map((genre) => (
+        <FilterChip
+          key={`legacy-${genre}`}
+          label={genre}
+          active={selectedLegacyGenre === genre}
+          onClick={() => onSelectLegacyGenre(selectedLegacyGenre === genre ? null : genre)}
         />
       ))}
       {genres.length > 12 && (

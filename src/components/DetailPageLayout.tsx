@@ -25,7 +25,7 @@ import {
 import RelatedSection from '@/components/RelatedSection';
 import { usePosterResolution } from '@/hooks/usePosterUrl';
 import { useToast } from '@/components/Toast';
-import { filterResourcesByDiskType, getGenreColorToken } from '@/lib/uiContracts';
+import { filterResourcesByDiskType } from '@/lib/uiContracts';
 
 /** 在线播放资源 */
 interface OnlineResourceItem {
@@ -136,10 +136,10 @@ function LinkedValues({ values, href }: { values: string[]; href: (value: string
 function GenreLinkedValues({ values, href }: { values: string[]; href: (value: string) => string }) {
   if (values.length === 0) return <span className="text-muted-foreground">--</span>;
   return (
-    <span className="flex flex-wrap gap-1.5">
+    <span className="flex flex-wrap gap-x-3 gap-y-1.5">
       {values.map((value) => (
-        <Link key={value} href={href(value)} className={`genre-tag genre-tag-${getGenreColorToken(value)} inline-flex min-h-7 items-center rounded-md px-2.5 text-xs font-medium no-underline`}>
-          {value}
+        <Link key={value} href={href(value)} className="group inline-flex min-h-8 items-center gap-1 border-b border-accent/30 text-xs font-semibold text-accent no-underline transition-[border-color,color] hover:border-accent hover:text-accent-hover">
+          {value}<span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
         </Link>
       ))}
     </span>

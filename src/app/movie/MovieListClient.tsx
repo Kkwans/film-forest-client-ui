@@ -13,6 +13,13 @@ import { parseContentListQuery } from '@/lib/contentListQuery';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
 
 const YEARS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
+const DECADES = [
+  { label: '2020年代', from: 2020, to: 2029 },
+  { label: '2010年代', from: 2010, to: 2019 },
+  { label: '2000年代', from: 2000, to: 2009 },
+  { label: '1990年代', from: 1990, to: 1999 },
+  { label: '更早', from: 1900, to: 1989 },
+];
 const REGIONS = ['大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国', '意大利', '西班牙', '加拿大', '澳大利亚'];
 const SORT_OPTIONS = [
   { label: '最新更新', value: 'latest' },
@@ -104,10 +111,16 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
         </div>
       </div>
 
-      <section id="content-filters" className={`${filtersOpen ? 'grid' : 'hidden'} gap-4 rounded-2xl border border-border bg-card/70 p-4 lg:grid`} aria-label="内容筛选">
+      <section id="content-filters" className={`${filtersOpen ? 'grid' : 'hidden'} gap-3 rounded-2xl border border-border bg-card/70 p-4 lg:grid`} aria-label="内容筛选">
         <div className="grid gap-2">
           <span className="text-xs font-semibold text-muted-foreground">题材</span>
-          <TagFilter contentType={contentType} selectedTagId={query.tag || null} onSelect={(tag) => updateUrl({ tag, genre: null })} />
+          <TagFilter
+            contentType={contentType}
+            selectedTagId={query.tag || null}
+            selectedLegacyGenre={query.genre || null}
+            onSelect={(tag) => updateUrl({ tag, genre: null })}
+            onSelectLegacyGenre={(genre) => updateUrl({ genre, tag: null })}
+          />
         </div>
 
         <div className="grid gap-2">
@@ -126,6 +139,18 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
             <FilterChip label="全部年份" active={!query.year && !query.yearFrom && !query.yearTo} onClick={() => updateUrl({ year: null, yearFrom: null, yearTo: null })} />
             {YEARS.map((year) => (
               <FilterChip key={year} label={String(year)} active={query.year === year} onClick={() => updateUrl({ year: query.year === year ? null : year, yearFrom: null, yearTo: null })} />
+            ))}
+            {DECADES.map((decade) => (
+              <FilterChip
+                key={decade.label}
+                label={decade.label}
+                active={!query.year && query.yearFrom === decade.from && query.yearTo === decade.to}
+                onClick={() => updateUrl({
+                  year: null,
+                  yearFrom: query.yearFrom === decade.from && query.yearTo === decade.to ? null : decade.from,
+                  yearTo: query.yearFrom === decade.from && query.yearTo === decade.to ? null : decade.to,
+                })}
+              />
             ))}
             <form
               key={`${query.yearFrom || ''}-${query.yearTo || ''}`}
@@ -184,7 +209,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
           <p className="mt-1 text-xs text-muted-foreground">可清除部分筛选条件后重试</p>
         </div>
       ) : (
-        <div className={`grid min-h-[60vh] grid-cols-2 gap-3 transition-opacity sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
+        <div className={`grid min-h-[60vh] grid-cols-2 items-stretch gap-3 transition-opacity sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 ${isPending ? 'opacity-50' : 'opacity-100'}`}>
           {initialItems.map((item) => (
             <MovieCard
               key={item.id}

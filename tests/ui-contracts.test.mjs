@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { mapDetailData } from '../src/lib/detailMapping.ts';
 import {
+  createSingleDoubleClickGuard,
   filterResourcesByDiskType,
   formatWatchedAt,
   fractionalStarFill,
@@ -109,7 +110,7 @@ test('genre color tokens distinguish semantic categories', () => {
 
 test('legacy profile tabs map to the archive-style routes', () => {
   assert.equal(profileRouteFromLegacyTab('lists'), '/profile/lists');
-  assert.equal(profileRouteFromLegacyTab('history'), '/profile/archive');
+  assert.equal(profileRouteFromLegacyTab('history'), '/profile/lists?status=watched');
   assert.equal(profileRouteFromLegacyTab('settings'), '/profile/settings');
   assert.equal(profileRouteFromLegacyTab('unknown'), null);
 });
@@ -148,4 +149,35 @@ test('resource filter matches diskType and keeps all resources for the all selec
 
   assert.deepEqual(filterResourcesByDiskType(resources, 'quark'), [resources[0]]);
   assert.deepEqual(filterResourcesByDiskType(resources, 'ALL'), resources);
+});
+
+test('movie card single and double clicks remain mutually exclusive', () => {
+  let nextTimer = 0;
+  const timers = new Map();
+  const singles = [];
+  const doubles = [];
+  const guard = createSingleDoubleClickGuard(
+    () => singles.push(1),
+    () => doubles.push(1),
+    240,
+    (callback) => {
+      const id = ++nextTimer;
+      timers.set(id, callback);
+      return id;
+    },
+    (timer) => timers.delete(timer),
+  );
+
+  guard.handle();
+  guard.handle();
+  assert.deepEqual(singles, []);
+  assert.deepEqual(doubles, [1]);
+  assert.equal(timers.size, 0);
+
+  guard.handle();
+  const pending = timers.values().next().value;
+  assert.equal(typeof pending, 'function');
+  pending();
+  assert.deepEqual(singles, [1]);
+  guard.dispose();
 });

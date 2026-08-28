@@ -102,9 +102,9 @@ function ListItemCard({
         </button>
       )}
 
-      <div className={`flex gap-3 p-3 sm:gap-4 sm:p-4 ${batchMode ? 'pointer-events-none opacity-75' : ''}`}>
+      <div className={`grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-3 p-3 sm:grid-cols-[5.5rem_minmax(0,.8fr)_minmax(0,1.2fr)_auto] sm:items-center sm:p-4 ${batchMode ? 'pointer-events-none opacity-75' : ''}`}>
         <Link href={href} prefetch={false} className="shrink-0" aria-label={`查看《${item.title}》详情`}>
-          <div className="relative h-[112px] w-20 overflow-hidden rounded-xl sm:h-[140px] sm:w-[100px]">
+          <div className="relative aspect-[2/3] w-20 overflow-hidden rounded-xl sm:w-[5.5rem]">
             <LazyImage src={posterUrl} alt={item.title || ''} className="rounded-xl" aspectRatio={null} fallbackSrc="/poster-placeholder.svg" rootMargin="100px" />
             {item.rating != null && Number(item.rating) > 0 && (
               <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">{Number(item.rating).toFixed(1)}</span>
@@ -112,8 +112,8 @@ function ListItemCard({
           </div>
         </Link>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Link href={href} prefetch={false} className="line-clamp-2 text-sm font-bold leading-5 text-foreground no-underline hover:text-accent sm:text-base">
+        <div className="flex min-w-0 flex-col self-stretch sm:py-1">
+          <Link href={href} prefetch={false} className="truncate text-sm font-bold leading-5 text-foreground no-underline hover:text-accent sm:text-base" title={cleanTitleUtil(item.title)}>
             {cleanTitleUtil(item.title) || '未知标题'}
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -123,10 +123,14 @@ function ListItemCard({
             {item.duration && <span>{item.duration} 分钟</span>}
             {item.totalEpisode && <span>{item.totalEpisode} 集</span>}
           </div>
-          <div className="mt-2"><GenreTags genres={genres} max={3} /></div>
+          <div className="mt-2"><GenreTags genres={genres} max={2} /></div>
           {directors.length > 0 && <p className="mt-2 truncate text-xs text-muted-foreground">导演：{directors.join(' / ')}</p>}
-          {(hasNote || hasRating) && (
-            <button type="button" onClick={() => onEdit(true)} disabled={batchMode} className="mt-3 min-h-11 border-l-2 border-accent/35 pl-3 text-left disabled:pointer-events-none">
+          <p className="mt-auto pt-2 text-[11px] text-muted-foreground">{listType === 'watched' ? formatWatchedAt(item.watchedAt || item.addedAt) : formatRelativeTime(item.addedAt || '')} · {activityLabel(listType)}</p>
+        </div>
+
+        <button type="button" onClick={() => onEdit(true)} disabled={batchMode} className="col-span-2 min-h-16 min-w-0 border-l-2 border-accent/35 pl-3 text-left disabled:pointer-events-none sm:col-span-1 sm:pl-4">
+          {(hasNote || hasRating) ? (
+            <>
               <span className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-foreground">我的记录</span>
                 {hasRating && (
@@ -135,20 +139,24 @@ function ListItemCard({
                   </span>
                 )}
               </span>
-              <span className="mt-1 line-clamp-3 block text-sm leading-6 text-secondary-foreground">{item.note || '查看我的评分'}</span>
-            </button>
+              <span className="mt-1 line-clamp-2 block text-sm leading-6 text-secondary-foreground">{item.note || '查看我的评分'}</span>
+            </>
+          ) : (
+            <>
+              <span className="block text-xs font-semibold text-muted-foreground">备注与评价</span>
+              <span className="mt-1 block text-xs text-muted-foreground">点击添加记录</span>
+            </>
           )}
-          <p className="mt-auto pt-2 text-[11px] text-muted-foreground">{listType === 'watched' ? formatWatchedAt(item.watchedAt || item.addedAt) : formatRelativeTime(item.addedAt || '')} · {activityLabel(listType)}</p>
-        </div>
-      </div>
+        </button>
 
       {!batchMode && (
-        <div className="flex items-center justify-end gap-2 border-t border-border px-3 py-2.5 sm:px-4">
-          <Link href={href} prefetch={false} className="mr-auto inline-flex min-h-11 items-center gap-1 text-xs font-medium text-accent no-underline">查看详情<ChevronRight aria-hidden className="h-3.5 w-3.5" /></Link>
-          <button type="button" onClick={() => onEdit(false)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium text-foreground hover:border-accent/30 hover:text-accent"><Edit3 aria-hidden className="h-3.5 w-3.5" />{listType === 'watched' ? '评价' : '备注'}</button>
-          <button type="button" onClick={onRemove} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-red-500/25 px-3 text-xs font-medium text-red-600 hover:bg-red-500/10 dark:text-red-400"><Trash2 aria-hidden className="h-3.5 w-3.5" />移除</button>
+        <div className="col-span-2 flex items-center justify-end gap-1 border-t border-border pt-1 sm:col-span-1 sm:flex-col sm:border-0 sm:pt-0">
+          <Link href={href} prefetch={false} className="inline-flex size-11 items-center justify-center rounded-lg text-accent no-underline hover:bg-accent/10" aria-label={`查看《${item.title}》详情`} title="查看详情"><ChevronRight aria-hidden className="h-4 w-4" /></Link>
+          <button type="button" onClick={() => onEdit(false)} className="inline-flex size-11 items-center justify-center rounded-lg text-foreground hover:bg-muted hover:text-accent" aria-label={`${listType === 'watched' ? '评价' : '备注'}《${item.title}》`} title={listType === 'watched' ? '评价' : '备注'}><Edit3 aria-hidden className="h-4 w-4" /></button>
+          <button type="button" onClick={onRemove} className="inline-flex size-11 items-center justify-center rounded-lg text-red-600 hover:bg-red-500/10 dark:text-red-400" aria-label={`移除《${item.title}》`} title="移除"><Trash2 aria-hidden className="h-4 w-4" /></button>
         </div>
       )}
+      </div>
     </article>
   );
 }
@@ -316,29 +324,30 @@ export default function ListDetailPage() {
         </div>
       ) : (
         <>
-          <header className="flex flex-col gap-4 rounded-3xl border border-border bg-card p-5 sm:flex-row sm:items-end sm:justify-between sm:p-6">
+          <header className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Collection</p>
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">{metadataLoading ? '正在加载片单…' : list?.name || '片单'}</h1>
-              {list?.description && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">{list.description}</p>}
-              <p className="mt-2 text-xs tabular-nums text-muted-foreground">{typeFilter ? `${filteredTotal} 部筛选结果 · ${list?.itemCount ?? 0} 部总计` : `${list?.itemCount ?? filteredTotal} 部内容`}</p>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">{metadataLoading ? '正在加载片单…' : list?.name || '片单'}</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="tabular-nums">{typeFilter ? `${filteredTotal} 部筛选结果 · ${list?.itemCount ?? 0} 部总计` : `${list?.itemCount ?? filteredTotal} 部内容`}</span>
+                {list?.description && <span className="truncate">{list.description}</span>}
+              </div>
             </div>
             {!metadataLoading && list && <span className="inline-flex w-fit items-center gap-2 rounded-full bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent"><ListChecks aria-hidden className="h-3.5 w-3.5" />{watchedList ? '观看与评价' : '个人收藏'}</span>}
           </header>
 
-          <section className="space-y-3 rounded-2xl border border-border bg-card/70 p-3 sm:p-4" aria-label="片单筛选与排序">
-            <div className="filter-scroll-row" role="group" aria-label="内容类型">
+          <section className="flex flex-col gap-2 rounded-2xl border border-border bg-card/70 p-2.5 lg:flex-row lg:items-center lg:justify-between" aria-label="片单筛选与排序">
+            <div className="filter-scroll-row min-w-0" role="group" aria-label="内容类型">
               {TYPE_FILTERS.map((type) => (
                 <button key={type.value} type="button" aria-pressed={typeFilter === type.value} onClick={() => { setTypeFilter(type.value); setCurrentPage(1); }} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium ${typeFilter === type.value ? 'border-accent bg-accent text-white' : 'border-border bg-card text-secondary-foreground hover:border-accent/30'}`}>{type.label}</button>
               ))}
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex shrink-0 items-center justify-between gap-2">
               <div>
                 {batchMode && (
                   <button type="button" onClick={() => setSelectedIds(allCurrentPageSelected ? new Set() : new Set(items.map((item) => item.id)))} className="min-h-9 rounded-lg border border-border px-3 text-xs font-medium text-foreground">{allCurrentPageSelected ? '取消全选' : '全选本页'}</button>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
                 <CustomSelect ariaLabel="片单排序方式" value={sortBy} options={sortOptions} onChange={(value) => { setSortBy(value); setCurrentPage(1); }} />
                 <button type="button" onClick={() => { setBatchMode((enabled) => !enabled); setSelectedIds(new Set()); }} className={`min-h-9 rounded-lg border px-3 text-xs font-medium ${batchMode ? 'border-accent bg-accent/10 text-accent' : 'border-border text-secondary-foreground'}`}>{batchMode ? '退出批量管理' : '批量管理'}</button>
               </div>
@@ -351,7 +360,7 @@ export default function ListDetailPage() {
               <button type="button" onClick={() => setReloadKey((key) => key + 1)} className="mt-4 min-h-10 rounded-xl bg-accent px-4 text-sm font-semibold text-white">重新加载</button>
             </div>
           ) : itemsLoading ? (
-            <div className="grid gap-3 lg:grid-cols-2" aria-label="正在加载片单内容">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-64 animate-pulse rounded-2xl bg-muted" />)}</div>
+            <div className="grid gap-2" aria-label="正在加载片单内容">{Array.from({ length: 4 }, (_, index) => <div key={index} className="h-44 animate-pulse rounded-2xl bg-muted" />)}</div>
           ) : items.length === 0 ? (
             <div className="grid place-items-center rounded-2xl border border-dashed border-border bg-card px-5 py-16 text-center">
               <Inbox aria-hidden className="h-9 w-9 text-muted-foreground" />
@@ -365,7 +374,7 @@ export default function ListDetailPage() {
             </div>
           ) : (
             <>
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid gap-2">
                 {items.map((item) => (
                   <ListItemCard key={item.id} item={item} listType={listType} batchMode={batchMode} selected={selectedIds.has(item.id)} onToggle={() => toggleSelection(item.id)} onEdit={(readOnly) => { setNoteEdit(item); setNoteReadOnly(readOnly); }} onRemove={() => setConfirmDelete(item)} />
                 ))}

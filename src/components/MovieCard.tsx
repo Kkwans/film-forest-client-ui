@@ -2,14 +2,16 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useState } from 'react';
-import { Star } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { StatusIconButton, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { listApi } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
+import { useToast } from '@/components/Toast';
+import { createSingleDoubleClickGuard } from '@/lib/uiContracts';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
 
@@ -52,20 +54,83 @@ export default function MovieCard({
   movieStatus,
 }: MovieCardProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const [navigating, setNavigating] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<MovieStatus | null>(movieStatus || null);
+  const singleActionRef = useRef<() => void>(() => undefined);
+  const doubleActionRef = useRef<() => void>(() => undefined);
+  const clickGuardRef = useRef<ReturnType<typeof createSingleDoubleClickGuard> | null>(null);
   const contentType = type || 'movie';
   const resolvedCover = usePosterUrl(contentType, id, cover);
 
-  const handleCollectClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  useEffect(() => setCurrentStatus(movieStatus || null), [movieStatus]);
+
+  const handleWantToggle = useCallback(async () => {
     if (!isAuthenticated) {
       router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
-    setCollectOpen(true);
+    if (statusLoading) return;
+
+    setStatusLoading(true);
+    try {
+      const response = await listApi.getAll();
+      const lists = Array.isArray(response.data.data) ? response.data.data : [];
+      const wantList = lists.find((list) => list.type === 'want_to_watch');
+      if (!wantList) {
+        showToast('想看片单暂不可用，请稍后重试', 'error');
+        return;
+      }
+      if (currentStatus?.listType === 'want_to_watch') {
+        await listApi.removeItem(wantList.id, { movieId: id, contentType });
+        setCurrentStatus(null);
+        showToast('已从想看移除', 'info');
+      } else if (currentStatus) {
+        showToast('当前观看状态请双击收藏图标管理', 'info');
+        return;
+      } else {
+        await listApi.addItem(wantList.id, { movieId: id, contentType });
+        setCurrentStatus({ listType: 'want_to_watch', listName: wantList.name });
+        showToast('已加入想看', 'success');
+      }
+      window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: id, contentType } }));
+    } catch {
+      showToast('想看状态更新失败，请重试', 'error');
+    } finally {
+      setStatusLoading(false);
+    }
+  }, [contentType, currentStatus, id, isAuthenticated, router, showToast, statusLoading]);
+
+  useEffect(() => {
+    singleActionRef.current = () => { void handleWantToggle(); };
+    doubleActionRef.current = () => {
+      if (!isAuthenticated) {
+        router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
+        return;
+      }
+      setCollectOpen(true);
+    };
+  }, [handleWantToggle, isAuthenticated, router]);
+
+  useEffect(() => {
+    const guard = createSingleDoubleClickGuard(
+      () => singleActionRef.current(),
+      () => doubleActionRef.current(),
+    );
+    clickGuardRef.current = guard;
+    return () => {
+      guard.dispose();
+      if (clickGuardRef.current === guard) clickGuardRef.current = null;
+    };
+  }, []);
+
+  const handleCollectClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    clickGuardRef.current?.handle();
   };
 
   const regionArr = parseRegion(region);
@@ -92,7 +157,7 @@ export default function MovieCard({
         style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
       >
         <div
-          className="card-hover relative flex flex-col overflow-hidden rounded-xl border"
+          className="card-hover relative flex h-full flex-col overflow-hidden rounded-xl border"
           style={{
             backgroundColor: 'var(--bg-card)',
             borderColor: 'var(--border-color)',
@@ -110,7 +175,7 @@ export default function MovieCard({
               src={resolvedCover || fallbackCover}
               alt={title}
               className="h-full rounded-none"
-              imgClassName="img-zoom"
+              imgClassName="img-zoom object-cover object-center"
               placeholder="blur"
               aspectRatio={null}
               fallbackSrc={fallbackCover}
@@ -119,21 +184,22 @@ export default function MovieCard({
 
             {hasRating && (
               <span
-                className="absolute left-2 top-2 inline-flex min-h-6 items-center gap-1 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm"
+                className="absolute left-2 top-2 inline-flex min-h-6 items-center gap-1.5 rounded-md bg-emerald-700/90 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm"
                 aria-label={`豆瓣评分 ${rating.toFixed(1)}`}
               >
-                <Star aria-hidden className="size-3 fill-current" />
-                <span>{rating.toFixed(1)}</span>
+                <span className="font-semibold opacity-90">豆瓣</span>
+                <span className="tabular-nums">{rating.toFixed(1)}</span>
               </span>
             )}
 
             {showCollect && (
               <StatusIconButton
-                listType={movieStatus?.listType || null}
+                listType={currentStatus?.listType || null}
                 onClick={handleCollectClick}
                 size="sm"
-                title={movieStatus?.listType ? '管理观看状态' : '加入片单'}
-                variant="overlay"
+                loading={statusLoading}
+                title="单击快速想看，连续双击管理片单"
+                variant="bare"
                 emptyIcon="heart"
                 className="absolute right-2 top-2 z-10"
               />
@@ -156,16 +222,16 @@ export default function MovieCard({
             {badgeText && <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">{badgeText}</span>}
           </div>
 
-          <div className="flex min-h-[104px] flex-col gap-1.5 p-2.5 md:p-3">
-            <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 transition-colors group-hover:text-[var(--accent)]">
+          <div className="flex h-[5.75rem] flex-none flex-col gap-1.5 p-2.5 md:h-24 md:p-3">
+            <p className="min-w-0 truncate text-sm font-semibold leading-5 transition-colors group-hover:text-[var(--accent)]" title={cleanTitle}>
               {cleanTitle || '\u00A0'}
             </p>
-            <div className="flex flex-wrap items-start gap-x-1.5 gap-y-0.5">
+            <div className="flex min-w-0 flex-nowrap items-center gap-x-1.5 overflow-hidden">
               {year ? <span className="text-xs text-muted-foreground">{year}</span> : null}
               {year && regionDisplay ? <span className="mt-1 h-0.5 w-0.5 shrink-0 rounded-full bg-muted-foreground" /> : null}
               {regionDisplay ? (
                 <span
-                  className="min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-xs leading-4 text-muted-foreground md:overflow-visible md:whitespace-normal"
+                  className="min-w-0 truncate text-xs leading-4 text-muted-foreground"
                   title={regionDisplay}
                 >
                   {regionDisplay}

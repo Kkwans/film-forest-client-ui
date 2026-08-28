@@ -5,13 +5,9 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import {
-  Bookmark,
-  CheckCircle2,
   ChevronRight,
   Clock3,
-  Eye,
   FolderHeart,
-  History,
   Inbox,
   Info,
   ListPlus,
@@ -57,8 +53,7 @@ export type ProfileView = 'home' | 'lists' | 'archive' | 'settings';
 
 const PROFILE_NAV: TabDefinition[] = [
   { key: 'home', label: '个人主页', description: '账户与收藏概览', href: '/profile', Icon: UserRound },
-  { key: 'lists', label: '我的片单', description: '整理观看计划', href: '/profile/lists', Icon: FolderHeart },
-  { key: 'archive', label: '影视档案', description: '评分与观看记录', href: '/profile/archive', Icon: History },
+  { key: 'lists', label: '我的收藏', description: '观看状态、评分与自定义片单', href: '/profile/lists', Icon: FolderHeart },
   { key: 'settings', label: '设置', description: '外观、账户与数据源', href: '/profile/settings', Icon: Settings },
 ];
 
@@ -68,12 +63,6 @@ interface ProfileStats {
   watchedCount: number;
   customCount: number;
 }
-
-const DEFAULT_LISTS = [
-  { key: 'want_to_watch', label: '想看', apiName: '想看', Icon: Bookmark, tone: 'text-violet-600 bg-violet-500/10 dark:text-violet-300' },
-  { key: 'watching', label: '在看', apiName: '在看', Icon: Eye, tone: 'text-amber-600 bg-amber-500/10 dark:text-amber-300' },
-  { key: 'watched', label: '看过', apiName: '看过', Icon: CheckCircle2, tone: 'text-emerald-600 bg-emerald-500/10 dark:text-emerald-300' },
-];
 
 interface HistoryItem {
   id: number;
@@ -266,37 +255,19 @@ function ListsTab({ onStatsChange }: { onStatsChange?: (stats: ProfileStats) => 
   }
   if (loadError && lists.length === 0) return <InlineError message={loadError} onRetry={() => setReloadKey((key) => key + 1)} />;
 
-  const defaultLists = lists.filter((list) => list.isDefault === 1);
   const customLists = lists.filter((list) => list.isDefault !== 1);
 
   return (
     <div className="space-y-6" aria-busy={loading}>
       {loading && showLoading && <p className="text-xs text-muted-foreground" role="status">正在更新片单…</p>}
-      <section aria-labelledby="default-lists-title">
-        <div>
-          <h2 id="default-lists-title" className="text-base font-semibold text-foreground">观看状态</h2>
-          <p className="mt-1 text-xs text-muted-foreground">想看、在看与看过互斥流转，数量来自当前真实片单。</p>
+      <section aria-labelledby="collection-records-title">
+        <div className="mb-3 flex items-end justify-between gap-4">
+          <div>
+            <h2 id="collection-records-title" className="text-base font-semibold text-foreground">观看记录</h2>
+            <p className="mt-1 text-xs text-muted-foreground">看过、在看和想看统一在这里管理，不再维护两套列表样式。</p>
+          </div>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          {DEFAULT_LISTS.map((definition) => {
-            const matched = defaultLists.find((list) => list.type === definition.key) || defaultLists.find((list) => list.name === definition.apiName);
-            const content = (
-              <>
-                <span className={`grid size-10 place-items-center rounded-xl ${definition.tone}`}><definition.Icon aria-hidden className="h-4 w-4" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground">{definition.label}</p>
-                  <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">{matched ? `${matched.itemCount} 部内容` : '默认片单暂不可用'}</p>
-                </div>
-                {matched && <ChevronRight aria-hidden className="h-4 w-4 text-muted-foreground" />}
-              </>
-            );
-            return matched ? (
-              <Link key={definition.key} href={`/user/lists/${matched.id}`} prefetch={false} className="flex min-h-20 items-center gap-3 rounded-2xl border border-border bg-card p-3 no-underline transition-[border-color,box-shadow] hover:border-accent/30 hover:shadow-md">{content}</Link>
-            ) : (
-              <div key={definition.key} className="flex min-h-20 items-center gap-3 rounded-2xl border border-dashed border-border bg-muted/25 p-3 opacity-70">{content}</div>
-            );
-          })}
-        </div>
+        <HistoryTab />
       </section>
 
       <section aria-labelledby="custom-lists-title">
@@ -606,8 +577,8 @@ function SettingsTab() {
   };
 
   return (
-    <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
-      <section className="rounded-2xl border border-border bg-card p-5">
+    <div className="grid overflow-hidden rounded-2xl border border-border bg-card md:grid-cols-2">
+      <section className="border-b border-border p-5 md:border-r">
         <div className="flex items-center gap-2"><Info aria-hidden className="h-4 w-4 text-accent" /><h2 className="text-sm font-semibold text-foreground">账户信息</h2></div>
         <dl className="mt-4 grid gap-3 text-sm">
           <div className="flex items-center justify-between gap-4"><dt className="text-muted-foreground">用户名</dt><dd className="truncate font-medium text-foreground">{user?.username || '—'}</dd></div>
@@ -616,7 +587,7 @@ function SettingsTab() {
         </dl>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-5">
+      <section className="border-b border-border p-5">
         <div className="flex items-center gap-2"><Palette aria-hidden className="h-4 w-4 text-accent" /><h2 className="text-sm font-semibold text-foreground">显示外观</h2></div>
         <div className="mt-4 grid grid-cols-3 gap-2" role="radiogroup" aria-label="主题模式">
           {THEME_OPTIONS.map((option) => {
@@ -632,8 +603,8 @@ function SettingsTab() {
         </div>
       </section>
 
-      <div className="order-5 md:col-span-2">
-        <div className="mb-3">
+      <div className="order-5 border-t border-border p-5 md:col-span-2">
+        <div className="mb-4">
           <p className="text-xs font-semibold text-accent">高级设置</p>
           <h2 className="mt-1 text-base font-semibold text-foreground">海报与数据源</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">只有需要替换来源站海报时才需要配置；所有失败都会保留原图。</p>
@@ -641,21 +612,23 @@ function SettingsTab() {
         <PosterSettingsCard />
       </div>
 
-      <section className="order-3 rounded-2xl border border-border bg-card p-5">
+      <section className="order-3 border-b border-border p-5 md:border-b-0 md:border-r">
         <div className="flex items-center gap-2"><SearchX aria-hidden className="h-4 w-4 text-accent" /><h2 className="text-sm font-semibold text-foreground">本地数据</h2></div>
         <p className="mt-2 text-xs leading-5 text-muted-foreground">搜索历史仅保存在当前浏览器，清除不会影响片单或账户数据。</p>
         <button type="button" onClick={clearSearchHistory} className="mt-4 min-h-11 rounded-xl border border-border px-4 text-sm font-medium text-foreground hover:border-accent/40 hover:text-accent">清除搜索历史</button>
       </section>
 
-      <section className="order-4 rounded-2xl border border-border bg-card p-5">
+      <section className="order-4 border-b border-border p-5 md:border-b-0">
         <div className="flex items-center gap-2"><Info aria-hidden className="h-4 w-4 text-accent" /><h2 className="text-sm font-semibold text-foreground">项目信息</h2></div>
         <p className="mt-2 text-xs leading-5 text-muted-foreground">查看影视森林的数据来源、TMDB 署名与项目说明。</p>
         <Link href="/about" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium text-foreground no-underline hover:border-accent/40 hover:text-accent">查看项目说明<ChevronRight aria-hidden className="h-4 w-4" /></Link>
       </section>
 
-      <button type="button" onClick={() => { logout(); router.replace('/'); }} className="order-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/40 text-sm font-semibold text-red-600 hover:bg-red-500/10 dark:text-red-400 md:col-span-2">
+      <div className="order-6 border-t border-border p-5 md:col-span-2">
+      <button type="button" onClick={() => { logout(); router.replace('/'); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-500/40 px-5 text-sm font-semibold text-red-600 hover:bg-red-500/10 dark:text-red-400">
         <LogOut aria-hidden className="h-4 w-4" />退出登录
       </button>
+      </div>
     </div>
   );
 }
@@ -664,35 +637,37 @@ function ProfileOverview({ stats }: { stats: ProfileStats | null }) {
   const entries = PROFILE_NAV.filter((item) => item.key !== 'home');
 
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,.75fr)]">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
       {entries.map((entry) => (
         <Link
           key={entry.key}
           href={entry.href}
-          className="group flex min-h-36 flex-col rounded-2xl border border-border bg-card p-5 no-underline transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-accent/35 hover:shadow-md"
+          className="group flex min-h-20 items-center gap-3 rounded-2xl border border-border bg-card p-4 no-underline transition-[border-color,box-shadow] hover:border-accent/35 hover:shadow-sm"
         >
-          <span className="grid size-11 place-items-center rounded-xl bg-accent/10 text-accent">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
             <entry.Icon aria-hidden className="size-5" />
           </span>
-          <span className="mt-5 flex items-end justify-between gap-3">
-            <span>
+          <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
+            <span className="min-w-0">
               <span className="block text-base font-semibold text-foreground">{entry.label}</span>
-              <span className="mt-1 block text-xs leading-5 text-muted-foreground">{entry.description}</span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">{entry.description}</span>
             </span>
             <ChevronRight aria-hidden className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent" />
           </span>
         </Link>
       ))}
-      <section className="rounded-2xl border border-border bg-card p-5 md:col-span-3" aria-labelledby="profile-summary-title">
+      </div>
+      <section className="rounded-2xl border border-border bg-card p-4" aria-labelledby="profile-summary-title">
         <h2 id="profile-summary-title" className="text-sm font-semibold text-foreground">收藏概览</h2>
-        <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
           {[
             { label: '全部片单', value: stats?.listCount },
             { label: '想看', value: stats?.wantCount },
             { label: '看过', value: stats?.watchedCount },
             { label: '自定义片单', value: stats?.customCount },
           ].map((stat) => (
-            <div key={stat.label} className="rounded-xl bg-background px-4 py-3">
+            <div key={stat.label} className="border-t border-border pt-2">
               <dt className="text-xs text-muted-foreground">{stat.label}</dt>
               <dd className="mt-1 text-xl font-bold tabular-nums text-foreground">{stat.value ?? '—'}</dd>
             </div>
@@ -734,40 +709,36 @@ export default function ProfileClient({ view = 'home' }: { view?: ProfileView })
   const current = PROFILE_NAV.find((item) => item.key === view) || PROFILE_NAV[0];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <header className="overflow-hidden rounded-2xl border border-border bg-card" aria-label="个人信息">
-        <div className="h-1 bg-accent/80" aria-hidden />
-        <div className="flex items-center gap-4 p-4 sm:gap-5 sm:p-5">
-          <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 border-accent/20 bg-accent text-xl font-bold text-white shadow-sm">
+    <div className="w-full space-y-5">
+      <header className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between" aria-label="个人信息与页面导航">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent text-lg font-bold text-white shadow-sm">
             {user?.avatar || user?.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatar || user.avatarUrl} alt={`${user.nickname || user.username || '用户'}头像`} width={56} height={56} className="h-full w-full object-cover" />
+              <img src={user.avatar || user.avatarUrl} alt={`${user.nickname || user.username || '用户'}头像`} width={48} height={48} className="h-full w-full object-cover" />
             ) : (
               <span>{(user?.nickname || user?.username || '用').charAt(0)}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-lg font-bold text-foreground">{user?.nickname || user?.username || '影视森林用户'}</h1>
-            <p className="mt-0.5 truncate text-xs text-muted-foreground">{user?.username ? `@${user.username}` : '个人片单与观看记录'}</p>
+            <p className="truncate text-sm font-semibold text-foreground">{user?.nickname || user?.username || '影视森林用户'}</p>
+            <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+              <span className="truncate">{user?.username ? `@${user.username}` : '个人收藏'}</span><span aria-hidden>·</span><span>{current.label}</span>
+            </div>
           </div>
         </div>
-
+        <nav className="filter-scroll-row rounded-xl bg-card p-1" aria-label="个人中心">
+          {PROFILE_NAV.map((item) => (
+            <Link key={item.key} href={item.href} aria-current={view === item.key ? 'page' : undefined} className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium no-underline transition-colors ${view === item.key ? 'bg-accent text-white shadow-sm' : 'text-secondary-foreground hover:bg-muted'}`}>
+              <item.Icon aria-hidden className="h-4 w-4" />{item.label}
+            </Link>
+          ))}
+        </nav>
       </header>
 
-      <nav className="filter-scroll-row rounded-2xl border border-border bg-card p-1.5" aria-label="个人中心">
-        {PROFILE_NAV.map((item) => (
-          <Link key={item.key} href={item.href} aria-current={view === item.key ? 'page' : undefined} className={`inline-flex min-h-11 flex-1 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium no-underline transition-colors ${view === item.key ? 'bg-accent text-white shadow-sm' : 'text-secondary-foreground hover:bg-muted'}`}>
-            <item.Icon aria-hidden className="h-4 w-4" />{item.label}
-          </Link>
-        ))}
-      </nav>
-
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold text-accent">个人中心</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">{current.label}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{current.description}</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{current.label}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{current.description}</p>
       </div>
 
       {view === 'home' && <ProfileOverview stats={stats} />}

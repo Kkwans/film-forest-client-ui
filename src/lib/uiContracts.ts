@@ -133,7 +133,7 @@ export function getGenreColorToken(genre: string | null | undefined): GenreColor
 
 const PROFILE_LEGACY_ROUTES: Record<string, string> = {
   lists: '/profile/lists',
-  history: '/profile/archive',
+  history: '/profile/lists?status=watched',
   settings: '/profile/settings',
 };
 
@@ -174,4 +174,42 @@ export function filterResourcesByDiskType<T extends DiskResourceLike>(
   const selected = diskType?.trim().toLocaleLowerCase('zh-CN');
   if (!selected || selected === 'all') return resources;
   return resources.filter((resource) => resource.diskType?.trim().toLocaleLowerCase('zh-CN') === selected);
+}
+
+export interface SingleDoubleClickGuard {
+  handle: () => void;
+  dispose: () => void;
+}
+
+/**
+ * 将短时间内的两次 click 合并为双击，确保“单击快速想看”和“连续双击管理片单”互斥。
+ * 触摸与鼠标都走同一 click 序列，不依赖浏览器 dblclick 的设备差异。
+ */
+export function createSingleDoubleClickGuard(
+  onSingle: () => void,
+  onDouble: () => void,
+  windowMs = 240,
+  setTimer: (callback: () => void, delay: number) => ReturnType<typeof setTimeout> = setTimeout,
+  clearTimer: (timer: ReturnType<typeof setTimeout>) => void = clearTimeout,
+): SingleDoubleClickGuard {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  return {
+    handle() {
+      if (timer !== null) {
+        clearTimer(timer);
+        timer = null;
+        onDouble();
+        return;
+      }
+      timer = setTimer(() => {
+        timer = null;
+        onSingle();
+      }, windowMs);
+    },
+    dispose() {
+      if (timer !== null) clearTimer(timer);
+      timer = null;
+    },
+  };
 }

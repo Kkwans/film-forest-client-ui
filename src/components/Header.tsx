@@ -15,8 +15,8 @@ const NAV_ITEMS = [
   { label: '综艺', href: '/variety' },
   { label: '动漫', href: '/anime' },
   { label: '短剧', href: '/short' },
-  { label: '片单', href: '/profile?tab=lists' },
-  { label: '设置', href: '/profile?tab=settings' },
+  { label: '收藏', href: '/profile/lists' },
+  { label: '设置', href: '/profile/settings' },
 ];
 
 function AvatarFallback({ name }: { name?: string }) {
@@ -29,7 +29,6 @@ function AvatarFallback({ name }: { name?: string }) {
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const [profileTab, setProfileTab] = useState('');
   const [keyword, setKeyword] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -69,14 +68,6 @@ export default function Header() {
     };
   }, [menuOpen]);
 
-  useEffect(() => {
-    if (pathname !== '/profile') {
-      setProfileTab('');
-      return;
-    }
-    setProfileTab(new URLSearchParams(window.location.search).get('tab') || 'lists');
-  }, [pathname]);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (keyword.trim()) {
@@ -110,9 +101,6 @@ export default function Header() {
   };
 
   const isActive = (href: string) => {
-    if (href === '/profile?tab=lists' || href === '/profile?tab=settings') {
-      return pathname === '/profile' && profileTab === href.split('=')[1];
-    }
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
@@ -140,7 +128,7 @@ export default function Header() {
           borderColor: 'var(--border-color)',
         }}
       >
-        <div className="mx-auto flex h-16 max-w-[90rem] items-center gap-5 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-16 max-w-[120rem] items-center gap-5 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
           <Link href="/" className="group flex shrink-0 items-center gap-2.5 no-underline" aria-label="影视森林首页">
             <span className="flex size-9 items-center justify-center rounded-xl bg-[var(--accent)] text-white shadow-[var(--shadow-sm)] transition-transform group-hover:-translate-y-0.5">
@@ -245,41 +233,43 @@ export default function Header() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-1.5 rounded-xl border border-transparent p-1 text-secondary-foreground transition-colors hover:border-border hover:bg-card hover:text-foreground"
+                  className="flex h-10 items-center gap-2 rounded-xl bg-accent-light px-1.5 pr-2.5 text-accent transition-colors hover:bg-emerald-200/70 dark:hover:bg-emerald-900"
                   aria-label="打开用户菜单"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="menu"
                 >
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs"
-                    
-                  >
+                  <div className="flex size-7 items-center justify-center overflow-hidden rounded-lg bg-accent text-xs font-bold text-white">
                     {user.avatar ? (
                       // eslint-disable-next-line @next/next/no-img-element -- 头像 URL 由用户数据提供，来源域名不固定。
-                      <img src={user.avatar} alt="当前用户头像" className="w-full h-full rounded-lg object-cover" />
+                      <img src={user.avatar} alt="当前用户头像" className="h-full w-full object-cover" />
                     ) : (
                       <AvatarFallback name={user.nickname || user.username} />
                     )}
                   </div>
-                  <ChevronDown className={`size-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} aria-hidden />
+                  <span className="hidden max-w-24 truncate text-xs font-semibold xl:inline">{user.nickname || user.username}</span>
+                  <ChevronDown className={`size-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} strokeWidth={2.25} aria-hidden />
                 </button>
                 {userMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-lg)]"
+                    className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-border bg-card p-2 shadow-[var(--shadow-lg)]"
                   >
+                    <div className="mb-1 border-b border-border px-3 pb-2 pt-1">
+                      <p className="truncate text-sm font-semibold text-foreground">{user.nickname || user.username}</p>
+                      <p className="truncate text-xs text-muted-foreground">@{user.username}</p>
+                    </div>
                     <Link
                       href="/profile"
                       onClick={() => setUserMenuOpen(false)}
                       role="menuitem"
-                      className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground transition-colors hover:bg-[var(--accent-light)]"
+                      className="flex min-h-10 items-center gap-2 rounded-xl px-3 py-2 text-sm text-foreground transition-colors hover:bg-[var(--accent-light)]"
                     >
                       <UserRound className="size-4" aria-hidden />我的主页
                     </Link>
                     <button
                       onClick={() => { setUserMenuOpen(false); logout(); router.push('/'); }}
                       role="menuitem"
-                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-[var(--danger)] transition-colors hover:bg-[var(--danger-bg)]"
+                      className="flex min-h-10 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-[var(--danger)] transition-colors hover:bg-[var(--danger-bg)]"
                     >
                       <LogOut className="size-4" aria-hidden />退出登录
                     </button>

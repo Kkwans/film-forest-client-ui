@@ -29,8 +29,8 @@ interface StatusIconButtonProps {
   loading?: boolean;
   /** 在桌面端同时展示状态文案，移动端仍保持图标按钮 */
   showLabel?: boolean;
-  /** 覆盖在海报上时使用透明深色底，避免白色方块遮挡图片 */
-  variant?: 'default' | 'overlay';
+  /** 覆盖模式提供对比底；bare 只保留原始图标，用于海报卡片。 */
+  variant?: 'default' | 'overlay' | 'bare';
   /** 无状态时的入口图标；海报卡片用心形，加入片单入口用书签加号 */
   emptyIcon?: 'heart' | 'list';
 }
@@ -48,7 +48,7 @@ export function StatusIconButton({
 }: StatusIconButtonProps) {
   const config = listType ? getStatusConfig(listType) : null;
   const sizeClass = size === 'sm' ? 'size-11 sm:size-9' : 'size-11';
-  const iconClass = size === 'sm' ? 'size-4' : 'size-[18px]';
+  const iconClass = variant === 'bare' ? 'size-6' : size === 'sm' ? 'size-4' : 'size-[18px]';
 
   const label = config?.label || '加入片单';
   const defaultTitle = label;
@@ -63,7 +63,14 @@ export function StatusIconButton({
   const buttonSize = showLabel
     ? 'min-h-11 min-w-11 px-3'
     : sizeClass;
-  const buttonStyle = variant === 'overlay'
+  const buttonStyle = variant === 'bare'
+    ? {
+        backgroundColor: 'transparent',
+        borderColor: 'transparent',
+        color: config?.color || '#fff',
+        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.9)) drop-shadow(0 0 5px rgba(0,0,0,.55))',
+      }
+    : variant === 'overlay'
     ? {
         backgroundColor: isWant && config ? `color-mix(in srgb, ${config.color} 18%, rgba(15, 23, 42, 0.28))` : 'rgba(15, 23, 42, 0.28)',
         borderColor: isWant && config ? `color-mix(in srgb, ${config.color} 60%, rgba(255, 255, 255, 0.65))` : 'rgba(255, 255, 255, 0.65)',
@@ -79,11 +86,11 @@ export function StatusIconButton({
     <button
       type="button"
       onClick={onClick}
-      className={`${buttonSize} inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border transition-[background-color,border-color,color] hover:border-current/55 ${variant === 'overlay' ? 'backdrop-blur-[2px] hover:bg-black/40' : ''} ${className}`}
+      className={`${buttonSize} inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border transition-[background-color,border-color,color,transform] hover:border-current/55 ${variant === 'overlay' ? 'backdrop-blur-[2px] hover:bg-black/40' : ''} ${variant === 'bare' ? 'hover:scale-110' : ''} ${className}`}
       style={buttonStyle}
       title={title || defaultTitle}
       aria-label={title || defaultTitle}
-      aria-haspopup="dialog"
+      aria-haspopup={variant === 'bare' ? undefined : 'dialog'}
     >
       {loading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <StatusIcon className={iconClass} fill={isWant ? 'currentColor' : 'none'} aria-hidden />}
       {showLabel && <span className="hidden text-xs font-semibold sm:inline">{label}</span>}
@@ -157,13 +164,13 @@ export function TypeFilter({ value, onChange, includeAll = true }: TypeFilterPro
  * 4. Genre 标签列表
  * ============================================================ */
 
-export function GenreTags({ genres, max = 4 }: { genres: string[]; max?: number }) {
+export function GenreTags({ genres, max = 2 }: { genres: string[]; max?: number }) {
   if (genres.length === 0) return null;
 
   return (
-    <div className="flex max-h-12 flex-wrap items-center gap-1 overflow-hidden">
+    <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden">
       {genres.slice(0, max).map((g, i) => (
-        <span key={i} className={`genre-tag genre-tag-${getGenreColorToken(g)} shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium leading-4 md:text-xs`}>
+        <span key={i} className={`genre-tag genre-tag-${getGenreColorToken(g)} min-w-0 max-w-[7.5rem] shrink truncate rounded-md px-2 py-0.5 text-[11px] font-medium leading-4 md:text-xs`} title={g}>
           {g}
         </span>
       ))}

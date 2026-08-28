@@ -396,7 +396,7 @@ function SearchContent() {
       ) : error ? (
         <div className="py-16 text-center"><p className="text-sm text-secondary-foreground">搜索服务暂时不可用</p><button onClick={() => setRequestVersion((version) => version + 1)} className="mt-3 text-sm font-medium text-accent">重新加载</button></div>
       ) : loading && data.records.length === 0 ? (
-        <div className="grid gap-3" aria-label="正在加载搜索结果">
+        <div className="grid gap-3" role="status" aria-label="正在加载搜索结果">
           {Array.from({ length: 5 }, (_, index) => (
             <div key={index} className="grid min-h-[10.5rem] grid-cols-[6.5rem_minmax(0,1fr)] gap-3 rounded-2xl border border-border bg-card p-3 sm:min-h-[12rem] sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
               <div className="aspect-[2/3] w-full animate-pulse rounded-xl bg-muted" />

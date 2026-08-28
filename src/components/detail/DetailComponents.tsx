@@ -106,16 +106,16 @@ export function RatingBadges({ douban, doubanCount, imdb, imdbCount, rt, rtCriti
   if (badges.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="grid grid-flow-col auto-cols-fr items-stretch gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
       {badges.map((b, i) => (
         <span
           key={i}
-          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${b.className}`}
+          className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border px-1.5 py-1.5 text-xs sm:gap-2 sm:rounded-xl sm:px-3 sm:py-2 sm:text-sm ${b.className}`}
         >
-          <Star aria-hidden className="size-3.5 fill-current" />
-          <span className="text-xs font-medium opacity-75">{b.label}</span>
+          <Star aria-hidden className="hidden size-3.5 fill-current sm:block" />
+          <span className="truncate text-[10px] font-medium opacity-80 sm:text-xs">{b.label}</span>
           <strong className="tabular-nums">{b.value}</strong>
-          {b.detail && <span className="text-[11px] opacity-70">{b.detail}</span>}
+          {b.detail && <span className="hidden text-[11px] opacity-70 xl:inline">{b.detail}</span>}
         </span>
       ))}
     </div>
