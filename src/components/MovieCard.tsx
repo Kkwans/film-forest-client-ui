@@ -2,8 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ListPlus } from 'lucide-react';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
 import { StatusIconButton, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
@@ -11,13 +12,14 @@ import { usePosterUrl } from '@/hooks/usePosterUrl';
 import { listApi } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
 import { useToast } from '@/components/Toast';
-import { createSingleDoubleClickGuard } from '@/lib/uiContracts';
+import { useContentStatusStore } from '@/stores/contentStatusStore';
 
 const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
 
 interface MovieStatus {
   listType: string;
   listName: string;
+  wantToWatch?: boolean;
 }
 
 interface MovieCardProps {
@@ -56,17 +58,15 @@ export default function MovieCard({
   const router = useRouter();
   const { showToast } = useToast();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const userId = useUserStore((state) => state.user?.id ?? null);
   const [navigating, setNavigating] = useState(false);
   const [collectOpen, setCollectOpen] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<MovieStatus | null>(movieStatus || null);
-  const singleActionRef = useRef<() => void>(() => undefined);
-  const doubleActionRef = useRef<() => void>(() => undefined);
-  const clickGuardRef = useRef<ReturnType<typeof createSingleDoubleClickGuard> | null>(null);
   const contentType = type || 'movie';
+  const currentStatus = movieStatus || null;
+  const identityKey = isAuthenticated && userId ? `user:${userId}` : 'anonymous';
+  const patchStatus = useContentStatusStore((state) => state.patchStatus);
   const resolvedCover = usePosterUrl(contentType, id, cover);
-
-  useEffect(() => setCurrentStatus(movieStatus || null), [movieStatus]);
 
   const handleWantToggle = useCallback(async () => {
     if (!isAuthenticated) {
@@ -77,66 +77,44 @@ export default function MovieCard({
 
     setStatusLoading(true);
     try {
-      const response = await listApi.getAll();
+      const response = await listApi.getDefaults();
       const lists = Array.isArray(response.data.data) ? response.data.data : [];
       const wantList = lists.find((list) => list.type === 'want_to_watch');
       if (!wantList) {
         showToast('想看片单暂不可用，请稍后重试', 'error');
         return;
       }
-      if (currentStatus?.listType === 'want_to_watch') {
+      if (currentStatus?.wantToWatch ?? currentStatus?.listType === 'want_to_watch') {
         await listApi.removeItem(wantList.id, { movieId: id, contentType });
-        setCurrentStatus(null);
+        patchStatus(identityKey, contentType, id, currentStatus?.listType === 'want_to_watch' ? null : { ...currentStatus, wantToWatch: false });
         showToast('已从想看移除', 'info');
-      } else if (currentStatus) {
-        showToast('当前观看状态请双击收藏图标管理', 'info');
-        return;
       } else {
         await listApi.addItem(wantList.id, { movieId: id, contentType });
-        setCurrentStatus({ listType: 'want_to_watch', listName: wantList.name });
+        patchStatus(identityKey, contentType, id, currentStatus ? { ...currentStatus, wantToWatch: true } : { listType: 'want_to_watch', listName: wantList.name, wantToWatch: true });
         showToast('已加入想看', 'success');
       }
-      window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: id, contentType } }));
     } catch {
       showToast('想看状态更新失败，请重试', 'error');
     } finally {
       setStatusLoading(false);
     }
-  }, [contentType, currentStatus, id, isAuthenticated, router, showToast, statusLoading]);
+  }, [contentType, currentStatus, id, identityKey, isAuthenticated, patchStatus, router, showToast, statusLoading]);
 
-  useEffect(() => {
-    singleActionRef.current = () => { void handleWantToggle(); };
-    doubleActionRef.current = () => {
-      if (!isAuthenticated) {
-        router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
-        return;
-      }
-      setCollectOpen(true);
-    };
-  }, [handleWantToggle, isAuthenticated, router]);
-
-  useEffect(() => {
-    const guard = createSingleDoubleClickGuard(
-      () => singleActionRef.current(),
-      () => doubleActionRef.current(),
-    );
-    clickGuardRef.current = guard;
-    return () => {
-      guard.dispose();
-      if (clickGuardRef.current === guard) clickGuardRef.current = null;
-    };
-  }, []);
-
-  const handleCollectClick = (event: React.MouseEvent) => {
+  const handleManageClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    clickGuardRef.current?.handle();
+    if (!isAuthenticated) {
+      router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    setCollectOpen(true);
   };
 
   const regionArr = parseRegion(region);
   const genreArr = parseGenre(genre);
   const regionDisplay = regionArr.join(' / ');
   const hasRating = rating != null && Number.isFinite(rating) && rating > 0;
+  const wantToWatch = Boolean(currentStatus?.wantToWatch ?? currentStatus?.listType === 'want_to_watch');
   const cleanTitle = cleanTitleUtil(title);
   const fallbackCover = '/poster-placeholder.svg';
 
@@ -149,15 +127,16 @@ export default function MovieCard({
 
   return (
     <>
-      <Link
-        href={href}
-        prefetch={false}
-        onClick={() => setNavigating(true)}
-        className="group block no-underline"
-        style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
-      >
-        <div
-          className="card-hover relative flex h-full flex-col overflow-hidden rounded-xl border"
+      <article className="group relative h-full">
+        <Link
+          href={href}
+          prefetch={false}
+          onClick={() => setNavigating(true)}
+          className="block h-full no-underline"
+          style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
+        >
+          <div
+            className="card-hover relative flex h-full flex-col overflow-hidden rounded-xl border"
           style={{
             backgroundColor: 'var(--bg-card)',
             borderColor: 'var(--border-color)',
@@ -184,25 +163,12 @@ export default function MovieCard({
 
             {hasRating && (
               <span
-                className="absolute left-2 top-2 inline-flex min-h-6 items-center gap-1.5 rounded-md bg-emerald-700/90 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm"
+                className="absolute left-2 top-2 inline-flex h-9 items-center gap-1.5 rounded-md bg-emerald-700/90 px-2.5 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm"
                 aria-label={`豆瓣评分 ${rating.toFixed(1)}`}
               >
                 <span className="font-semibold opacity-90">豆瓣</span>
                 <span className="tabular-nums">{rating.toFixed(1)}</span>
               </span>
-            )}
-
-            {showCollect && (
-              <StatusIconButton
-                listType={currentStatus?.listType || null}
-                onClick={handleCollectClick}
-                size="sm"
-                loading={statusLoading}
-                title="单击快速想看，连续双击管理片单"
-                variant="bare"
-                emptyIcon="heart"
-                className="absolute right-2 top-2 z-10"
-              />
             )}
 
             {status && (
@@ -222,7 +188,7 @@ export default function MovieCard({
             {badgeText && <span className="absolute bottom-2 right-2 rounded-md bg-black/60 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">{badgeText}</span>}
           </div>
 
-          <div className="flex h-[5.75rem] flex-none flex-col gap-1.5 p-2.5 md:h-24 md:p-3">
+          <div className="flex min-h-[5.75rem] flex-1 flex-col gap-1.5 p-2.5 md:min-h-24 md:p-3">
             <p className="min-w-0 truncate text-sm font-semibold leading-5 transition-colors group-hover:text-[var(--accent)]" title={cleanTitle}>
               {cleanTitle || '\u00A0'}
             </p>
@@ -240,8 +206,32 @@ export default function MovieCard({
             </div>
             <GenreTags genres={genreArr} />
           </div>
-        </div>
-      </Link>
+          </div>
+        </Link>
+
+        {showCollect && (
+          <div className="absolute right-2 top-2 z-30 flex items-center gap-1">
+            <StatusIconButton
+              listType={wantToWatch ? 'want_to_watch' : null}
+              onClick={(event) => { event.preventDefault(); event.stopPropagation(); void handleWantToggle(); }}
+              size="sm"
+              loading={statusLoading}
+              title={wantToWatch ? '移出想看' : '加入想看'}
+              variant="bare"
+              emptyIcon="heart"
+            />
+            <button
+              type="button"
+              onClick={handleManageClick}
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.9)] transition-transform hover:scale-110 sm:size-9"
+              aria-label="管理片单"
+              title="管理片单"
+            >
+              <ListPlus className="size-5" aria-hidden />
+            </button>
+          </div>
+        )}
+      </article>
 
       {showCollect && collectOpen && (
         <CollectModal
