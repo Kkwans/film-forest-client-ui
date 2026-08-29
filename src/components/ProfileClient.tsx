@@ -683,11 +683,11 @@ export default function ProfileClient({ view = 'home' }: { view?: ProfileView })
   const [stats, setStats] = useState<ProfileStats | null>(null);
 
   useEffect(() => {
-    if (view !== 'home') return;
     if (!hasStoredToken()) {
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
       return;
     }
+    if (view !== 'home') return;
     const controller = new AbortController();
     void listApi.getAll({ signal: controller.signal }).then((response) => {
       if (controller.signal.aborted) return;
