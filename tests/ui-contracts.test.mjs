@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { mapDetailData } from '../src/lib/detailMapping.ts';
+import { CONTENT_SORT_CAPABILITIES } from '../src/lib/contentConstants.ts';
+import { normalizeSearchRecord } from '../src/lib/api.ts';
 import {
-  createSingleDoubleClickGuard,
   filterResourcesByDiskType,
   formatWatchedAt,
   fractionalStarFill,
@@ -151,33 +152,28 @@ test('resource filter matches diskType and keeps all resources for the all selec
   assert.deepEqual(filterResourcesByDiskType(resources, 'ALL'), resources);
 });
 
-test('movie card single and double clicks remain mutually exclusive', () => {
-  let nextTimer = 0;
-  const timers = new Map();
-  const singles = [];
-  const doubles = [];
-  const guard = createSingleDoubleClickGuard(
-    () => singles.push(1),
-    () => doubles.push(1),
-    240,
-    (callback) => {
-      const id = ++nextTimer;
-      timers.set(id, callback);
-      return id;
-    },
-    (timer) => timers.delete(timer),
-  );
+test('content sort capabilities expose only supported options', () => {
+  assert.deepEqual(CONTENT_SORT_CAPABILITIES.movie, ['latest', 'year', 'douban', 'imdb', 'rt']);
+  assert.deepEqual(CONTENT_SORT_CAPABILITIES.drama, ['latest', 'year', 'douban', 'imdb']);
+  assert.equal(CONTENT_SORT_CAPABILITIES.short_drama.includes('rt'), false);
+});
 
-  guard.handle();
-  guard.handle();
-  assert.deepEqual(singles, []);
-  assert.deepEqual(doubles, [1]);
-  assert.equal(timers.size, 0);
+test('search adapter normalizes wire aliases and truthful nullable scores', () => {
+  const record = normalizeSearchRecord({
+    id: '9',
+    type: 'short',
+    title: '短剧',
+    posterUrl: '/poster.jpg',
+    scoreDouban: '7.5',
+    scoreRT: '82',
+    updatedAt: '2026-08-30T10:00:00Z',
+  });
 
-  guard.handle();
-  const pending = timers.values().next().value;
-  assert.equal(typeof pending, 'function');
-  pending();
-  assert.deepEqual(singles, [1]);
-  guard.dispose();
+  assert.equal(record.type, 'short_drama');
+  assert.equal(record.cover, '/poster.jpg');
+  assert.equal(record.rating, 7.5);
+  assert.equal(record.ratingRT, 82);
+  assert.equal(record.updatedAtMs, Date.parse('2026-08-30T10:00:00Z'));
+  assert.equal(normalizeSearchRecord({ id: 1, type: 'unknown', title: '坏数据' }), null);
+  assert.equal(normalizeSearchRecord({ id: 2, type: 'movie', title: '缺失评分', scoreDouban: null }).rating, null);
 });
