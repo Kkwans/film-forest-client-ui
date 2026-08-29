@@ -6,6 +6,7 @@ import MovieCard from '@/components/MovieCard';
 import { usePlayHistoryStore } from '@/stores/playHistoryStore';
 import { recommendApi, type RecommendItem } from '@/lib/api';
 import { parseGenre } from '@/lib/utils';
+import { contentStatusKey, useContentStatuses } from '@/hooks/useMovieStatuses';
 
 function topValues(values: string[], limit: number) {
   const counts = new Map<string, number>();
@@ -22,6 +23,8 @@ export default function PersonalizedRecommend() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const statusQueries = useMemo(() => items.map((item) => ({ contentType: item.type, contentId: item.id })), [items]);
+  const statuses = useContentStatuses(statusQueries);
 
   const preferences = useMemo(() => {
     const genres = topValues(history.flatMap((item) => item.genres || []), 3);
@@ -93,15 +96,15 @@ export default function PersonalizedRecommend() {
       ) : (
         <>
           <div className="hidden grid-cols-6 gap-3.5 md:grid">
-            {items.map((item) => (
-              <MovieCard key={`personalized-${item.type}-${item.id}`} id={item.id} title={item.title} cover={item.posterUrl || ''} year={item.year || 0} region={item.region || ''} rating={item.scoreDouban || undefined} genre={item.genre ? parseGenre(item.genre) : undefined} type={item.type} episodes={item.totalEpisode || undefined} href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`} />
+              {items.map((item) => (
+                <MovieCard key={`personalized-${item.type}-${item.id}`} id={item.id} title={item.title} cover={item.posterUrl || ''} year={item.year || 0} region={item.region || ''} rating={item.scoreDouban || undefined} genre={item.genre ? parseGenre(item.genre) : undefined} type={item.type} episodes={item.totalEpisode || undefined} href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`} movieStatus={statuses[contentStatusKey(item.type, item.id)] || null} />
             ))}
           </div>
           <div className="relative md:hidden">
             <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {items.map((item) => (
                 <div key={`personalized-mobile-${item.type}-${item.id}`} className="w-[124px] flex-shrink-0 snap-start">
-                  <MovieCard id={item.id} title={item.title} cover={item.posterUrl || ''} year={item.year || 0} region={item.region || ''} rating={item.scoreDouban || undefined} genre={item.genre ? parseGenre(item.genre) : undefined} type={item.type} episodes={item.totalEpisode || undefined} href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`} />
+                  <MovieCard id={item.id} title={item.title} cover={item.posterUrl || ''} year={item.year || 0} region={item.region || ''} rating={item.scoreDouban || undefined} genre={item.genre ? parseGenre(item.genre) : undefined} type={item.type} episodes={item.totalEpisode || undefined} href={`/${item.type === 'short_drama' ? 'short' : item.type}/${item.id}`} movieStatus={statuses[contentStatusKey(item.type, item.id)] || null} />
                 </div>
               ))}
             </div>

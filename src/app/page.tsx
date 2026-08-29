@@ -15,6 +15,7 @@ interface RecommendItem {
   genre?: string;
   region?: string;
   totalEpisode?: number;
+  summary?: string;
 }
 
 interface RecommendData {
@@ -36,6 +37,7 @@ function mapGroup(group: Record<string, RecommendItem[]> | undefined): Record<st
       rating: item.scoreDouban || undefined,
       genre: parseGenre(item.genre),
       episodes: item.totalEpisode || undefined,
+      summary: item.summary?.trim() || undefined,
     })),
   ]));
 }

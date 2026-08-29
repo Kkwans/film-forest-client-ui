@@ -20,6 +20,7 @@ export interface HomeContentItem {
   rating?: number;
   genre?: string[];
   episodes?: number;
+  summary?: string;
 }
 
 interface MixedItem extends HomeContentItem {
@@ -68,7 +69,7 @@ function FeaturedStory({ item }: { item: MixedItem }) {
             {item.rating != null && <span className="font-semibold text-foreground">豆瓣 {item.rating.toFixed(1)}</span>}
           </div>
           <p className="mt-5 max-w-[58ch] text-pretty text-sm leading-7 text-secondary-foreground sm:text-base">
-            从真实入库内容中挑选，进入详情即可查看完整简介、主创信息与当前可用资源。
+            {item.summary || '进入详情查看完整简介、主创信息与当前可用资源。'}
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link href={href} className="inline-flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-semibold text-white shadow-sm hover:bg-accent-hover">
@@ -133,20 +134,7 @@ function RecommendSection({ title, description, icon: Icon, items }: {
   if (items.length === 0) return null;
   return (
     <section aria-labelledby={`home-${title}`}>
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 grid size-9 place-items-center rounded-xl bg-accent-light text-accent" aria-hidden>
-            <Icon className="size-[1.125rem]" />
-          </span>
-          <div>
-            <h2 id={`home-${title}`} className="text-xl font-bold tracking-[-0.02em] text-foreground">{title}</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-          </div>
-        </div>
-        <Link href="/category" className="hidden items-center gap-1 text-xs font-semibold text-accent hover:text-accent-hover sm:inline-flex">
-          查看分类 <ArrowRight className="size-3.5" aria-hidden />
-        </Link>
-      </div>
+      <SectionHeader title={title} description={description} Icon={Icon} />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 md:gap-4 lg:grid-cols-6">
         {items.map((item) => {
           const type = normalizeContentType(item.type);
@@ -170,6 +158,25 @@ function RecommendSection({ title, description, icon: Icon, items }: {
         })}
       </div>
     </section>
+  );
+}
+
+function SectionHeader({ title, description, Icon }: { title: string; description: string; Icon: LucideIcon }) {
+  return (
+    <div className="mb-5 flex items-end justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 grid size-9 place-items-center rounded-xl bg-accent-light text-accent" aria-hidden>
+            <Icon className="size-[1.125rem]" />
+          </span>
+          <div>
+            <h2 id={`home-${title}`} className="text-xl font-bold tracking-[-0.02em] text-foreground">{title}</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+          </div>
+        </div>
+        <Link href="/category" className="hidden items-center gap-1 text-xs font-semibold text-accent hover:text-accent-hover sm:inline-flex">
+          查看分类 <ArrowRight className="size-3.5" aria-hidden />
+        </Link>
+      </div>
   );
 }
 
