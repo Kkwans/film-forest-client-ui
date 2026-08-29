@@ -353,7 +353,7 @@ function SearchContent() {
             <button
               type="button"
               onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, language: null, hasResource: null, userStatus: null, page: 1 })}
-              className="h-8 rounded-lg border border-border px-3 text-xs font-medium text-secondary-foreground hover:border-accent hover:text-accent"
+              className="h-11 rounded-lg border border-border px-3 text-xs font-medium text-secondary-foreground hover:border-accent hover:text-accent sm:h-8"
             >
               清除筛选 · {activeFilterCount}
             </button>

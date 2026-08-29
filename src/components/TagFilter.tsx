@@ -59,7 +59,7 @@ export default function TagFilter({ contentType, selectedTagId, onSelect, select
       <button
         type="button"
         onClick={() => setRequestVersion((version) => version + 1)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-secondary-foreground hover:text-foreground"
+        className="inline-flex h-11 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-medium text-secondary-foreground hover:text-foreground sm:h-8"
       >
         <RotateCcw className="size-3.5" aria-hidden />题材加载失败，重试
       </button>

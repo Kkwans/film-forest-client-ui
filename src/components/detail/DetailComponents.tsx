@@ -176,7 +176,7 @@ export function SynopsisSection({ text, expanded, onToggle }: {
       {(canExpand || expanded) && (
         <button
           onClick={onToggle}
-          className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-lg text-sm font-semibold text-accent"
+          className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-accent sm:min-h-9"
         >
           {expanded ? '收起' : '展开全部'}
           <ChevronDown aria-hidden className={`size-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
@@ -209,7 +209,7 @@ export function DetailTabBar<T extends string>({ tabs, active, onChange }: {
           onClick={() => onChange(tab.key)}
           role="tab"
           aria-selected={active === tab.key}
-          className={`min-h-9 shrink-0 rounded-lg px-3 text-sm font-semibold transition-[color,background-color,box-shadow] ${active === tab.key ? 'bg-card text-accent shadow-sm' : 'text-secondary-foreground hover:text-foreground'}`}
+          className={`min-h-11 shrink-0 rounded-lg px-3 text-sm font-semibold transition-[color,background-color,box-shadow] sm:min-h-9 ${active === tab.key ? 'bg-card text-accent shadow-sm' : 'text-secondary-foreground hover:text-foreground'}`}
         >
           {tab.label}{tab.count != null ? ` (${tab.count})` : ''}
         </button>
@@ -241,7 +241,7 @@ export function EpisodeGrid({ total, selected, onSelect, label = '集', gridCols
           <button
             key={ep}
             onClick={() => onSelect(selected === ep ? null : ep)}
-            className={`min-h-10 rounded-xl border px-3 py-2 text-sm font-semibold transition-[color,background-color,border-color] ${
+            className={`min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold transition-[color,background-color,border-color] sm:min-h-10 ${
               selected === ep
                 ? 'border-accent bg-accent text-white'
                 : 'border-border bg-background text-foreground hover:border-accent/50 hover:text-accent'
@@ -366,7 +366,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                 role="tab"
                 aria-selected={selectedProvider == null}
                 onClick={() => setSelectedProvider(null)}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors ${selectedProvider == null ? 'border-accent bg-accent text-white' : 'border-border text-secondary-foreground hover:border-accent/50 hover:text-accent'}`}
+                className={`min-h-11 rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors sm:min-h-0 ${selectedProvider == null ? 'border-accent bg-accent text-white' : 'border-border text-secondary-foreground hover:border-accent/50 hover:text-accent'}`}
               >
                 全部来源
               </button>
@@ -377,7 +377,7 @@ export function OnlineResourceGrid({ resources, loading, emptyText = '暂无在�
                   aria-selected={selectedProvider === providerName}
                   key={providerName}
                   onClick={() => setSelectedProvider(providerName)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors ${selectedProvider === providerName ? 'border-accent bg-accent text-white' : 'border-border text-secondary-foreground hover:border-accent/50 hover:text-accent'}`}
+                  className={`min-h-11 rounded-lg border px-3 py-1.5 text-sm font-semibold transition-colors sm:min-h-0 ${selectedProvider === providerName ? 'border-accent bg-accent text-white' : 'border-border text-secondary-foreground hover:border-accent/50 hover:text-accent'}`}
                 >
                   {providerName} <span className="text-xs opacity-75">{items.length}</span>
                 </button>
@@ -508,7 +508,7 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
                 href={r.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-[border-color,color] hover:border-accent/45 hover:text-accent"
+                className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition-[border-color,color] hover:border-accent/45 hover:text-accent sm:min-h-9"
               >
                 <ExternalLink aria-hidden className="size-3.5" />{r.openLabel}
               </a>
@@ -518,7 +518,7 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
               onClick={() => onCopy(r.copyValue || r.url || '', r.id, r.copySuccessMessage)}
               disabled={!(r.copyValue || r.url)}
               aria-label={`${r.copyLabel || '复制链接'}：${r.title || '资源'}`}
-              className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition-colors ${
+              className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition-colors sm:min-h-9 ${
                 copiedId === r.id ? 'bg-copied' : 'bg-accent hover:bg-accent-hover'
               } disabled:cursor-not-allowed disabled:opacity-50`}
             >
@@ -583,7 +583,7 @@ export function MagnetResourceList({ resources, copiedId, onCopy, emptyText }: {
                   type="button"
                   onClick={() => onCopy(value, resource.id, '磁力链接已复制')}
                   disabled={!value}
-                  className={`inline-flex min-h-9 w-full items-center justify-center rounded-lg px-3 text-xs font-semibold leading-none transition-colors md:min-h-9 md:w-auto md:whitespace-nowrap ${copiedId === resource.id ? 'bg-copied text-white' : 'bg-accent text-white hover:bg-accent-hover'} disabled:cursor-not-allowed disabled:opacity-50`}
+                  className={`inline-flex min-h-11 w-full items-center justify-center rounded-lg px-3 text-xs font-semibold leading-none transition-colors md:min-h-9 md:w-auto md:whitespace-nowrap ${copiedId === resource.id ? 'bg-copied text-white' : 'bg-accent text-white hover:bg-accent-hover'} disabled:cursor-not-allowed disabled:opacity-50`}
                   aria-label={`${copiedId === resource.id ? '已复制' : '复制磁力'}：${resource.title || '资源'}`}
                 >
                   {copiedId === resource.id ? '已复制' : '复制磁力'}

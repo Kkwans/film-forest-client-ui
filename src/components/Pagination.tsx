@@ -32,7 +32,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
-        className="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40"
+        className="min-h-11 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 sm:min-h-8"
         style={{
           borderColor: 'var(--border-color)',
           color: 'var(--text-secondary)',
@@ -48,7 +48,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
           <button
             key={idx}
             onClick={() => onPageChange(page)}
-            className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
+            className="h-11 w-11 rounded-lg text-sm font-medium transition-colors sm:h-8 sm:w-8"
             style={{
               backgroundColor: page === currentPage ? 'var(--accent)' : 'var(--bg-card)',
               color: page === currentPage ? 'white' : 'var(--text-secondary)',
@@ -69,7 +69,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
-        className="px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40"
+        className="min-h-11 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 sm:min-h-8"
         style={{
           borderColor: 'var(--border-color)',
           color: 'var(--text-secondary)',

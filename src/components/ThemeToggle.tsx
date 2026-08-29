@@ -35,7 +35,7 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={`${compact ? 'size-9 rounded-xl' : 'h-9 rounded-xl px-3'} inline-flex items-center justify-center gap-2 border border-border bg-card text-secondary-foreground outline-none transition-colors hover:border-[var(--accent)]/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--accent)]/35 data-[popup-open]:border-[var(--accent)]/40 data-[popup-open]:text-foreground`}
+        className={`${compact ? 'size-11 rounded-xl lg:size-9' : 'h-11 rounded-xl px-3 lg:h-9'} inline-flex items-center justify-center gap-2 border border-border bg-card text-secondary-foreground outline-none transition-colors hover:border-[var(--accent)]/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-[var(--accent)]/35 data-[popup-open]:border-[var(--accent)]/40 data-[popup-open]:text-foreground`}
         aria-label={`切换主题，当前${THEME_LABELS[currentTheme]}`}
         title={`外观：${THEME_LABELS[currentTheme]}`}
       >

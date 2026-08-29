@@ -41,7 +41,7 @@ export default function CustomSelect({
       <SelectTrigger
         aria-label={ariaLabel}
         className={cn(
-          'min-w-[6.5rem] border-border bg-card px-3 hover:border-[var(--accent)] data-[popup-open]:border-[var(--accent)]',
+          'h-11 min-w-[6.5rem] border-border bg-card px-3 hover:border-[var(--accent)] data-[popup-open]:border-[var(--accent)] sm:h-8',
           className,
         )}
       >
@@ -49,7 +49,7 @@ export default function CustomSelect({
       </SelectTrigger>
       <SelectContent align="start" alignItemWithTrigger={false} className="min-w-[var(--anchor-width)] p-1">
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value} className="min-h-8 px-2.5 pr-8">
+          <SelectItem key={option.value} value={option.value} className="min-h-11 px-2.5 pr-8 sm:min-h-8">
             {option.label}
           </SelectItem>
         ))}

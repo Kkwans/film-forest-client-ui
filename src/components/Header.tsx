@@ -154,7 +154,7 @@ export default function Header() {
       >
         <div className="mx-auto flex h-16 max-w-[120rem] items-center gap-5 px-4 sm:px-6 lg:px-8">
           {/* Logo */}
-          <Link href="/" className="group flex shrink-0 items-center gap-2.5 no-underline" aria-label="影视森林首页">
+          <Link href="/" className="group flex min-h-11 shrink-0 items-center gap-2.5 no-underline" aria-label="影视森林首页">
             <span className="flex size-9 items-center justify-center rounded-xl bg-[var(--accent)] text-white shadow-[var(--shadow-sm)] transition-transform group-hover:-translate-y-0.5">
               <TreePine className="size-[19px]" strokeWidth={2.1} aria-hidden />
             </span>
@@ -342,7 +342,7 @@ export default function Header() {
             <ThemeToggle compact />
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex size-9 items-center justify-center rounded-xl border border-border bg-card text-secondary-foreground"
+              className="flex size-11 items-center justify-center rounded-xl border border-border bg-card text-secondary-foreground lg:size-9"
               aria-label={menuOpen ? '关闭菜单' : '打开菜单'}
               aria-expanded={menuOpen}
               aria-controls="mobile-navigation-drawer"
@@ -379,7 +379,7 @@ export default function Header() {
             </span>
             <button
               onClick={() => setMenuOpen(false)}
-              className="flex size-9 items-center justify-center rounded-xl text-secondary-foreground hover:bg-[var(--accent-light)] hover:text-foreground"
+              className="flex size-11 items-center justify-center rounded-xl text-secondary-foreground hover:bg-[var(--accent-light)] hover:text-foreground lg:size-9"
               aria-label="关闭导航菜单"
             >
               <X className="size-[18px]" aria-hidden />
@@ -393,7 +393,7 @@ export default function Header() {
               placeholder="搜索影片..."
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--accent)]"
+              className="h-11 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[var(--accent)]"
             />
           </form>
 

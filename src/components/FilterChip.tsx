@@ -16,7 +16,7 @@ interface FilterChipProps {
 
 export default function FilterChip({ label, active, onClick, size = 'md' }: FilterChipProps) {
   const sizeClasses = size === 'sm'
-    ? 'min-h-10 px-3 py-1 rounded-lg text-xs'
+    ? 'min-h-11 px-3 py-1 rounded-lg text-xs sm:min-h-10'
     : 'min-h-11 sm:min-h-9 px-3 py-1.5 rounded-full text-sm';
 
   return (

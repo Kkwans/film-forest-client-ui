@@ -41,7 +41,7 @@ function MiniStars({ rating }: { rating?: number }) {
   );
 }
 
-const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition-[border-color,background-color,color] hover:border-accent/40 hover:bg-accent/5 hover:text-accent disabled:cursor-not-allowed disabled:opacity-60';
+const secondaryButton = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition-[border-color,background-color,color] hover:border-accent/40 hover:bg-accent/5 hover:text-accent disabled:cursor-not-allowed disabled:opacity-60';
 
 export default function DetailButtons({
   contentId,

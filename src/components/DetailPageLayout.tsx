@@ -803,7 +803,7 @@ export default function DetailPageLayout({
                           type="button"
                           onClick={() => setMagnetQuality(category)}
                           aria-pressed={active}
-                          className={`min-h-9 shrink-0 rounded-full border px-3 text-xs font-semibold transition-[color,background-color,border-color] ${
+                          className={`min-h-11 shrink-0 rounded-full border px-3 text-xs font-semibold transition-[color,background-color,border-color] sm:min-h-9 ${
                             active
                               ? 'border-accent bg-accent text-white'
                               : 'border-border bg-background text-secondary-foreground hover:border-accent/45'
@@ -856,7 +856,7 @@ export default function DetailPageLayout({
                           type="button"
                           onClick={() => setCloudDiskType(diskType)}
                           aria-pressed={active}
-                          className={`min-h-9 rounded-full border px-3 text-xs font-semibold transition-[color,background-color,border-color] ${active ? 'border-accent bg-accent text-white' : 'border-border bg-background text-secondary-foreground hover:border-accent/45'}`}
+                          className={`min-h-11 rounded-full border px-3 text-xs font-semibold transition-[color,background-color,border-color] sm:min-h-9 ${active ? 'border-accent bg-accent text-white' : 'border-border bg-background text-secondary-foreground hover:border-accent/45'}`}
                         >
                           {DISK_LABELS[diskType] || diskType} <span className={active ? 'text-white' : 'text-muted-foreground'}>{count}</span>
                         </button>

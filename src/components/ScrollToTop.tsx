@@ -29,7 +29,7 @@ export default function ScrollToTop() {
     <button
       onClick={handleClick}
       aria-label="回到顶部"
-      className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40 w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer"
+      className="fixed bottom-20 right-4 md:bottom-8 md:right-8 z-40 h-11 w-11 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 cursor-pointer md:h-10 md:w-10"
       style={{
         backgroundColor: 'var(--accent)',
         color: '#fff',

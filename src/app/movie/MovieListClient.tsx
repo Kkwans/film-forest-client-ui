@@ -82,7 +82,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
           <button
             type="button"
             onClick={() => setFiltersOpen((open) => !open)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-secondary-foreground lg:hidden"
+            className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-secondary-foreground lg:hidden"
             aria-expanded={filtersOpen}
             aria-controls="content-filters"
           >
@@ -90,7 +90,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
             筛选{activeFilterCount > 0 ? ` ${activeFilterCount}` : ''}
           </button>
           {activeFilterCount > 0 && (
-            <button type="button" onClick={resetFilters} className="h-9 rounded-xl border border-[var(--accent)] px-3 text-xs font-semibold text-[var(--accent)]">
+            <button type="button" onClick={resetFilters} className="h-11 rounded-xl border border-[var(--accent)] px-3 text-xs font-semibold text-[var(--accent)]">
               清除筛选
             </button>
           )}
@@ -161,10 +161,10 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
                 });
               }}
             >
-              <input aria-label="起始年份" name="yearFrom" type="number" min="1900" max="9999" defaultValue={query.yearFrom} placeholder="起始年" className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground" />
+              <input aria-label="起始年份" name="yearFrom" type="number" min="1900" max="9999" defaultValue={query.yearFrom} placeholder="起始年" className="h-11 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground sm:h-8" />
               <span className="text-sm text-muted-foreground">—</span>
-              <input aria-label="结束年份" name="yearTo" type="number" min="1900" max="9999" defaultValue={query.yearTo} placeholder="结束年" className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground" />
-              <button type="submit" className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-secondary-foreground">应用</button>
+              <input aria-label="结束年份" name="yearTo" type="number" min="1900" max="9999" defaultValue={query.yearTo} placeholder="结束年" className="h-11 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground sm:h-8" />
+              <button type="submit" className="h-11 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-secondary-foreground sm:h-8">应用</button>
             </form>
           </div>
         </div>
