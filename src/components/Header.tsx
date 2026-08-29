@@ -35,7 +35,11 @@ export default function Header() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestLoading, setSuggestLoading] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const [isComposing, setIsComposing] = useState(false);
   const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestControllerRef = useRef<AbortController | null>(null);
+  const suggestSequenceRef = useRef(0);
   const searchWrapRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useUserStore();
@@ -54,6 +58,11 @@ export default function Header() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  useEffect(() => () => {
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    suggestControllerRef.current?.abort();
+  }, []);
+
   useEffect(() => {
     if (!menuOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -70,16 +79,23 @@ export default function Header() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (keyword.trim()) {
+    if (isComposing) return;
+    const active = suggestions[activeSuggestion];
+    const value = active || keyword;
+    if (value.trim()) {
       setShowSuggestions(false);
-      router.push(`/search?q=${encodeURIComponent(keyword.trim())}`);
+      router.push(`/search?q=${encodeURIComponent(value.trim())}`);
     }
   };
 
   const handleSearchInput = (value: string) => {
     setKeyword(value);
+    setActiveSuggestion(-1);
+    const sequence = ++suggestSequenceRef.current;
     if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
-    if (!value.trim()) {
+    suggestControllerRef.current?.abort();
+    const normalized = value.trim();
+    if (!normalized || Array.from(normalized).length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
       setSuggestLoading(false);
@@ -87,16 +103,24 @@ export default function Header() {
     }
     setSuggestLoading(true);
     suggestTimerRef.current = setTimeout(() => {
-      searchApi.suggest(value.trim()).then(res => {
-        setSuggestions(res.data?.data || []);
+      const controller = new AbortController();
+      suggestControllerRef.current = controller;
+      searchApi.suggest(normalized, { signal: controller.signal }).then(res => {
+        if (sequence !== suggestSequenceRef.current) return;
+        setSuggestions(Array.isArray(res.data?.data) ? res.data.data : []);
         setShowSuggestions(true);
-      }).catch(() => setSuggestions([])).finally(() => setSuggestLoading(false));
+      }).catch((error) => {
+        if (error?.name !== 'CanceledError' && error?.name !== 'AbortError' && sequence === suggestSequenceRef.current) setSuggestions([]);
+      }).finally(() => {
+        if (sequence === suggestSequenceRef.current) setSuggestLoading(false);
+      });
     }, 300);
   };
 
   const handleSuggestionClick = (kw: string) => {
     setKeyword(kw);
     setShowSuggestions(false);
+    setActiveSuggestion(-1);
     router.push(`/search?q=${encodeURIComponent(kw)}`);
   };
 
@@ -138,13 +162,14 @@ export default function Header() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden shrink-0 items-center gap-1 lg:flex" aria-label="内容导航">
+          <nav className="hidden shrink-0 items-center gap-1 md:flex" aria-label="内容导航">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 aria-current={isActive(item.href) ? 'page' : undefined}
-                className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-2.5 py-2 text-sm font-medium transition-colors lg:px-3 ${item.label === '收藏' || item.label === '设置' ? 'hidden xl:inline-flex' : 'inline-flex'} ${
                   isActive(item.href)
                     ? 'bg-[var(--accent-light)] text-[var(--accent)]'
                     : 'text-secondary-foreground hover:bg-card hover:text-foreground'
@@ -158,7 +183,7 @@ export default function Header() {
           {/* Search + Dark Toggle + Auth (desktop) */}
           <div className="hidden min-w-0 flex-1 items-center justify-end gap-2 lg:flex">
             <form onSubmit={handleSearch} className="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <div className="relative min-w-0 flex-1" ref={searchWrapRef}>
+              <div className="relative min-w-[220px] flex-1" ref={searchWrapRef}>
                 {/* Search icon */}
                 <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   <Search className="size-4" aria-hidden />
@@ -170,10 +195,33 @@ export default function Header() {
                   onChange={(e) => handleSearchInput(e.target.value)}
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      setShowSuggestions(false);
+                      setActiveSuggestion(-1);
+                      return;
+                    }
+                    if (event.key === 'ArrowDown' && suggestions.length > 0) {
+                      event.preventDefault();
+                      setShowSuggestions(true);
+                      setActiveSuggestion((index) => (index + 1) % suggestions.length);
+                    }
+                    if (event.key === 'ArrowUp' && suggestions.length > 0) {
+                      event.preventDefault();
+                      setActiveSuggestion((index) => (index - 1 + suggestions.length) % suggestions.length);
+                    }
+                    if (event.key === 'Enter' && activeSuggestion >= 0 && suggestions[activeSuggestion]) {
+                      event.preventDefault();
+                      handleSuggestionClick(suggestions[activeSuggestion]);
+                    }
+                  }}
+                  onCompositionStart={() => setIsComposing(true)}
+                  onCompositionEnd={(event) => { setIsComposing(false); handleSearchInput(event.currentTarget.value); }}
                   role="combobox"
                   aria-autocomplete="list"
                   aria-controls="header-search-suggestions"
                   aria-expanded={showSuggestions && (suggestions.length > 0 || suggestLoading)}
+                  aria-activedescendant={activeSuggestion >= 0 ? `header-suggestion-${activeSuggestion}` : undefined}
                   className="header-search-input h-9 w-full rounded-xl border border-border bg-card pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--accent)]"
                 />
                 {/* Clear button */}
@@ -207,9 +255,10 @@ export default function Header() {
                     {!suggestLoading && suggestions.map((s, i) => (
                       <button
                         key={i}
+                        id={`header-suggestion-${i}`}
                         role="option"
-                        aria-selected="false"
-                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-[var(--accent-light)]"
+                        aria-selected={activeSuggestion === i}
+                        className={`w-full rounded-lg px-3 py-2 text-left text-sm text-foreground transition-colors ${activeSuggestion === i ? 'bg-[var(--accent-light)]' : 'hover:bg-[var(--accent-light)]'}`}
                         onMouseDown={() => handleSuggestionClick(s)}
                       >
                         {s}
@@ -349,9 +398,10 @@ export default function Header() {
           </form>
 
           {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={false}
               onClick={() => setMenuOpen(false)}
               aria-current={isActive(item.href) ? 'page' : undefined}
               className={`rounded-xl px-3 py-3 text-sm font-semibold transition-colors ${isActive(item.href) ? 'bg-[var(--accent-light)] text-[var(--accent)]' : 'text-secondary-foreground hover:bg-background hover:text-foreground'}`}

@@ -18,21 +18,23 @@ import {
   parseJsonArr,
 } from '@/lib/contentConstants';
 import { parseRegion } from '@/lib/utils';
+import { LANGUAGES, REGIONS } from '@/lib/filterOptions';
 import { contentStatusKey, useContentStatuses } from '@/hooks/useMovieStatuses';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
 import { useUserStore } from '@/stores/userStore';
+import { normalizeSearchRecord, type SearchRecord } from '@/lib/api';
 
 interface SearchResult {
   id: number;
-  type: string;
+  type: ContentType;
   title: string;
   cover?: string;
-  year?: number;
-  rating?: number;
-  ratingImdb?: number;
-  ratingRT?: number;
+  year?: number | null;
+  rating?: number | null;
+  ratingImdb?: number | null;
+  ratingRT?: number | null;
   duration?: number;
-  summary?: string;
+  summary?: string | null;
   genre?: string;
   region?: string;
   alias?: string | string[];
@@ -64,7 +66,6 @@ const SORT_OPTIONS = [
 ] as const;
 type SortOptionValue = (typeof SORT_OPTIONS)[number]['value'];
 
-const REGIONS = ['大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国'];
 const RESOURCE_OPTIONS = [
   { label: '全部资源状态', value: 'all' },
   { label: '有可用资源', value: 'true' },
@@ -100,14 +101,6 @@ function hasYearSuffix(title: string, year: number): boolean {
   return new RegExp(`[（(]\\s*${year}\\s*[）)]$`).test(title.trim());
 }
 
-function statusMatchesFilter(filter: UserStatusFilter, status: { listType: string } | null | undefined): boolean {
-  if (filter === 'watched') return status?.listType === 'watched';
-  if (filter === 'unwatched') return status?.listType !== 'watched';
-  if (filter === 'listed') return status != null;
-  if (filter === 'unlisted') return status == null;
-  return true;
-}
-
 function Highlight({ text, keyword }: { text: string; keyword: string }) {
   if (!keyword.trim()) return text;
   const normalizedKeyword = keyword.trim();
@@ -137,22 +130,20 @@ function HighlightValues({ values, keyword }: { values: string[]; keyword: strin
   return <>{values.map((value, index) => <span key={`${value}-${index}`}><Highlight text={value} keyword={keyword} />{index < values.length - 1 && <span className="mx-1 text-muted-foreground/60">/</span>}</span>)}</>;
 }
 
-function SearchRatingSummary({ douban, imdb, rt }: { douban?: number; imdb?: number; rt?: number }) {
-  const formatScore = (value: number | undefined, suffix = '') => (
-    typeof value === 'number' && value > 0 ? `${value.toFixed(1)}${suffix}` : '--'
-  );
+function SearchRatingSummary({ douban, imdb, rt }: { douban?: number | null; imdb?: number | null; rt?: number | null }) {
+  const formatScore = (value: number | null | undefined, suffix = '') => typeof value === 'number' && value > 0 ? `${value.toFixed(1)}${suffix}` : null;
+  const ratings = [
+    { label: '豆瓣', score: formatScore(douban), className: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+    { label: 'IMDb', score: formatScore(imdb), className: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300' },
+    { label: '烂番茄', score: formatScore(rt, '%'), className: 'border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300' },
+  ].filter((rating): rating is { label: string; score: string; className: string } => Boolean(rating.score));
+  if (ratings.length === 0) return null;
 
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="平台评分">
-      <span className="inline-flex h-6 items-center gap-1 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-300">
-        <Star aria-hidden className="size-3 fill-current" />豆瓣 <strong className="tabular-nums">{formatScore(douban)}</strong>
-      </span>
-      <span className="hidden h-6 items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-300 sm:inline-flex">
-        <Star aria-hidden className="size-3 fill-current" />IMDb <strong className="tabular-nums">{formatScore(imdb)}</strong>
-      </span>
-      <span className="hidden h-6 items-center gap-1 rounded-md border border-red-500/20 bg-red-500/10 px-1.5 text-[10px] font-medium text-red-700 dark:text-red-300 sm:inline-flex">
-        <Star aria-hidden className="size-3 fill-current" />烂番茄 <strong className="tabular-nums">{formatScore(rt, '%')}</strong>
-      </span>
+      {ratings.map((rating) => <span key={rating.label} className={`inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-[10px] font-medium ${rating.className}`}>
+        <Star aria-hidden className="size-3 fill-current" />{rating.label} <strong className="tabular-nums">{rating.score}</strong>
+      </span>)}
     </div>
   );
 }
@@ -196,6 +187,7 @@ function SearchContent() {
   const rawTagId = Number(searchParams.get('tagId'));
   const tagId = selectedContentType && Number.isSafeInteger(rawTagId) && rawTagId > 0 ? rawTagId : null;
   const region = searchParams.get('region')?.trim() || '';
+  const language = searchParams.get('language')?.trim() || '';
   const rawResourceFilter = searchParams.get('hasResource');
   const hasResource = rawResourceFilter === 'true' || rawResourceFilter === 'false' ? rawResourceFilter : 'all';
   const rawUserStatus = searchParams.get('userStatus');
@@ -267,6 +259,7 @@ function SearchContent() {
     if (selectedContentType) params.set('typeFilter', selectedContentType);
     if (tagId) params.set('tagId', String(tagId));
     if (region) params.set('region', region);
+    if (language) params.set('language', language);
     if (hasResource !== 'all') params.set('hasResource', hasResource);
     if (userStatus !== 'all') params.set('userStatus', userStatus);
     const token = typeof window !== 'undefined' ? localStorage.getItem('ff_token') : null;
@@ -282,8 +275,12 @@ function SearchContent() {
         if (currentRequest !== requestId.current) return;
         if (payload?.code !== 200) throw new Error(payload?.message || '搜索请求失败');
         const next = payload?.data || {};
+        const rawRecords: unknown[] = Array.isArray(next.records) ? next.records : [];
+        const normalizedRecords = rawRecords
+          .map((record) => normalizeSearchRecord(record))
+          .filter((record): record is SearchRecord => record !== null);
         setData({
-          records: Array.isArray(next.records) ? next.records : [],
+          records: normalizedRecords,
           total: Number(next.total || 0),
           size: Number(next.size || size),
           current: Number(next.current || page),
@@ -297,21 +294,15 @@ function SearchContent() {
       })
       .finally(() => { if (currentRequest === requestId.current) setLoading(false); });
     return () => controller.abort();
-  }, [q, selectedContentType, tagId, region, hasResource, userStatus, apiSort, sortDir, page, size, requestVersion]);
+  }, [q, selectedContentType, tagId, region, language, hasResource, userStatus, apiSort, sortDir, page, size, requestVersion]);
 
   const statusQueries = useMemo(
     () => data.records.map((item) => ({ contentType: item.type, contentId: item.id })),
     [data.records],
   );
   const statuses = useContentStatuses(statusQueries);
-  const statusFilterReady = !isAuthenticated || userStatus === 'all' || statusQueries.length === 0 || statusQueries.every((query) => Object.prototype.hasOwnProperty.call(statuses, contentStatusKey(query.contentType, query.contentId)));
-  const visibleRecords = useMemo(
-    () => !isAuthenticated || userStatus === 'all' || !statusFilterReady
-      ? data.records
-      : data.records.filter((item) => statusMatchesFilter(userStatus, statuses[contentStatusKey(item.type, item.id)])),
-    [data.records, isAuthenticated, statusFilterReady, statuses, userStatus],
-  );
-  const activeFilterCount = [selectedContentType, tagId, region, hasResource === 'all' ? null : hasResource, userStatus === 'all' ? null : userStatus]
+  const visibleRecords = data.records;
+  const activeFilterCount = [selectedContentType, tagId, region, language, hasResource === 'all' ? null : hasResource, userStatus === 'all' ? null : userStatus]
     .filter(Boolean).length;
 
   const submit = (keyword: string) => {
@@ -338,6 +329,12 @@ function SearchContent() {
             onChange={(value) => navigate({ region: value === 'all' ? null : value, page: 1 })}
           />
           <CustomSelect
+            ariaLabel="搜索语言"
+            value={language || 'all'}
+            options={[{ label: '全部语言', value: 'all' }, ...LANGUAGES.map((item) => ({ label: item, value: item }))]}
+            onChange={(value) => navigate({ language: value === 'all' ? null : value, page: 1 })}
+          />
+          <CustomSelect
             ariaLabel="资源状态"
             value={hasResource}
             options={RESOURCE_OPTIONS}
@@ -352,11 +349,10 @@ function SearchContent() {
             />
           )}
           {!isAuthenticated && <span className="inline-flex h-8 items-center rounded-lg border border-dashed border-border px-3 text-xs text-muted-foreground" title="登录后可筛选观看状态">观看状态（登录后可筛选）</span>}
-          {isAuthenticated && userStatus !== 'all' && !statusFilterReady && <span className="text-xs text-muted-foreground" aria-live="polite">正在同步观看状态…</span>}
           {activeFilterCount > 0 && (
             <button
               type="button"
-              onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, hasResource: null, userStatus: null, page: 1 })}
+              onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, language: null, hasResource: null, userStatus: null, page: 1 })}
               className="h-8 rounded-lg border border-border px-3 text-xs font-medium text-secondary-foreground hover:border-accent hover:text-accent"
             >
               清除筛选 · {activeFilterCount}
@@ -406,11 +402,11 @@ function SearchContent() {
         </div>
       ) : !loading && visibleRecords.length === 0 ? (
         <div className="py-16 text-center">
-          <p className="text-sm text-secondary-foreground">{userStatus !== 'all' && statusFilterReady ? `当前结果没有符合“${USER_STATUS_OPTIONS.find((option) => option.value === userStatus)?.label || '观看状态'}”的内容` : `没有找到“${q}”`}</p>
+          <p className="text-sm text-secondary-foreground">{userStatus !== 'all' ? `当前结果没有符合“${USER_STATUS_OPTIONS.find((option) => option.value === userStatus)?.label || '观看状态'}”的内容` : `没有找到“${q}”`}</p>
           <p className="mt-2 text-xs text-muted-foreground">可尝试缩短关键词或减少筛选条件</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             {tagId && <button type="button" onClick={() => navigate({ tagId: null, page: 1 })} className="rounded-xl border border-border px-4 py-2 text-xs font-medium text-secondary-foreground">清除题材</button>}
-            {activeFilterCount > 0 && <button type="button" onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, hasResource: null, userStatus: null, page: 1 })} className="rounded-xl border border-accent px-4 py-2 text-xs font-medium text-accent">清除全部筛选</button>}
+            {activeFilterCount > 0 && <button type="button" onClick={() => navigate({ typeFilter: null, tagId: null, year: null, region: null, language: null, hasResource: null, userStatus: null, page: 1 })} className="rounded-xl border border-accent px-4 py-2 text-xs font-medium text-accent">清除全部筛选</button>}
           </div>
         </div>
       ) : (
@@ -426,28 +422,15 @@ function SearchContent() {
             const displayYear = validYear(item.year);
             const releaseValue = item.releaseDate?.trim() || (displayYear ? String(displayYear) : '--');
             return (
-              <Link key={`${type}-${item.id}`} href={`/${config.route}/${item.id}`} prefetch={false} className="grid min-h-[10.5rem] grid-cols-[6.5rem_minmax(0,1fr)] gap-3 rounded-2xl border border-border bg-card p-3 transition-[border-color,box-shadow] hover:border-accent/40 hover:shadow-sm sm:min-h-[12rem] sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
+              <article key={`${type}-${item.id}`} className="relative rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/40 hover:shadow-sm">
+                <Link href={`/${config.route}/${item.id}`} prefetch={false} className="grid min-h-[10.5rem] grid-cols-[6.5rem_minmax(0,1fr)] gap-3 p-3 no-underline sm:min-h-[12rem] sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
                 <SearchPoster item={item} type={type} />
-                <div className="flex min-w-0 flex-col py-0.5 sm:py-1">
-                  <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-col py-0.5 pr-28 sm:py-1 sm:pr-36">
+                  <div className="flex min-w-0 items-start gap-3">
                     <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-foreground sm:text-base sm:leading-6">
                       <Highlight text={item.title} keyword={q} />
                       {displayYear && !hasYearSuffix(item.title, displayYear) ? <span className="ml-1 font-medium text-muted-foreground">（<Highlight text={String(displayYear)} keyword={q} />）</span> : null}
                     </h2>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <StatusIconButton
-                        listType={status?.listType}
-                        size="md"
-                        showLabel
-                        title={status?.listType ? '切换观看状态' : '加入片单'}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setCollectionTarget({ contentId: item.id, contentType: type, title: item.title });
-                        }}
-                      />
-                      <TypeBadge contentType={type} size="sm" />
-                    </div>
                   </div>
                   {aliases.length > 0 && <p className="mt-1 hidden min-w-0 truncate text-xs text-muted-foreground sm:block" title={`别名：${aliases.join(' / ')}`}>别名：<HighlightValues values={aliases} keyword={q} /></p>}
                   <div className="mt-2">
@@ -462,13 +445,28 @@ function SearchContent() {
                     <p className="min-w-0 truncate" title={`导演：${directors.join(' / ') || '--'}`}>导演：<HighlightValues values={directors} keyword={q} /></p>
                     <p className="min-w-0 truncate" title={`时长：${item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}`}>时长：{item.duration && item.duration > 0 ? `${item.duration}分钟` : '--'}</p>
                     <p className="min-w-0 truncate" title={`主演：${actors.join(' / ') || '--'}`}>主演：<HighlightValues values={actors} keyword={q} /></p>
-                    <p className="min-w-0 truncate" title={`类型：${genres.slice(0, 4).join(' / ') || '--'}`}>类型：<HighlightValues values={genres.slice(0, 4)} keyword={q} /></p>
+                    <p className="min-w-0 truncate" title={`题材：${genres.slice(0, 4).join(' / ') || '--'}`}>题材：<HighlightValues values={genres.slice(0, 4)} keyword={q} /></p>
                     <p className="min-w-0 truncate" title={`${type === 'movie' ? '上映' : '首播'}：${releaseValue}`}>{type === 'movie' ? '上映' : '首播'}：<Highlight text={releaseValue} keyword={q} /></p>
                     <p className="min-w-0 truncate" title={`地区：${parseRegion(item.region).join(' / ') || '--'}`}>地区：<HighlightValues values={parseRegion(item.region)} keyword={q} /></p>
                   </div>
                   {item.summary && <p className="mt-3 hidden text-sm leading-6 text-muted-foreground sm:line-clamp-2"><Highlight text={item.summary} keyword={q} /></p>}
                 </div>
-              </Link>
+                </Link>
+                <div className="absolute right-3 top-3 flex max-w-[9rem] items-center gap-1.5 sm:right-4 sm:top-4" aria-label="搜索结果操作">
+                  <StatusIconButton
+                    listType={status?.listType}
+                    size="md"
+                    showLabel
+                    title={status?.listType ? '管理观看状态' : '加入片单'}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setCollectionTarget({ contentId: item.id, contentType: type, title: item.title });
+                    }}
+                  />
+                  <TypeBadge contentType={type} size="sm" />
+                </div>
+              </article>
             );
           })}
         </div>
