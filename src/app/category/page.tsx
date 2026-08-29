@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { ArrowUpRight, Clapperboard, Mic2, RefreshCw, Sparkles, Smartphone, Tv } from 'lucide-react';
-import { movieApi, dramaApi, varietyApi, animeApi, shortDramaApi, type Result } from '@/lib/api';
-import type { AxiosResponse } from 'axios';
+import { catalogApi } from '@/lib/api';
 
 type CategoryKey = 'movie' | 'drama' | 'variety' | 'anime' | 'short';
 
@@ -76,12 +75,6 @@ type CountData = Record<CategoryKey, number>;
 
 const EMPTY_COUNTS: CountData = { movie: 0, drama: 0, variety: 0, anime: 0, short: 0 };
 
-function totalOf(result: PromiseSettledResult<AxiosResponse<Result<unknown>>>): number {
-  if (result.status === 'rejected') return 0;
-  const data = result.value.data.data as { total?: number } | undefined;
-  return typeof data?.total === 'number' ? data.total : 0;
-}
-
 export default function CategoryPage() {
   const [counts, setCounts] = useState<CountData>(EMPTY_COUNTS);
   const [loading, setLoading] = useState(true);
@@ -93,24 +86,23 @@ export default function CategoryPage() {
     setLoading(true);
     setFailedTypes([]);
 
-    void Promise.allSettled([
-      movieApi.list({ page: 1, size: 1 }, { signal: controller.signal }),
-      dramaApi.list({ page: 1, size: 1 }, { signal: controller.signal }),
-      varietyApi.list({ page: 1, size: 1 }, { signal: controller.signal }),
-      animeApi.list({ page: 1, size: 1 }, { signal: controller.signal }),
-      shortDramaApi.list({ page: 1, size: 1 }, { signal: controller.signal }),
-    ]).then((results) => {
+    void catalogApi.counts({ signal: controller.signal }).then((response) => {
       if (controller.signal.aborted) return;
-      const failed = results.flatMap((result, index) => result.status === 'rejected' ? [CATEGORIES[index].type] : []);
+      const data = response.data.data || EMPTY_COUNTS;
       setCounts({
-        movie: totalOf(results[0]),
-        drama: totalOf(results[1]),
-        variety: totalOf(results[2]),
-        anime: totalOf(results[3]),
-        short: totalOf(results[4]),
+        movie: Number(data.movie || 0),
+        drama: Number(data.drama || 0),
+        variety: Number(data.variety || 0),
+        anime: Number(data.anime || 0),
+        short: Number(data.short || 0),
       });
-      setFailedTypes(failed);
+      setFailedTypes([]);
       setLoading(false);
+    }).catch(() => {
+      if (!controller.signal.aborted) {
+        setFailedTypes(CATEGORIES.map((category) => category.type));
+        setLoading(false);
+      }
     });
 
     return () => controller.abort();
