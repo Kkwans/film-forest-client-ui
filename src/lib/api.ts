@@ -35,6 +35,13 @@ export interface SearchParams {
   size?: number;
   sort?: string;
   sortDir?: string;
+  typeFilter?: string;
+  tagId?: number;
+  year?: number;
+  region?: string;
+  genre?: string;
+  language?: string;
+  hasResource?: boolean;
   userStatus?: 'all' | 'unwatched' | 'watched' | 'unlisted' | 'listed';
 }
 
@@ -101,7 +108,50 @@ export interface SearchRecord {
   duration?: number;
   totalEpisode?: number;
   updatedAt?: string;
+  updatedAtMs?: number | null;
   alias?: string;
+}
+
+/** 将历史接口字段（scoreRt/scoreRT、posterUrl/cover、updatedAt）收敛为搜索卡片模型。 */
+export function normalizeSearchRecord(raw: unknown): SearchRecord | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const value = raw as Record<string, unknown>;
+  const numberValue = (candidate: unknown): number | null => {
+    if (candidate == null || candidate === '') return null;
+    const parsed = typeof candidate === 'number' ? candidate : Number(candidate);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const rawType = String(value.type || 'movie');
+  const type = rawType === 'short' || rawType === 'short-drama' ? 'short_drama' : rawType;
+  if (!['movie', 'drama', 'variety', 'anime', 'short_drama'].includes(type)) return null;
+  const id = numberValue(value.id);
+  if (id == null || id <= 0) return null;
+  const updatedAtValue = value.updatedAtMs ?? value.updatedAt;
+  const updatedAtMs = numberValue(updatedAtValue)
+    ?? (typeof updatedAtValue === 'string' && Number.isFinite(Date.parse(updatedAtValue)) ? Date.parse(updatedAtValue) : null);
+  return {
+    id,
+    type: type as SearchRecord['type'],
+    title: String(value.title || ''),
+    cover: String(value.cover ?? value.posterUrl ?? ''),
+    year: numberValue(value.year),
+    rating: numberValue(value.rating ?? value.scoreDouban),
+    ratingImdb: numberValue(value.ratingImdb ?? value.scoreImdb),
+    ratingRT: numberValue(value.ratingRT ?? value.scoreRt ?? value.scoreRT),
+    summary: value.summary == null ? null : String(value.summary),
+    director: value.director == null ? undefined : String(value.director),
+    writer: value.writer == null ? undefined : String(value.writer),
+    actor: value.actor == null ? undefined : String(value.actor),
+    genre: value.genre == null ? undefined : String(value.genre),
+    region: value.region == null ? undefined : String(value.region),
+    releaseDate: value.releaseDate == null ? undefined : String(value.releaseDate),
+    matchedFields: Array.isArray(value.matchedFields) ? value.matchedFields.filter((entry): entry is string => typeof entry === 'string') : undefined,
+    duration: numberValue(value.duration) ?? undefined,
+    totalEpisode: numberValue(value.totalEpisode) ?? undefined,
+    updatedAtMs,
+    updatedAt: value.updatedAt == null ? undefined : String(value.updatedAt),
+    alias: value.alias == null ? undefined : String(value.alias),
+  };
 }
 
 export interface PagedResult<T> {
@@ -157,6 +207,18 @@ export const shortDramaApi = {
     client.get<Result<ContentDetail>>(`/api/short-dramas/${id}`),
 };
 
+export interface CatalogCounts {
+  movie: number;
+  drama: number;
+  variety: number;
+  anime: number;
+  short: number;
+}
+
+export const catalogApi = {
+  counts: (config?: AxiosRequestConfig) => client.get<Result<CatalogCounts>>('/api/catalog/counts', config),
+};
+
 export interface HotSearchItem {
   id: number;
   type: string;
@@ -169,8 +231,8 @@ export const searchApi = {
     client.get<Result<PagedResult<SearchRecord>>>('/api/search', { params: { keyword, ...params } }),
 
   /** 搜索建议：标题前缀匹配 Top 10 */
-  suggest: (q: string) =>
-    client.get<Result<string[]>>('/api/search/suggest', { params: { q } }),
+  suggest: (q: string, config?: AxiosRequestConfig) =>
+    client.get<Result<string[]>>('/api/search/suggest', { ...config, params: { ...config?.params, q } }),
 
   /** 热门搜索：评分最高的内容 Top 10 */
   hot: () =>
@@ -184,16 +246,16 @@ export const resourceApi = {
       params: { contentType, contentId, episodeNumber },
     }),
 
-  magnet: (contentType: string, contentId: number, episodeNumber?: number, config?: AxiosRequestConfig) =>
+  magnet: (contentType: string, contentId: number, config?: AxiosRequestConfig) =>
     client.get<Result<unknown>>('/api/resources/magnet', {
       ...config,
-      params: { contentType, contentId, episodeNumber },
+      params: { contentType, contentId },
     }),
 
-  cloud: (contentType: string, contentId: number, episodeNumber?: number, config?: AxiosRequestConfig) =>
+  cloud: (contentType: string, contentId: number, config?: AxiosRequestConfig) =>
     client.get<Result<unknown>>('/api/resources/cloud', {
       ...config,
-      params: { contentType, contentId, episodeNumber },
+      params: { contentType, contentId },
     }),
 };
 
@@ -207,6 +269,7 @@ export interface RecommendItem {
   genre?: string;
   region?: string;
   totalEpisode?: number;
+  summary?: string;
 }
 
 export interface RecommendData {
