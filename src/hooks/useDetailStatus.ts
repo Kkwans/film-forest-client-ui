@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { listApi, statusApi } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
 import { useToast } from '@/components/Toast';
+import { useContentStatusStore } from '@/stores/contentStatusStore';
 
 export interface DetailStatus {
   want_to_watch?: boolean;
@@ -42,6 +43,8 @@ export function useDetailStatus(contentId: number, contentType: string) {
   const [watchedListId, setWatchedListId] = useState<number | null>(null);
   const [wantListId, setWantListId] = useState<number | null>(null);
   const isAuthenticated = useUserStore((s) => s.isAuthenticated);
+  const userId = useUserStore((s) => s.user?.id ?? null);
+  const patchStatus = useContentStatusStore((s) => s.patchStatus);
   const { showToast } = useToast();
 
   const fetchStatus = useCallback(async (signal?: AbortSignal) => {
@@ -54,25 +57,26 @@ export function useDetailStatus(contentId: number, contentType: string) {
     }
     setStatusLoading(true);
     try {
-      // Call both in parallel to reduce round-trips
+      // 默认片单接口只返回轻量 ID/name/type；状态接口负责当前内容明细。
       const [listsRes, statusRes] = await Promise.all([
-        listApi.getAll({ signal }),
+        listApi.getDefaults(false, { signal }),
         statusApi.get(contentId, contentType, { signal }),
       ]);
       if (signal?.aborted) return;
       const lists = listsRes.data.data || listsRes.data;
       const data = statusRes.data.data || statusRes.data;
+      const statusItems: StatusItem[] = Array.isArray(data) ? data as StatusItem[] : [];
 
       // Extract watchedListId for WatchedModal
       const watched = Array.isArray(lists) ? lists.find((l: UserListSummary) => l.type === 'watched') : null;
       const want = Array.isArray(lists) ? lists.find((l: UserListSummary) => l.type === 'want_to_watch') : null;
-      if (watched) setWatchedListId(watched.id);
-      if (want) setWantListId(want.id);
+      setWatchedListId(watched?.id ?? null);
+      setWantListId(want?.id ?? null);
 
       // Parse status
       const s: DetailStatus = {};
-      if (Array.isArray(data)) {
-        data.forEach((item: StatusItem) => {
+      if (statusItems.length > 0) {
+        statusItems.forEach((item) => {
           if (item.added) {
             if (item.type === 'want_to_watch') s.want_to_watch = true;
             if (item.type === 'watching') s.watching = true;
@@ -86,12 +90,21 @@ export function useDetailStatus(contentId: number, contentType: string) {
         });
       }
       setStatus(s);
+      const identityKey = userId ? `user:${userId}` : 'anonymous';
+      const selected = ['watched', 'watching', 'want_to_watch']
+        .map((type) => statusItems.find((item) => item.added && item.type === type))
+        .find(Boolean) || statusItems.find((item) => item.added);
+      patchStatus(identityKey, contentType, contentId, selected ? {
+        listType: selected.type,
+        listName: selected.type,
+        wantToWatch: statusItems.some((item) => item.added && item.type === 'want_to_watch'),
+      } : null);
     } catch {
       // 详情主体不应因个性化状态查询失败而不可用。
     } finally {
       if (!signal?.aborted) setStatusLoading(false);
     }
-  }, [isAuthenticated, contentId, contentType]);
+  }, [contentId, contentType, isAuthenticated, patchStatus, userId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,8 +118,6 @@ export function useDetailStatus(contentId: number, contentType: string) {
       setCollectOpen(true);
       return;
     }
-    if (status.watching) { showToast('该影片已被标记为在看', 'warning'); return; }
-    if (status.watched) { showToast('该影片已被标记为看过', 'warning'); return; }
     if (!wantListId) {
       showToast('想看片单暂不可用，请稍后重试', 'error');
       return;
@@ -115,17 +126,18 @@ export function useDetailStatus(contentId: number, contentType: string) {
       if (status.want_to_watch) {
         await listApi.removeItem(wantListId, { movieId: contentId, contentType });
         setStatus(prev => ({ ...prev, want_to_watch: false }));
+        if (userId) patchStatus(`user:${userId}`, contentType, contentId, status.watched ? { listType: 'watched', listName: '看过', wantToWatch: false } : status.watching ? { listType: 'watching', listName: '在看', wantToWatch: false } : null);
         showToast('已从想看移除', 'info');
       } else {
         await listApi.addItem(wantListId, { movieId: contentId, contentType });
         setStatus(prev => ({ ...prev, want_to_watch: true }));
+        if (userId) patchStatus(`user:${userId}`, contentType, contentId, { listType: status.watched ? 'watched' : status.watching ? 'watching' : 'want_to_watch', listName: status.watched ? '看过' : status.watching ? '在看' : '想看', wantToWatch: true });
         showToast('已加入想看', 'success');
       }
-      window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: contentId, contentType } }));
     } catch {
       showToast('想看状态更新失败，请重试', 'error');
     }
-  }, [contentId, contentType, isAuthenticated, showToast, status, wantListId]);
+  }, [contentId, contentType, isAuthenticated, patchStatus, showToast, status, userId, wantListId]);
 
   const handleWantButtonClick = useCallback(() => {
     void handleWantClick();

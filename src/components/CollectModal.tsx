@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/Toast';
 import { listApi, statusApi, type UserList } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
+import { useContentStatusStore } from '@/stores/contentStatusStore';
 
 interface CollectModalProps {
   open: boolean;
@@ -14,6 +15,13 @@ interface CollectModalProps {
   movieId: number;
   contentType: string;
   movieTitle?: string;
+}
+
+function preferredStatus(statuses: { added: boolean; type: string; listName?: string }[]) {
+  const added = statuses.filter((status) => status.added);
+  return ['watched', 'watching', 'want_to_watch']
+    .map((type) => added.find((status) => status.type === type))
+    .find(Boolean) || added.find((status) => status.type === 'custom') || added[0] || null;
 }
 
 const DEFAULT_LISTS_CONFIG = [
@@ -61,6 +69,8 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
   const router = useRouter();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const { showToast } = useToast();
+  const patchStatus = useContentStatusStore((state) => state.patchStatus);
+  const userId = useUserStore((state) => state.user?.id ?? null);
   const [lists, setLists] = useState<UserList[]>([]);
   const [movieStatus, setMovieStatus] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -87,12 +97,16 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
       const statuses = Array.isArray(statusResponse.data.data) ? statusResponse.data.data : [];
       setLists(nextLists);
       setMovieStatus(Object.fromEntries(statuses.map((status) => [status.listId, status.added])));
+      const selected = preferredStatus(statuses);
+      if (userId) {
+        patchStatus(`user:${userId}`, contentType, movieId, selected ? { listType: selected.type, listName: selected.listName || selected.type, wantToWatch: statuses.some((status) => status.added && status.type === 'want_to_watch') } : null);
+      }
     } catch {
       if (!signal?.aborted) setLoadError('片单加载失败，请检查网络后重试');
     } finally {
       if (!signal?.aborted && showLoading) setLoading(false);
     }
-  }, [contentType, isAuthenticated, movieId]);
+  }, [contentType, isAuthenticated, movieId, patchStatus, userId]);
 
   useEffect(() => {
     if (!open) return;
@@ -142,9 +156,6 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
       await loadData(undefined, false);
       resetNote();
       showToast(isCurrentlyIn ? `已从“${list.name}”移除` : `已加入“${list.name}”`, 'success');
-      window.dispatchEvent(new CustomEvent('movie-status-changed', {
-        detail: { movieId, contentType, action: isCurrentlyIn ? 'removed' : 'added' },
-      }));
     } catch {
       const message = isCurrentlyIn ? '移除失败，请重试' : '加入片单失败，请重试';
       setActionError(message);
@@ -168,7 +179,6 @@ export default function CollectModal({ open, onClose, movieId, contentType, movi
       setNewName('');
       setShowCreate(false);
       showToast(`已创建并加入“${createdList.name}”`, 'success');
-      window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId, contentType, action: 'added' } }));
     } catch {
       const message = createdList ? '片单已创建，但内容加入失败，请重试' : '创建片单失败，请重试';
       setActionError(message);

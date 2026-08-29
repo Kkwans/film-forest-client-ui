@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { Check, ChevronRight, Edit3, Inbox, ListChecks, Star, Trash2 } from 'lucide-react';
-import { hasStoredToken } from '@/stores/userStore';
+import { hasStoredToken, useUserStore } from '@/stores/userStore';
 import { listApi, type UserList, type UserListItem } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import Pagination from '@/components/Pagination';
@@ -16,6 +16,7 @@ import { formatWatchedAt } from '@/lib/uiContracts';
 import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { useContentStatusStore } from '@/stores/contentStatusStore';
 
 const NoteEditModal = dynamic(() => import('@/components/NoteEditModal'), { ssr: false });
 const Dialog = dynamic(() => import('@/components/Dialog'), { ssr: false });
@@ -165,6 +166,8 @@ export default function ListDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { showToast } = useToast();
+  const invalidateStatus = useContentStatusStore((state) => state.invalidateStatus);
+  const userId = useUserStore((state) => state.user?.id ?? null);
   const listId = Number(params.id);
   const [hydrated, setHydrated] = useState(false);
   const [list, setList] = useState<UserList | null>(null);
@@ -262,6 +265,7 @@ export default function ListDetailPage() {
     setRemoving(true);
     try {
       await listApi.removeItem(listId, { movieId: confirmDelete.movieId, contentType: confirmDelete.contentType });
+      if (userId) invalidateStatus(`user:${userId}`, confirmDelete.contentType, confirmDelete.movieId);
       showToast('已从片单移除', 'info');
       setConfirmDelete(null);
       if (items.length === 1 && currentPage > 1) setCurrentPage((page) => page - 1);
@@ -279,6 +283,7 @@ export default function ListDetailPage() {
     try {
       const selectedItems = items.filter((item) => selectedIds.has(item.id));
       await listApi.batchRemoveItems(listId, selectedItems.map((item) => ({ movieId: item.movieId, contentType: item.contentType })));
+      if (userId) selectedItems.forEach((item) => invalidateStatus(`user:${userId}`, item.contentType, item.movieId));
       showToast(`已移除 ${selectedItems.length} 部内容`, 'success');
       setSelectedIds(new Set());
       setBatchMode(false);
@@ -299,7 +304,7 @@ export default function ListDetailPage() {
     setNoteEdit((current) => current ? { ...current, note: note || undefined, userRating: rating } : null);
     setNoteReadOnly(true);
     showToast('备注与评价已更新', 'success');
-    window.dispatchEvent(new CustomEvent('movie-status-changed', { detail: { movieId: noteEdit.movieId, contentType: noteEdit.contentType, action: 'updated' } }));
+    if (userId) invalidateStatus(`user:${userId}`, noteEdit.contentType, noteEdit.movieId);
   };
 
   if (!hydrated || !hasStoredToken()) return null;

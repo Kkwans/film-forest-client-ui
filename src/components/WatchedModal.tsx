@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Clock3, Loader2, LogIn, Pencil } from 'lucide-react';
-import { listApi, type UserList } from '@/lib/userApi';
+import { listApi, type UserDefaultList } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import { Modal } from '@/components/ui/modal';
 import { useUserStore } from '@/stores/userStore';
 import RatingField from '@/components/RatingField';
 import { formatWatchedAt } from '@/lib/uiContracts';
+import { contentStatusKey, useContentStatusStore } from '@/stores/contentStatusStore';
 
 interface WatchedModalProps {
   open: boolean;
@@ -42,6 +43,11 @@ export default function WatchedModal({
   const router = useRouter();
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const { showToast } = useToast();
+  const userId = useUserStore((state) => state.user?.id ?? null);
+  const patchStatus = useContentStatusStore((state) => state.patchStatus);
+  const existingStatus = useContentStatusStore((state) => userId
+    ? state.values[contentStatusKey(contentType, movieId)]
+    : null);
   const [rating, setRating] = useState(0);
   const [note, setNote] = useState('');
   const [watchedListId, setWatchedListId] = useState<number | null>(watchedListIdProp ?? null);
@@ -65,11 +71,11 @@ export default function WatchedModal({
 
     const controller = new AbortController();
     setLoadingList(true);
-    void listApi.getAll({ signal: controller.signal })
+    void listApi.getDefaults(false, { signal: controller.signal })
       .then((response) => {
         if (controller.signal.aborted) return;
         const lists = Array.isArray(response.data.data) ? response.data.data : [];
-        const watched = lists.find((list: UserList) => list.type === 'watched');
+        const watched = lists.find((list: UserDefaultList) => list.type === 'watched');
         if (watched) {
           setWatchedListId(watched.id);
         } else {
@@ -100,9 +106,11 @@ export default function WatchedModal({
       if (isExisting) await listApi.updateItem(watchedListId, payload);
       else await listApi.addItem(watchedListId, payload);
       showToast('观看状态与评价已保存', 'success');
-      window.dispatchEvent(new CustomEvent('movie-status-changed', {
-        detail: { movieId, contentType, action: 'added' },
-      }));
+      if (userId) patchStatus(`user:${userId}`, contentType, movieId, {
+        listType: 'watched',
+        listName: '看过',
+        wantToWatch: existingStatus?.wantToWatch ?? false,
+      });
       onClose();
     } catch {
       setSaveError('保存失败，请检查网络后重试');
