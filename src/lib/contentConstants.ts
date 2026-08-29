@@ -60,6 +60,31 @@ export const CONTENT_TYPE_REGISTRY = {
 export type ContentType = keyof typeof CONTENT_TYPE_REGISTRY;
 export type ContentTypeConfig = (typeof CONTENT_TYPE_REGISTRY)[ContentType];
 
+export type ContentSort = 'latest' | 'year' | 'douban' | 'imdb' | 'rt';
+
+export const CONTENT_SORT_CAPABILITIES: Record<ContentType, readonly ContentSort[]> = {
+  movie: ['latest', 'year', 'douban', 'imdb', 'rt'],
+  drama: ['latest', 'year', 'douban', 'imdb'],
+  variety: ['latest', 'year', 'douban', 'imdb'],
+  anime: ['latest', 'year', 'douban', 'imdb'],
+  short_drama: ['latest', 'year', 'douban', 'imdb'],
+};
+
+export const CONTENT_SORT_LABELS: Record<ContentSort, string> = {
+  latest: '最新更新',
+  year: '上映时间',
+  douban: '豆瓣评分',
+  imdb: 'IMDb 评分',
+  rt: '烂番茄评分',
+};
+
+export function getContentSortOptions(contentType: ContentType) {
+  return CONTENT_SORT_CAPABILITIES[contentType].map((value) => ({
+    label: CONTENT_SORT_LABELS[value],
+    value,
+  }));
+}
+
 /** 用户端低饱和内容类型标签色，code 与 API/路由保持解耦。 */
 export const CONTENT_TYPE_TONE_CLASSES: Record<ContentType, string> = {
   movie: 'border-sky-200/80 bg-sky-50 text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-200',

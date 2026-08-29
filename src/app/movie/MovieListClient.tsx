@@ -8,26 +8,10 @@ import FilterChip from '@/components/FilterChip';
 import MovieCard from '@/components/MovieCard';
 import Pagination from '@/components/Pagination';
 import TagFilter from '@/components/TagFilter';
-import { getContentTypeConfig, type ContentType } from '@/lib/contentConstants';
+import { getContentSortOptions, getContentTypeConfig, type ContentType } from '@/lib/contentConstants';
 import { parseContentListQuery } from '@/lib/contentListQuery';
 import { useMovieStatuses } from '@/hooks/useMovieStatuses';
-
-const YEARS = [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018];
-const DECADES = [
-  { label: '2020年代', from: 2020, to: 2029 },
-  { label: '2010年代', from: 2010, to: 2019 },
-  { label: '2000年代', from: 2000, to: 2009 },
-  { label: '1990年代', from: 1990, to: 1999 },
-  { label: '更早', from: 1900, to: 1989 },
-];
-const REGIONS = ['大陆', '美国', '日本', '韩国', '香港', '台湾', '英国', '法国', '德国', '印度', '泰国', '意大利', '西班牙', '加拿大', '澳大利亚'];
-const SORT_OPTIONS = [
-  { label: '最新更新', value: 'latest' },
-  { label: '上映时间', value: 'year' },
-  { label: '豆瓣评分', value: 'douban' },
-  { label: 'IMDB评分', value: 'imdb' },
-  { label: '烂番茄评分', value: 'rt' },
-];
+import { DECADES, LANGUAGES, REGIONS, getYearOptions } from '@/lib/filterOptions';
 
 interface ContentItem {
   id: number;
@@ -54,6 +38,8 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
   const config = getContentTypeConfig(contentType);
+  const years = useMemo(() => getYearOptions(), []);
+  const sortOptions = useMemo(() => getContentSortOptions(contentType), [contentType]);
   const query = useMemo(
     () => parseContentListQuery(Object.fromEntries(searchParams.entries())),
     [searchParams],
@@ -134,10 +120,20 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
         </div>
 
         <div className="grid gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">语言</span>
+          <div className="filter-scroll-row">
+            <FilterChip label="全部语言" active={!query.language} onClick={() => updateUrl({ language: null })} />
+            {LANGUAGES.map((language) => (
+              <FilterChip key={language} label={language} active={query.language === language} onClick={() => updateUrl({ language: query.language === language ? null : language })} />
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-2">
           <span className="text-xs font-semibold text-muted-foreground">年份</span>
           <div className="filter-scroll-row items-center">
             <FilterChip label="全部年份" active={!query.year && !query.yearFrom && !query.yearTo} onClick={() => updateUrl({ year: null, yearFrom: null, yearTo: null })} />
-            {YEARS.map((year) => (
+            {years.map((year) => (
               <FilterChip key={year} label={String(year)} active={query.year === year} onClick={() => updateUrl({ year: query.year === year ? null : year, yearFrom: null, yearTo: null })} />
             ))}
             {DECADES.map((decade) => (
@@ -194,7 +190,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
             onChange={(value) => updateUrl({ size: value })}
             ariaLabel="每页显示数量"
           />
-          <CustomSelect ariaLabel="内容排序方式" value={query.sort} options={SORT_OPTIONS} onChange={(value) => updateUrl({ sort: value })} />
+          <CustomSelect ariaLabel="内容排序方式" value={query.sort} options={sortOptions} onChange={(value) => updateUrl({ sort: value })} />
         </div>
       </div>
 
