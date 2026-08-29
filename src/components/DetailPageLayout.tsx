@@ -49,7 +49,6 @@ interface MagnetResourceItem {
   specialSubtitle: boolean;
   qualityCategory: string;
   sizeBytes?: number | null;
-  seeders?: number | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -113,7 +112,7 @@ function resourcePresentation(title: string, timestamp?: string) {
   const match = title.match(SOURCE_TIME_SUFFIX);
   const cleanTitle = (match ? title.slice(0, match.index).trim() : title)
     .replace(RESOURCE_SIZE_SUFFIX, '').trim();
-  if (match) return { title: cleanTitle, timeLabel: match[1] };
+  // 来源标题里的“今天/几天前”没有稳定时区与采集时点，不作为发布时间展示。
   if (!timestamp) return { title: cleanTitle };
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return { title: cleanTitle };
@@ -409,6 +408,12 @@ export default function DetailPageLayout({
   const [playerSourceId, setPlayerSourceId] = useState<number | null>(null);
   const [requestedSourceId, setRequestedSourceId] = useState<number | null>(null);
   const requestedSourceHandledRef = useRef(false);
+  const resourceCacheRef = useRef(new Map<string, {
+    online?: OnlineResourceItem[];
+    magnet?: MagnetResourceItem[];
+    cloud?: CloudResourceItem[];
+  }>());
+  const forcedResourceKeysRef = useRef(new Set<string>());
 
   const ds = useDetailStatus(item.id, contentType);
   const posterResolution = usePosterResolution(contentType, item.id, item.cover, { enrich: true });
@@ -481,6 +486,7 @@ export default function DetailPageLayout({
     requestedSourceHandledRef.current = false;
     setSelectedEpisode(episode);
     setRequestedSourceId(sourceId);
+    if (sourceId != null) setDownloadTab('online');
   }, [contentType, hasEpisodes, item.id, item.totalEpisode]);
 
   // sourceId 只在当前集的真实在线播放资源中匹配成功时才自动选中；不存在则保持默认未选择状态。
@@ -493,49 +499,63 @@ export default function DetailPageLayout({
     setPlayerSourceId(source.id);
   }, [loadingResources, onlineResources, requestedSourceId]);
 
-  // Fetch all resources when episode changes
+  // 仅请求当前资源页签；切集只影响在线播放，磁力和网盘保持内容级缓存。
+  const resourceEpisode = downloadTab === 'online' ? selectedEpisode : null;
   useEffect(() => {
+    const episodeKey = resourceEpisode ?? 'all';
+    const cacheKey = `${downloadTab}:${contentType}:${item.id}:${episodeKey}`;
+    const cached = resourceCacheRef.current.get(cacheKey);
+    const reloadToken = `${cacheKey}:${resourceReloadKey}`;
+    const forceReload = resourceReloadKey > 0 && !forcedResourceKeysRef.current.has(reloadToken);
+    if (!forceReload && cached) {
+      setResourceErrors([]);
+      if (downloadTab === 'online') {
+        setPlayerSrc(undefined);
+        setPlayerSourceId(null);
+        setOnlineResources(cached.online || []);
+      }
+      if (downloadTab === 'magnet') setMagnetResources(cached.magnet || []);
+      if (downloadTab === 'cloud') setCloudResources(cached.cloud || []);
+      setLoadingResources(false);
+      return;
+    }
+    if (forceReload) forcedResourceKeysRef.current.add(reloadToken);
     const controller = new AbortController();
     setLoadingResources(true);
     setResourceErrors([]);
-    setPlayerSrc(undefined);
-    setPlayerSourceId(null);
-    setOnlineResources([]);
-    setMagnetResources([]);
-    setCloudResources([]);
-    const ep = selectedEpisode ?? undefined;
+    if (downloadTab === 'online') {
+      setPlayerSrc(undefined);
+      setPlayerSourceId(null);
+      setOnlineResources([]);
+    }
+    const request = downloadTab === 'online'
+      ? resourceApi.online(contentType, item.id, resourceEpisode ?? undefined, { signal: controller.signal })
+      : downloadTab === 'magnet'
+        ? resourceApi.magnet(contentType, item.id, { signal: controller.signal })
+        : resourceApi.cloud(contentType, item.id, { signal: controller.signal });
 
-    const requests = [
-      { kind: 'online' as const, request: resourceApi.online(contentType, item.id, ep, { signal: controller.signal }) },
-      { kind: 'magnet' as const, request: resourceApi.magnet(contentType, item.id, ep, { signal: controller.signal }) },
-      { kind: 'cloud' as const, request: resourceApi.cloud(contentType, item.id, ep, { signal: controller.signal }) },
-    ];
-
-    void Promise.allSettled(requests.map(({ request }) => request))
-      .then((results) => {
+    void request
+      .then((response) => {
         if (controller.signal.aborted) return;
-
-        const failed: ResourceKind[] = [];
-        results.forEach((result, index) => {
-          const kind = requests[index].kind;
-          if (result.status === 'rejected') {
-            failed.push(kind);
-            return;
-          }
-
-          if (kind === 'online') setOnlineResources(resourceItems<OnlineResourceItem>(result.value));
-          if (kind === 'magnet') setMagnetResources(resourceItems<MagnetResourceItem>(result.value));
-          if (kind === 'cloud') setCloudResources(resourceItems<CloudResourceItem>(result.value));
+        const resources = resourceItems<OnlineResourceItem | MagnetResourceItem | CloudResourceItem>(response);
+        resourceCacheRef.current.set(cacheKey, {
+          ...(downloadTab === 'online' ? { online: resources as OnlineResourceItem[] } : {}),
+          ...(downloadTab === 'magnet' ? { magnet: resources as MagnetResourceItem[] } : {}),
+          ...(downloadTab === 'cloud' ? { cloud: resources as CloudResourceItem[] } : {}),
         });
-        setResourceErrors(failed);
-
+        if (downloadTab === 'online') setOnlineResources(resources as OnlineResourceItem[]);
+        if (downloadTab === 'magnet') setMagnetResources(resources as MagnetResourceItem[]);
+        if (downloadTab === 'cloud') setCloudResources(resources as CloudResourceItem[]);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setResourceErrors([downloadTab]);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoadingResources(false);
       });
 
     return () => controller.abort();
-  }, [contentType, item.id, resourceReloadKey, selectedEpisode]);
+  }, [contentType, downloadTab, item.id, resourceEpisode, resourceReloadKey]);
 
   const copyResource = async (text: string, resId: number, successMessage?: string) => {
     if (!text) return;
@@ -626,7 +646,7 @@ export default function DetailPageLayout({
             <div className="min-w-0 border-t border-border/40 pt-3">
               <div className="grid gap-x-8 md:grid-cols-2">
                 <div className="grid md:col-span-2 md:grid-cols-2">
-                  <InfoRow label="类型">
+                  <InfoRow label="题材">
                     <GenreLinkedValues values={item.genre} href={(value) => filterHref('genre', value)} />
                   </InfoRow>
                   <InfoRow label="导演" accent><ExpandableLinkedValues values={item.director} href={searchHref} collapsedLines={1} label="导演" /></InfoRow>
@@ -797,19 +817,18 @@ export default function DetailPageLayout({
                 )}
                 <MagnetResourceList
                   resources={visibleMagnets.map((resource) => {
-                    const presentation = resourcePresentation(resource.title, resource.updatedAt || resource.createdAt);
+                    const presentation = resourcePresentation(resource.title, resource.createdAt || resource.updatedAt);
                     return {
                       id: resource.id,
                       title: presentation.title,
                       url: resource.magnetUrl,
                       sizeLabel: formatResourceSize(resource.sizeBytes),
-                      seeders: resource.seeders,
                       timeLabel: presentation.timeLabel,
                     };
                   })}
                   copiedId={copiedId}
                   onCopy={copyResource}
-                  emptyText={selectedEpisode ? `该${episodeLabel}暂无磁力链接` : '暂无磁力链接'}
+                  emptyText="暂无磁力链接"
                 />
                   </div>
                 </section>
@@ -847,7 +866,7 @@ export default function DetailPageLayout({
                 )}
                 <CopyableResourceList
                 resources={visibleClouds.map((resource) => {
-                  const presentation = resourcePresentation(resource.title, resource.updatedAt || resource.createdAt);
+                  const presentation = resourcePresentation(resource.title, resource.createdAt || resource.updatedAt);
                   const extractionCode = resource.extractionCode?.trim();
                   const password = resource.password?.trim();
                   return {
@@ -869,7 +888,7 @@ export default function DetailPageLayout({
                 copiedId={copiedId}
                 onCopy={copyResource}
                 icon={<CloudDownload aria-hidden className="h-5 w-5" />}
-                emptyText={selectedEpisode ? `该${episodeLabel}暂无网盘资源` : '暂无网盘资源'}
+                emptyText="暂无网盘资源"
                 />
                   </div>
                 </section>

@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { CheckCircle2, Eye, Heart, HeartPlus, Loader2, Star } from 'lucide-react';
+import { CheckCircle2, Heart, HeartPlus, Loader2, Star } from 'lucide-react';
 import type { DetailStatus } from '@/hooks/useDetailStatus';
 import { formatWatchedAt, fractionalStarFill } from '@/lib/uiContracts';
 
@@ -60,24 +60,21 @@ export default function DetailButtons({
   onWatchedEdit,
   onCollectOpen,
 }: DetailButtonsProps) {
-  const statusLabel = status.watching ? '正在看' : status.want_to_watch ? '已想看' : '想看';
-  const StatusIcon = status.watching ? Eye : Heart;
+  const StatusIcon = Heart;
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 animate-fade-in-up stagger-5" aria-label="内容操作">
-        {!status.watched && (
-          <button
-            type="button"
-            onClick={status.watching ? onCollectOpen : onWantButtonClick}
-            disabled={statusLoading}
-            className={secondaryButton}
-            aria-label={status.watching ? '管理正在看的片单状态' : status.want_to_watch ? '从想看移除' : '加入想看'}
-          >
-            {statusLoading ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <StatusIcon aria-hidden className={`h-4 w-4 ${status.want_to_watch ? 'fill-current' : ''}`} />}
-            {statusLoading ? '读取状态' : statusLabel}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onWantButtonClick}
+          disabled={statusLoading}
+          className={secondaryButton}
+          aria-label={status.want_to_watch ? '从想看移除' : '加入想看'}
+        >
+          {statusLoading ? <Loader2 aria-hidden className="h-4 w-4 animate-spin" /> : <StatusIcon aria-hidden className={`h-4 w-4 ${status.want_to_watch ? 'fill-current' : ''}`} />}
+          {statusLoading ? '读取状态' : status.want_to_watch ? '已想看' : '想看'}
+        </button>
 
         <button type="button" onClick={onCollectOpen} className={secondaryButton} aria-haspopup="dialog">
           <HeartPlus aria-hidden className="h-4 w-4" />

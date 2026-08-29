@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, ChevronRight, CirclePlay, Clapperboard, Clock3, Copy, ExternalLink, Inbox, Magnet, Star } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
@@ -132,8 +132,8 @@ export function InfoRow({ label, children, accent }: {
   accent?: boolean;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-[max-content_minmax(0,1fr)] items-start gap-x-2 gap-y-1 py-2.5 text-sm leading-6 sm:gap-x-2.5">
-      <span className="font-medium text-muted-foreground">
+    <div className="grid min-w-0 grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-2.5 text-sm leading-6 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-x-3.5">
+      <span className="pt-px font-medium text-muted-foreground">
         {label}
       </span>
       <div className={`min-w-0 break-words ${accent ? "font-medium text-accent" : "text-secondary-foreground"}`}>{children}</div>
@@ -150,16 +150,30 @@ export function SynopsisSection({ text, expanded, onToggle }: {
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const [canExpand, setCanExpand] = useState(false);
+  const measureRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const element = measureRef.current;
+    if (!element) return;
+    const update = () => setCanExpand(element.scrollHeight > element.clientHeight + 1);
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [text, expanded]);
+
   if (!text) return null;
 
   return (
     <section className="rounded-3xl border border-border bg-card p-5 sm:p-6">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Storyline</p>
       <h2 className="mt-2 text-xl font-black tracking-tight text-foreground">剧情简介</h2>
-      <p className={`mt-4 text-sm leading-7 text-secondary-foreground ${expanded ? '' : 'line-clamp-3'}`}>
+      <p ref={measureRef} className={`mt-4 text-sm leading-7 text-secondary-foreground ${expanded ? '' : 'line-clamp-3'}`}>
         {text}
       </p>
-      {text.length > 200 && (
+      {(canExpand || expanded) && (
         <button
           onClick={onToggle}
           className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-lg text-sm font-semibold text-accent"
@@ -470,7 +484,7 @@ export function CopyableResourceList({ resources, copiedId, onCopy, icon, emptyT
       {resources.map(r => (
         <div
           key={r.id}
-          className="group grid gap-3 rounded-2xl border border-border bg-background/55 p-3.5 transition-[border-color,background-color,box-shadow] hover:border-accent/30 hover:bg-accent/5 hover:shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+          className="group grid gap-3 border-b border-border px-1 py-4 last:border-b-0 transition-colors hover:bg-accent/5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-2"
         >
           <div className="flex min-w-0 items-start gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">{icon}</span>
@@ -522,7 +536,6 @@ export interface MagnetResourceListItem {
   title?: string;
   url?: string;
   sizeLabel?: string;
-  seeders?: number | null;
   timeLabel?: string;
 }
 
@@ -543,25 +556,27 @@ export function MagnetResourceList({ resources, copiedId, onCopy, emptyText }: {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-background/40" role="table" aria-label="磁力资源列表">
-      <div className="hidden border-b border-border bg-muted/55 px-4 py-2.5 text-xs font-semibold text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_auto_7rem_5rem_8rem] md:items-center md:gap-4" role="row">
+    <div className="overflow-hidden" role="table" aria-label="磁力资源列表">
+      <div className="hidden border-b border-border bg-muted/55 px-4 py-2.5 text-xs font-semibold text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_auto_7rem_9rem] md:items-center md:gap-4" role="row">
         <span role="columnheader">名称</span>
         <span role="columnheader">下载</span>
         <span role="columnheader" className="text-center">大小</span>
-        <span role="columnheader" className="text-center">做种</span>
-        <span role="columnheader" className="text-right">发布时间</span>
+        <span role="columnheader" className="text-right">入库时间</span>
       </div>
       <div>
         {resources.map((resource) => {
           const value = resource.url || '';
-          const seeders = resource.seeders == null ? '--' : String(resource.seeders);
           return (
-            <div key={resource.id} className="grid gap-x-4 gap-y-2 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1fr)_auto_7rem_5rem_8rem] md:items-center md:py-3" role="row">
-              <div className="col-span-2 flex min-w-0 items-start gap-2.5 md:col-span-1 md:items-center">
+            <div key={resource.id} className="grid grid-cols-1 gap-x-4 gap-y-2 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1fr)_auto_7rem_9rem] md:items-center md:py-3" role="row">
+              <div className="flex min-w-0 items-start gap-2.5 md:items-center">
                 <Magnet aria-hidden className="mt-0.5 size-4 shrink-0 text-accent md:mt-0" />
                 <p className="min-w-0 break-all text-sm font-medium leading-5 text-accent md:truncate" title={resource.title || '资源链接'} role="cell">
                   {resource.title || '资源链接'}
                 </p>
+              </div>
+              <div className="col-span-1 grid grid-cols-2 gap-2 text-xs text-secondary-foreground md:hidden">
+                <span className="min-w-0 truncate">{resource.timeLabel || '--'}</span>
+                <span className="min-w-0 truncate">大小：{resource.sizeLabel || '未知'}</span>
               </div>
               <div className="flex items-center justify-center md:h-full md:self-stretch" role="cell">
                 <button
@@ -569,20 +584,13 @@ export function MagnetResourceList({ resources, copiedId, onCopy, emptyText }: {
                   onClick={() => onCopy(value, resource.id, '磁力链接已复制')}
                   disabled={!value}
                   className={`inline-flex min-h-9 w-full items-center justify-center rounded-lg px-3 text-xs font-semibold leading-none transition-colors md:min-h-9 md:w-auto md:whitespace-nowrap ${copiedId === resource.id ? 'bg-copied text-white' : 'bg-accent text-white hover:bg-accent-hover'} disabled:cursor-not-allowed disabled:opacity-50`}
-                  aria-label={`${copiedId === resource.id ? '已复制' : '磁力链接'}：${resource.title || '资源'}`}
+                  aria-label={`${copiedId === resource.id ? '已复制' : '复制磁力'}：${resource.title || '资源'}`}
                 >
-                  {copiedId === resource.id ? '已复制' : '磁力链接'}
+                  {copiedId === resource.id ? '已复制' : '复制磁力'}
                 </button>
               </div>
               <span className="hidden text-center text-sm text-secondary-foreground md:block" role="cell">{resource.sizeLabel || '未知'}</span>
-              <span className="hidden text-center text-sm text-secondary-foreground md:block" role="cell">{seeders}</span>
               <span className="hidden text-right text-sm text-secondary-foreground md:block" role="cell">{resource.timeLabel || '--'}</span>
-
-              <div className="col-span-1 grid grid-cols-3 gap-2 text-xs text-secondary-foreground md:hidden">
-                <span className="min-w-0 truncate">{resource.timeLabel || '--'}</span>
-                <span className="min-w-0 truncate">做种：{seeders}</span>
-                <span className="min-w-0 truncate">大小：{resource.sizeLabel || '未知'}</span>
-              </div>
             </div>
           );
         })}
