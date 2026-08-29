@@ -91,6 +91,12 @@ export interface UserList {
   itemCount: number;
 }
 
+export interface UserDefaultList {
+  id: number;
+  name: string;
+  type: string;
+}
+
 export interface UserListItem {
   id: number;
   movieId: number;
@@ -222,8 +228,39 @@ export const posterApi = {
     authClient.post<Result<PosterEnrichmentJob>>(`/api/poster/enrichment-jobs/${jobId}/cancel`),
 };
 
+let defaultListsCache: UserDefaultList[] | null = null;
+let defaultListsCacheToken: string | null = null;
+let defaultListsRequest: {
+  token: string | null;
+  promise: Promise<AxiosResponse<Result<UserDefaultList[]>>>;
+} | null = null;
+
 export const listApi = {
   getAll: (config?: AxiosRequestConfig) => authClient.get<Result<UserList[]>>('/api/user/lists', config),
+  getDefaults: (force = false, config?: AxiosRequestConfig) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('ff_token') : null;
+    if (!force && defaultListsCache && defaultListsCacheToken === token) {
+      return Promise.resolve({ data: { code: 200, data: defaultListsCache } } as AxiosResponse<Result<UserDefaultList[]>>);
+    }
+    if (!force && defaultListsRequest?.token === token) return defaultListsRequest.promise;
+    const promise = authClient
+      .get<Result<UserDefaultList[]>>('/api/user/lists/defaults', config)
+      .then((response) => {
+        const lists = Array.isArray(response.data.data) ? response.data.data : [];
+        defaultListsCache = lists;
+        defaultListsCacheToken = token;
+        return response;
+      })
+      .finally(() => {
+        if (defaultListsRequest?.promise === promise) defaultListsRequest = null;
+      });
+    defaultListsRequest = { token, promise };
+    return promise;
+  },
+  invalidateDefaults: () => {
+    defaultListsCache = null;
+    defaultListsCacheToken = null;
+  },
   create: (data: { name: string; description?: string }) => authClient.post<Result<UserList>>('/api/user/lists', data),
   update: (id: number, data: { name?: string; description?: string }) => authClient.put<Result<unknown>>(`/api/user/lists/${id}`, data),
   remove: (id: number) => authClient.delete<Result<unknown>>(`/api/user/lists/${id}`),
