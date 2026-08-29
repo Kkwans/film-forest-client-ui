@@ -35,6 +35,7 @@ import { TypeBadge, GenreTags } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import PosterSettingsCard from '@/components/PosterSettingsCard';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
+import { useContentStatusStore } from '@/stores/contentStatusStore';
 import { Modal } from '@/components/ui/modal';
 import Dialog from '@/components/Dialog';
 import WatchedModal from '@/components/WatchedModal';
@@ -267,7 +268,7 @@ function ListsTab({ onStatsChange }: { onStatsChange?: (stats: ProfileStats) => 
             <p className="mt-1 text-xs text-muted-foreground">看过、在看和想看统一在这里管理，不再维护两套列表样式。</p>
           </div>
         </div>
-        <HistoryTab />
+        <HistoryTab lists={lists} />
       </section>
 
       <section aria-labelledby="custom-lists-title">
@@ -439,7 +440,7 @@ function HistoryRow({ item }: { item: HistoryItem }) {
   );
 }
 
-function HistoryTab() {
+function HistoryTab({ lists: providedLists }: { lists?: UserList[] } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -459,6 +460,7 @@ function HistoryTab() {
   const [reloadKey, setReloadKey] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const showLoading = useDelayedLoading(loading);
+  const statusRevision = useContentStatusStore((state) => state.revision);
 
   const navigate = (updates: Record<string, string | number | null>) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -474,8 +476,10 @@ function HistoryTab() {
     setLoading(true);
     setLoadError(null);
 
-    void listApi.getAll({ signal: controller.signal }).then(async (response) => {
-      const allLists = Array.isArray(response.data.data) ? response.data.data : [];
+    const listsRequest = providedLists
+      ? Promise.resolve(providedLists)
+      : listApi.getAll({ signal: controller.signal }).then((response) => Array.isArray(response.data.data) ? response.data.data : []);
+    void listsRequest.then(async (allLists) => {
       const list = allLists.find((candidate) => candidate.isDefault === 1 && candidate.type === activeFilter);
       if (!list) {
         setItems([]);
@@ -506,13 +510,7 @@ function HistoryTab() {
     });
 
     return () => controller.abort();
-  }, [activeFilter, contentType, page, reloadKey, sort]);
-
-  useEffect(() => {
-    const handleStatusChange = () => setReloadKey((key) => key + 1);
-    window.addEventListener('movie-status-changed', handleStatusChange);
-    return () => window.removeEventListener('movie-status-changed', handleStatusChange);
-  }, []);
+  }, [activeFilter, contentType, page, providedLists, reloadKey, sort, statusRevision]);
 
   const filters = [
     { key: 'watched', label: '看过' },
@@ -685,6 +683,7 @@ export default function ProfileClient({ view = 'home' }: { view?: ProfileView })
   const [stats, setStats] = useState<ProfileStats | null>(null);
 
   useEffect(() => {
+    if (view !== 'home') return;
     if (!hasStoredToken()) {
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
       return;
@@ -702,7 +701,7 @@ export default function ProfileClient({ view = 'home' }: { view?: ProfileView })
       });
     }).catch(() => undefined);
     return () => controller.abort();
-  }, [pathname, router]);
+  }, [pathname, router, view]);
 
   if (!hasStoredToken()) return null;
 
