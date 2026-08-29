@@ -48,7 +48,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
           <button
             key={idx}
             onClick={() => onPageChange(page)}
-            className="h-11 w-11 rounded-lg text-sm font-medium transition-colors sm:h-8 sm:w-8"
+            className="h-11 w-11 shrink-0 rounded-lg text-sm font-medium transition-colors sm:h-8 sm:w-8"
             style={{
               backgroundColor: page === currentPage ? 'var(--accent)' : 'var(--bg-card)',
               color: page === currentPage ? 'white' : 'var(--text-secondary)',

@@ -223,8 +223,8 @@ function ExpandableLinkedValues({
           type="button"
           onClick={() => setExpanded((value) => !value)}
           className={expanded
-            ? 'mt-1 inline-flex min-h-7 items-center gap-1 rounded-md px-1 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card'
-            : 'absolute bottom-0 right-0 inline-flex min-h-7 items-center gap-1 rounded-md bg-card px-1 pl-2 text-xs font-semibold text-muted-foreground shadow-[-0.75rem_0_0.75rem_var(--bg-card)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card'}
+            ? 'mt-1 inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:min-h-7'
+            : 'absolute bottom-0 right-0 inline-flex min-h-11 items-center gap-1 rounded-md bg-card px-1 pl-2 text-xs font-semibold text-muted-foreground shadow-[-0.75rem_0_0.75rem_var(--bg-card)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:min-h-7'}
           aria-expanded={expanded}
           aria-label={`${expanded ? '收起' : '展开'}${label}`}
         >
@@ -262,7 +262,7 @@ function SeriesSelect({
         const nextId = Number(event.target.value);
         if (Number.isSafeInteger(nextId) && nextId > 0 && nextId !== currentId) router.push(`${listPath}/${nextId}`);
       }}
-      className="min-h-8 max-w-full rounded-lg border border-border bg-background px-2 text-sm text-secondary-foreground outline-none transition-[border-color,box-shadow] focus:border-accent focus:ring-1 focus:ring-accent/35"
+      className="min-h-11 max-w-full rounded-lg border border-border bg-background px-2 text-sm text-secondary-foreground outline-none transition-[border-color,box-shadow] focus:border-accent focus:ring-1 focus:ring-accent/35 sm:min-h-8"
     >
       {items.map((seriesItem) => (
         <option key={seriesItem.id} value={seriesItem.id}>
