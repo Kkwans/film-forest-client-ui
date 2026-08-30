@@ -7,6 +7,7 @@ import { ChevronDown, LogOut, Menu, Search, TreePine, UserRound, X } from 'lucid
 import { useUserStore } from '@/stores/userStore';
 import { searchApi } from '@/lib/api';
 import ThemeToggle from '@/components/ThemeToggle';
+import UserAvatar from '@/components/ui/UserAvatar';
 
 const NAV_ITEMS = [
   { label: '首页', href: '/' },
@@ -18,13 +19,6 @@ const NAV_ITEMS = [
   { label: '收藏', href: '/profile/lists' },
   { label: '设置', href: '/profile/settings' },
 ];
-
-function AvatarFallback({ name }: { name?: string }) {
-  const char = (name || '用').charAt(0);
-  return (
-    <span className="text-xs font-bold">{char}</span>
-  );
-}
 
 export default function Header() {
   const pathname = usePathname();
@@ -287,14 +281,7 @@ export default function Header() {
                   aria-expanded={userMenuOpen}
                   aria-haspopup="menu"
                 >
-                  <div className="flex size-7 items-center justify-center overflow-hidden rounded-lg bg-accent text-xs font-bold text-white">
-                    {user.avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- 头像 URL 由用户数据提供，来源域名不固定。
-                      <img src={user.avatar} alt="当前用户头像" className="h-full w-full object-cover" />
-                    ) : (
-                      <AvatarFallback name={user.nickname || user.username} />
-                    )}
-                  </div>
+                  <UserAvatar name={user.nickname || user.username} src={user.avatar} alt="当前用户头像" />
                   <span className="hidden max-w-24 truncate text-xs font-semibold xl:inline">{user.nickname || user.username}</span>
                   <ChevronDown className={`size-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} strokeWidth={2.25} aria-hidden />
                 </button>

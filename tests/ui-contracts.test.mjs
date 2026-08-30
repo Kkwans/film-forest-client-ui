@@ -128,6 +128,19 @@ test('content list uses the server taxonomy and keeps legacy filters out of the 
   assert.match(listSource, /兼容筛选条件/);
 });
 
+test('header, profile and mobile navigation share one avatar owner', () => {
+  for (const path of [
+    '../src/components/Header.tsx',
+    '../src/components/ProfileClient.tsx',
+    '../src/components/MobileBottomNav.tsx',
+  ]) {
+    const source = readFileSync(new URL(path, import.meta.url), 'utf8');
+    assert.match(source, /UserAvatar/);
+  }
+  const avatarSource = readFileSync(new URL('../src/components/ui/UserAvatar.tsx', import.meta.url), 'utf8');
+  assert.match(avatarSource, /rounded-full/);
+});
+
 test('legacy profile tabs map to the archive-style routes', () => {
   assert.equal(profileRouteFromLegacyTab('lists'), '/profile/lists');
   assert.equal(profileRouteFromLegacyTab('history'), '/profile/lists?status=watched');

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Clapperboard, Home, Search, UserRound, type LucideIcon } from 'lucide-react';
 import { useUserStore } from '@/stores/userStore';
+import UserAvatar from '@/components/ui/UserAvatar';
 
 const TABS: { label: string; href: string; icon: LucideIcon }[] = [
   { label: '首页', href: '/', icon: Home },
@@ -52,8 +53,7 @@ export default function MobileBottomNav() {
             >
               <span className={`flex size-7 items-center justify-center rounded-lg transition-colors ${active ? 'bg-[var(--accent-light)]' : 'group-hover:bg-card'}`}>
                 {tab.href === '/profile' && isAuthenticated && user?.avatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- 头像 URL 由用户数据提供，来源域名不固定。
-                  <img src={user.avatar} alt="当前用户头像" className="size-5 rounded-md object-cover" />
+                  <UserAvatar name={user.nickname || user.username} src={user.avatar} size="sm" alt="当前用户头像" />
                 ) : (
                   <Icon className="size-[18px]" strokeWidth={active ? 2.25 : 1.8} aria-hidden />
                 )}

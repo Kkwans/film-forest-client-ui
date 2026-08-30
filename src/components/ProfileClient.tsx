@@ -41,6 +41,7 @@ import Dialog from '@/components/Dialog';
 import WatchedModal from '@/components/WatchedModal';
 import CustomSelect from '@/components/CustomSelect';
 import Pagination from '@/components/Pagination';
+import UserAvatar from '@/components/ui/UserAvatar';
 
 interface TabDefinition {
   key: ProfileView;
@@ -711,14 +712,12 @@ export default function ProfileClient({ view = 'home' }: { view?: ProfileView })
     <div className="w-full space-y-5">
       <header className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between" aria-label="个人信息与页面导航">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-accent text-lg font-bold text-white shadow-sm">
-            {user?.avatar || user?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.avatar || user.avatarUrl} alt={`${user.nickname || user.username || '用户'}头像`} width={48} height={48} className="h-full w-full object-cover" />
-            ) : (
-              <span>{(user?.nickname || user?.username || '用').charAt(0)}</span>
-            )}
-          </div>
+          <UserAvatar
+            name={user?.nickname || user?.username}
+            src={user?.avatar || user?.avatarUrl}
+            size="lg"
+            className="shadow-sm"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-foreground">{user?.nickname || user?.username || '影视森林用户'}</p>
             <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
