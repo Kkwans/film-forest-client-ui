@@ -1,20 +1,16 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ListPlus } from 'lucide-react';
 import { parseRegion, parseGenre, cleanTitle as cleanTitleUtil } from '@/lib/utils';
-import { StatusIconButton, GenreTags } from '@/components/ContentShared';
+import { GenreTags, PosterStatusControl, RatingBadge } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
 import { listApi } from '@/lib/userApi';
 import { useUserStore } from '@/stores/userStore';
 import { useToast } from '@/components/Toast';
 import { useContentStatusStore } from '@/stores/contentStatusStore';
-
-const CollectModal = dynamic(() => import('@/components/CollectModal'), { ssr: false });
 
 interface MovieStatus {
   listType: string;
@@ -60,7 +56,6 @@ export default function MovieCard({
   const isAuthenticated = useUserStore((state) => state.isAuthenticated);
   const userId = useUserStore((state) => state.user?.id ?? null);
   const [navigating, setNavigating] = useState(false);
-  const [collectOpen, setCollectOpen] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
   const contentType = type || 'movie';
   const currentStatus = movieStatus || null;
@@ -99,16 +94,6 @@ export default function MovieCard({
       setStatusLoading(false);
     }
   }, [contentType, currentStatus, id, identityKey, isAuthenticated, patchStatus, router, showToast, statusLoading]);
-
-  const handleManageClick = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (!isAuthenticated) {
-      router.push(`/login?from=${encodeURIComponent(window.location.pathname)}`);
-      return;
-    }
-    setCollectOpen(true);
-  };
 
   const regionArr = parseRegion(region);
   const genreArr = parseGenre(genre);
@@ -162,12 +147,8 @@ export default function MovieCard({
             />
 
             {hasRating && (
-              <span
-                className="absolute left-2 top-2 inline-flex h-9 items-center gap-1.5 rounded-md bg-emerald-700/90 px-2.5 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm"
-                aria-label={`豆瓣评分 ${rating.toFixed(1)}`}
-              >
-                <span className="font-semibold opacity-90">豆瓣</span>
-                <span className="tabular-nums">{rating.toFixed(1)}</span>
+              <span className="absolute left-2 top-2">
+                <RatingBadge score={rating} />
               </span>
             )}
 
@@ -210,38 +191,16 @@ export default function MovieCard({
         </Link>
 
         {showCollect && (
-          <div className="absolute right-2 top-2 z-30 flex items-center gap-1">
-            <StatusIconButton
-              listType={wantToWatch ? 'want_to_watch' : null}
-              onClick={(event) => { event.preventDefault(); event.stopPropagation(); void handleWantToggle(); }}
-              size="sm"
+          <div className="absolute right-2 top-2 z-30">
+            <PosterStatusControl
+              listType={currentStatus?.listType}
+              wantToWatch={wantToWatch}
               loading={statusLoading}
-              title={wantToWatch ? '移出想看' : '加入想看'}
-              variant="bare"
-              emptyIcon="heart"
+              onToggleWant={(event) => { event.preventDefault(); event.stopPropagation(); void handleWantToggle(); }}
             />
-            <button
-              type="button"
-              onClick={handleManageClick}
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.9)] transition-transform hover:scale-110 sm:size-9"
-              aria-label="管理片单"
-              title="管理片单"
-            >
-              <ListPlus className="size-5" aria-hidden />
-            </button>
           </div>
         )}
       </article>
-
-      {showCollect && collectOpen && (
-        <CollectModal
-          open={collectOpen}
-          onClose={() => setCollectOpen(false)}
-          movieId={id}
-          contentType={contentType}
-          movieTitle={title}
-        />
-      )}
     </>
   );
 }

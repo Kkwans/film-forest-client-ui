@@ -9,6 +9,7 @@ import {
   formatWatchedAt,
   fractionalStarFill,
   getGenreColorToken,
+  getPosterStatusMode,
   parseProfileArchiveQuery,
   profileRouteFromLegacyTab,
   resolvePosterDisplay,
@@ -107,6 +108,14 @@ test('genre color tokens distinguish semantic categories', () => {
   assert.notEqual(getGenreColorToken('恐怖'), getGenreColorToken('惊悚'));
   assert.equal(getGenreColorToken('情色'), 'erotic');
   assert.equal(getGenreColorToken('科幻'), 'scifi');
+});
+
+test('poster status slot only toggles the want-to-watch state', () => {
+  assert.equal(getPosterStatusMode(null), 'toggle-want');
+  assert.equal(getPosterStatusMode('want_to_watch'), 'toggle-want');
+  assert.equal(getPosterStatusMode('watching'), 'readonly');
+  assert.equal(getPosterStatusMode('watched'), 'readonly');
+  assert.equal(getPosterStatusMode('custom'), 'readonly');
 });
 
 test('legacy profile tabs map to the archive-style routes', () => {

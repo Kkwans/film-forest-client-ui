@@ -175,3 +175,13 @@ export function filterResourcesByDiskType<T extends DiskResourceLike>(
   if (!selected || selected === 'all') return resources;
   return resources.filter((resource) => resource.diskType?.trim().toLocaleLowerCase('zh-CN') === selected);
 }
+
+export type PosterStatusMode = 'toggle-want' | 'readonly';
+
+/**
+ * 海报只保留一个状态槽：无状态/想看允许直接切换，其余状态只读展示。
+ * 复杂片单管理进入详情页或收藏工作台，避免在海报上堆叠互相竞争的操作。
+ */
+export function getPosterStatusMode(listType: string | null | undefined): PosterStatusMode {
+  return !listType || listType === 'want_to_watch' ? 'toggle-want' : 'readonly';
+}

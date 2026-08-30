@@ -7,7 +7,7 @@
 
 import { CONTENT_TYPE_TONE_CLASSES, getContentTypeConfig, getStatusConfig, TYPE_LABELS } from '@/lib/contentConstants';
 import { BookmarkPlus, CheckCircle2, Eye, Heart } from 'lucide-react';
-import { getGenreColorToken } from '@/lib/uiContracts';
+import { getGenreColorToken, getPosterStatusMode } from '@/lib/uiContracts';
 
 /* ============================================================
  * 1. 状态图标按钮（想看/在看/看过/片单）
@@ -18,7 +18,7 @@ interface StatusIconButtonProps {
   /** 当前状态（listType），null 表示未加入片单 */
   listType: string | null | undefined;
   /** 打开片单管理 */
-  onClick: (e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent) => void;
   /** 按钮大小 */
   size?: 'sm' | 'md';
   /** 额外 class */
@@ -33,6 +33,8 @@ interface StatusIconButtonProps {
   variant?: 'default' | 'overlay' | 'bare';
   /** 无状态时的入口图标；海报卡片用心形，加入片单入口用书签加号 */
   emptyIcon?: 'heart' | 'list';
+  /** 只读状态仍保留可识别图标，但不伪装成可点击操作。 */
+  readOnly?: boolean;
 }
 
 export function StatusIconButton({
@@ -45,6 +47,7 @@ export function StatusIconButton({
   showLabel = false,
   variant = 'default',
   emptyIcon = 'list',
+  readOnly = false,
 }: StatusIconButtonProps) {
   const config = listType ? getStatusConfig(listType) : null;
   const sizeClass = size === 'sm' ? 'size-11 sm:size-9' : 'size-11';
@@ -86,15 +89,58 @@ export function StatusIconButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={loading || readOnly}
       className={`${buttonSize} inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border transition-[background-color,border-color,color,transform] hover:border-current/55 ${variant === 'overlay' ? 'backdrop-blur-[2px] hover:bg-black/40' : ''} ${variant === 'bare' ? 'hover:scale-110' : ''} ${className}`}
       style={buttonStyle}
       title={title || defaultTitle}
       aria-label={title || defaultTitle}
-      aria-haspopup={variant === 'bare' ? undefined : 'dialog'}
+      aria-haspopup={!readOnly && variant !== 'bare' ? 'dialog' : undefined}
+      aria-disabled={readOnly || undefined}
     >
       {loading ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <StatusIcon className={iconClass} fill={isWant ? 'currentColor' : 'none'} aria-hidden />}
       {showLabel && <span className="hidden text-xs font-semibold sm:inline">{label}</span>}
     </button>
+  );
+}
+
+export function RatingBadge({ score, source = '豆瓣' }: { score: number; source?: string }) {
+  return (
+    <span
+      className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-white/20 bg-slate-950/68 px-2 text-[10px] font-semibold text-white shadow-sm backdrop-blur-md sm:h-9"
+      aria-label={`${source}评分 ${score.toFixed(1)}`}
+    >
+      <span className="font-medium text-white/72">{source}</span>
+      <span className="tabular-nums">{score.toFixed(1)}</span>
+    </span>
+  );
+}
+
+interface PosterStatusControlProps {
+  listType: string | null | undefined;
+  wantToWatch?: boolean;
+  loading?: boolean;
+  onToggleWant: (event: React.MouseEvent) => void;
+}
+
+export function PosterStatusControl({ listType, wantToWatch, loading = false, onToggleWant }: PosterStatusControlProps) {
+  const mode = getPosterStatusMode(listType);
+  const effectiveType = mode === 'toggle-want' && wantToWatch ? 'want_to_watch' : listType;
+  const config = effectiveType ? getStatusConfig(effectiveType) : null;
+  const title = mode === 'toggle-want'
+    ? wantToWatch ? '移出想看' : '加入想看'
+    : `${config?.label || '已加入片单'}，请在详情页或收藏中管理`;
+
+  return (
+    <StatusIconButton
+      listType={effectiveType}
+      onClick={mode === 'toggle-want' ? onToggleWant : undefined}
+      size="sm"
+      loading={loading}
+      title={title}
+      variant="bare"
+      emptyIcon="heart"
+      readOnly={mode === 'readonly'}
+    />
   );
 }
 
