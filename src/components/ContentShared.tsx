@@ -1,12 +1,14 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
 /**
  * 内容展示共享 UI 组件
  * 从 MovieCard / SearchPage / ListDetailPage 等多处提取的重复渲染逻辑
  */
 
 import { CONTENT_TYPE_TONE_CLASSES, getContentTypeConfig, getStatusConfig, TYPE_LABELS } from '@/lib/contentConstants';
-import { BookmarkPlus, CheckCircle2, Eye, Heart } from 'lucide-react';
+import { BookmarkPlus, CheckCircle2, Eye, Heart, Star } from 'lucide-react';
 import { getGenreColorToken, getPosterStatusMode } from '@/lib/uiContracts';
 
 /* ============================================================
@@ -112,6 +114,85 @@ export function RatingBadge({ score, source = '豆瓣' }: { score: number; sourc
       <span className="font-medium text-white/72">{source}</span>
       <span className="tabular-nums">{score.toFixed(1)}</span>
     </span>
+  );
+}
+
+export interface RatingSummaryProps {
+  douban?: number | null;
+  imdb?: number | null;
+  rt?: number | null;
+  doubanDetail?: string;
+  imdbDetail?: string;
+  rtDetail?: string;
+  /** Detail pages may show a source even when only its vote count is known. */
+  includeEmpty?: boolean;
+  variant?: 'compact' | 'detail';
+  className?: string;
+}
+
+/** Shared platform-score treatment for search, detail and activity surfaces. */
+export function RatingSummary({
+  douban,
+  imdb,
+  rt,
+  doubanDetail,
+  imdbDetail,
+  rtDetail,
+  includeEmpty = false,
+  variant = 'compact',
+  className = '',
+}: RatingSummaryProps) {
+  const formatScore = (value: number | null | undefined, suffix = '') =>
+    typeof value === 'number' && value > 0 ? `${value.toFixed(1)}${suffix}` : null;
+  const ratings = [
+    { label: '豆瓣', score: formatScore(douban), detail: doubanDetail, className: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
+    { label: 'IMDb', score: formatScore(imdb), detail: imdbDetail, className: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300' },
+    { label: '烂番茄', score: formatScore(rt, '%'), detail: rtDetail, className: 'border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300' },
+  ].filter((rating) => rating.score || (includeEmpty && rating.detail));
+
+  if (ratings.length === 0) return null;
+  const detail = variant === 'detail';
+  return (
+    <div className={`${detail ? 'grid grid-flow-col auto-cols-fr items-stretch gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2' : 'flex min-w-0 flex-wrap items-center gap-1.5'} ${className}`} aria-label="平台评分">
+      {ratings.map((rating) => (
+        <span key={rating.label} className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border ${detail ? 'px-1.5 py-1.5 text-xs sm:gap-2 sm:rounded-xl sm:px-3 sm:py-2 sm:text-sm' : 'h-6 px-1.5 text-[10px]'} ${rating.className}`}>
+          <Star aria-hidden className={`${detail ? 'hidden size-3.5 sm:block' : 'size-3'} fill-current`} />
+          <span className={`truncate font-medium opacity-80 ${detail ? 'text-[10px] sm:text-xs' : ''}`}>{rating.label}</span>
+          <strong className="tabular-nums">{rating.score || '暂无'}</strong>
+          {rating.detail && <span className={`${detail ? 'hidden text-[11px] xl:inline' : 'hidden'} opacity-70`}>{rating.detail}</span>}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Shared responsive horizontal media shell.  The desktop action column is a
+ * real grid track; on narrow screens it moves below the content instead of
+ * covering long titles or relying on compensating right padding.
+ */
+export function MediaHorizontalCard({
+  poster,
+  actions,
+  footer,
+  children,
+  className = '',
+}: {
+  poster: ReactNode;
+  actions?: ReactNode;
+  footer?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <article className={`grid min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-3 transition-[border-color,box-shadow] hover:border-accent/40 hover:shadow-sm sm:p-4 ${className}`}>
+      <div className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[8rem_minmax(0,1fr)_auto] sm:gap-4">
+        <div className="min-w-0 sm:row-span-2">{poster}</div>
+        <div className="min-w-0">{children}</div>
+        {actions && <div className="col-span-2 flex min-w-0 items-center justify-end gap-1.5 border-t border-border/60 pt-2 sm:col-span-1 sm:row-span-2 sm:flex-col sm:items-end sm:justify-start sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">{actions}</div>}
+      </div>
+      {footer && <div className="mt-3 min-w-0 border-t border-border/60 pt-3">{footer}</div>}
+    </article>
   );
 }
 

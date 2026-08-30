@@ -3,13 +3,12 @@
 import dynamic from 'next/dynamic';
 import { Suspense, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { Star } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import CustomSelect from '@/components/CustomSelect';
 import LazyImage from '@/components/ui/lazy-image';
 import Pagination from '@/components/Pagination';
 import TagFilter from '@/components/TagFilter';
-import { GenreTags, StatusIconButton, TypeBadge } from '@/components/ContentShared';
+import { GenreTags, MediaHorizontalCard, RatingSummary, StatusIconButton, TypeBadge } from '@/components/ContentShared';
 import {
   CONTENT_TYPE_REGISTRY,
   type ContentType,
@@ -128,24 +127,6 @@ function valuesOf(value: string | string[] | undefined): string[] {
 function HighlightValues({ values, keyword }: { values: string[]; keyword: string }) {
   if (values.length === 0) return '--';
   return <>{values.map((value, index) => <span key={`${value}-${index}`}><Highlight text={value} keyword={keyword} />{index < values.length - 1 && <span className="mx-1 text-muted-foreground/60">/</span>}</span>)}</>;
-}
-
-function SearchRatingSummary({ douban, imdb, rt }: { douban?: number | null; imdb?: number | null; rt?: number | null }) {
-  const formatScore = (value: number | null | undefined, suffix = '') => typeof value === 'number' && value > 0 ? `${value.toFixed(1)}${suffix}` : null;
-  const ratings = [
-    { label: '豆瓣', score: formatScore(douban), className: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' },
-    { label: 'IMDb', score: formatScore(imdb), className: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300' },
-    { label: '烂番茄', score: formatScore(rt, '%'), className: 'border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300' },
-  ].filter((rating): rating is { label: string; score: string; className: string } => Boolean(rating.score));
-  if (ratings.length === 0) return null;
-
-  return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="平台评分">
-      {ratings.map((rating) => <span key={rating.label} className={`inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-[10px] font-medium ${rating.className}`}>
-        <Star aria-hidden className="size-3 fill-current" />{rating.label} <strong className="tabular-nums">{rating.score}</strong>
-      </span>)}
-    </div>
-  );
 }
 
 function isContentType(value: string): value is ContentType {
@@ -422,10 +403,25 @@ function SearchContent() {
             const displayYear = validYear(item.year);
             const releaseValue = item.releaseDate?.trim() || (displayYear ? String(displayYear) : '--');
             return (
-              <article key={`${type}-${item.id}`} className="relative rounded-2xl border border-border bg-card transition-[border-color,box-shadow] hover:border-accent/40 hover:shadow-sm">
-                <Link href={`/${config.route}/${item.id}`} prefetch={false} className="grid min-h-[10.5rem] grid-cols-[6.5rem_minmax(0,1fr)] gap-3 p-3 no-underline sm:min-h-[12rem] sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4">
-                <SearchPoster item={item} type={type} />
-                <div className="flex min-w-0 flex-col py-0.5 pr-28 sm:py-1 sm:pr-36">
+              <MediaHorizontalCard
+                key={`${type}-${item.id}`}
+                poster={<Link href={`/${config.route}/${item.id}`} prefetch={false} className="relative block min-w-0 overflow-hidden rounded-xl" aria-label={`查看《${item.title}》详情`}><SearchPoster item={item} type={type} /></Link>}
+                actions={<div aria-label="搜索结果操作" className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 sm:flex-col sm:items-end">
+                  <StatusIconButton
+                    listType={status?.listType}
+                    size="md"
+                    showLabel
+                    title={status?.listType ? '管理观看状态' : '加入片单'}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setCollectionTarget({ contentId: item.id, contentType: type, title: item.title });
+                    }}
+                  />
+                  <TypeBadge contentType={type} size="sm" />
+                </div>}
+              >
+                <Link href={`/${config.route}/${item.id}`} prefetch={false} className="block min-w-0 no-underline" aria-label={`查看《${item.title}》详情`}>
+                <div className="flex min-w-0 flex-col py-0.5 sm:py-1">
                   <div className="flex min-w-0 items-start gap-3">
                     <h2 className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-foreground sm:text-base sm:leading-6">
                       <Highlight text={item.title} keyword={q} />
@@ -433,9 +429,7 @@ function SearchContent() {
                     </h2>
                   </div>
                   {aliases.length > 0 && <p className="mt-1 hidden min-w-0 truncate text-xs text-muted-foreground sm:block" title={`别名：${aliases.join(' / ')}`}>别名：<HighlightValues values={aliases} keyword={q} /></p>}
-                  <div className="mt-2">
-                    <SearchRatingSummary douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} />
-                  </div>
+                  <div className="mt-2"><RatingSummary douban={item.rating} imdb={item.ratingImdb} rt={item.ratingRT} /></div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-5 text-secondary-foreground sm:hidden">
                     {displayYear && <span>{displayYear}</span>}
                     {parseRegion(item.region).slice(0, 1).map((entry) => <span key={entry}>{entry}</span>)}
@@ -452,21 +446,7 @@ function SearchContent() {
                   {item.summary && <p className="mt-3 hidden text-sm leading-6 text-muted-foreground sm:line-clamp-2"><Highlight text={item.summary} keyword={q} /></p>}
                 </div>
                 </Link>
-                <div className="absolute right-3 top-3 flex max-w-[9rem] items-center gap-1.5 sm:right-4 sm:top-4" aria-label="搜索结果操作">
-                  <StatusIconButton
-                    listType={status?.listType}
-                    size="md"
-                    showLabel
-                    title={status?.listType ? '管理观看状态' : '加入片单'}
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setCollectionTarget({ contentId: item.id, contentType: type, title: item.title });
-                    }}
-                  />
-                  <TypeBadge contentType={type} size="sm" />
-                </div>
-              </article>
+              </MediaHorizontalCard>
             );
           })}
         </div>

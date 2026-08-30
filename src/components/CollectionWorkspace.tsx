@@ -22,7 +22,7 @@ import { useToast } from '@/components/Toast';
 import { cleanTitle as cleanTitleUtil, formatRelativeTime, parseRegion } from '@/lib/utils';
 import { parseJsonArr } from '@/lib/contentConstants';
 import { formatWatchedAt } from '@/lib/uiContracts';
-import { GenreTags, RatingBadge, TypeBadge } from '@/components/ContentShared';
+import { GenreTags, MediaHorizontalCard, RatingBadge, TypeBadge } from '@/components/ContentShared';
 import LazyImage from '@/components/ui/lazy-image';
 import { usePosterUrl } from '@/hooks/usePosterUrl';
 import { useContentStatusStore } from '@/stores/contentStatusStore';
@@ -116,7 +116,40 @@ function CollectionItemCard({
     : formatRelativeTime(item.addedAt || '');
 
   return (
-    <article className={`group relative flex min-h-[12.25rem] min-w-0 overflow-hidden rounded-2xl border bg-card p-3 transition-[border-color,box-shadow,transform] sm:p-3.5 ${selected ? 'border-accent ring-2 ring-accent/20' : 'border-border hover:-translate-y-0.5 hover:border-accent/35 hover:shadow-[var(--shadow-md)]'}`}>
+    <MediaHorizontalCard
+      className={`group relative min-h-[12.25rem] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 ${selected ? 'border-accent ring-2 ring-accent/20' : ''}`}
+      poster={(
+        <div className={batchMode ? 'pointer-events-none opacity-70' : ''}>
+          <Link href={href} prefetch={false} className="relative block aspect-[2/3] w-full overflow-hidden rounded-xl" aria-label={`查看《${title}》详情`}>
+            <LazyImage src={posterUrl} alt={title} className="h-full rounded-xl" aspectRatio={null} fallbackSrc="/poster-placeholder.svg" rootMargin="160px" />
+            {item.rating != null && Number(item.rating) > 0 && (
+              <span className="absolute bottom-1 left-1">
+                <RatingBadge score={Number(item.rating)} />
+              </span>
+            )}
+          </Link>
+        </div>
+      )}
+      actions={!batchMode && (
+        <Link href={href} prefetch={false} className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-accent no-underline hover:bg-accent/10" aria-label={`查看《${title}》详情`}>
+          查看详情<ChevronRight aria-hidden className="size-4" />
+        </Link>
+      )}
+      footer={!batchMode && (
+        <section className="flex min-w-0 items-center gap-2" aria-label={`《${title}》的收藏记录`}>
+          <button type="button" onClick={() => onEdit(true)} className="min-w-0 flex-1 truncate text-left text-xs text-secondary-foreground hover:text-accent">
+            <span className="font-semibold text-foreground">{hasRating || hasNote ? '我的记录' : '备注与评价'}</span>
+            <span className="ml-2 truncate text-muted-foreground">{hasRating ? `${Number(item.userRating).toFixed(1)} 分` : hasNote ? item.note : '点击添加记录'}</span>
+          </button>
+          <button type="button" onClick={() => onEdit(false)} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-foreground hover:bg-muted hover:text-accent" aria-label={`${watched ? '评价' : '备注'}《${title}》`} title={watched ? '评价' : '备注'}>
+            <Edit3 aria-hidden className="size-4" />
+          </button>
+          <button type="button" onClick={onRemove} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-500/10 dark:text-red-400" aria-label={`移除《${title}》`} title="移除">
+            <Trash2 aria-hidden className="size-4" />
+          </button>
+        </section>
+      )}
+    >
       {batchMode && (
         <button
           type="button"
@@ -131,17 +164,7 @@ function CollectionItemCard({
         </button>
       )}
 
-      <div className={`grid min-w-0 flex-1 grid-cols-[5.25rem_minmax(0,1fr)] gap-3 ${batchMode ? 'pointer-events-none opacity-70' : ''}`}>
-        <Link href={href} prefetch={false} className="relative block h-[8.75rem] w-[5.25rem] shrink-0 overflow-hidden rounded-xl" aria-label={`查看《${title}》详情`}>
-          <LazyImage src={posterUrl} alt={title} className="h-full rounded-xl" aspectRatio={null} fallbackSrc="/poster-placeholder.svg" rootMargin="160px" />
-          {item.rating != null && Number(item.rating) > 0 && (
-            <span className="absolute bottom-1 left-1">
-              <RatingBadge score={Number(item.rating)} />
-            </span>
-          )}
-        </Link>
-
-        <div className="flex min-w-0 flex-col">
+      <div className={`flex min-h-full min-w-0 flex-col ${batchMode ? 'pointer-events-none opacity-70' : ''}`}>
           <div className="flex min-w-0 items-start justify-between gap-2">
             <Link href={href} prefetch={false} className="min-w-0 truncate text-sm font-bold leading-5 text-foreground no-underline hover:text-accent" title={title}>{title}</Link>
           </div>
@@ -158,30 +181,9 @@ function CollectionItemCard({
 
           <div className="mt-auto flex min-w-0 items-end justify-between gap-2 pt-2">
             <span className="min-w-0 truncate text-[10px] text-muted-foreground">{dateLabel} · {activityLabel(list.type)}</span>
-            {!batchMode && (
-              <Link href={href} prefetch={false} className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-accent no-underline hover:bg-accent/10" aria-label={`查看《${title}》详情`}>
-                <ChevronRight aria-hidden className="size-4" />
-              </Link>
-            )}
           </div>
-        </div>
-
-        {!batchMode && (
-          <section className="col-span-2 flex min-w-0 items-center gap-2 border-t border-border pt-2" aria-label={`《${title}》的收藏记录`}>
-            <button type="button" onClick={() => onEdit(true)} className="min-w-0 flex-1 truncate text-left text-xs text-secondary-foreground hover:text-accent">
-              <span className="font-semibold text-foreground">{hasRating || hasNote ? '我的记录' : '备注与评价'}</span>
-              <span className="ml-2 truncate text-muted-foreground">{hasRating ? `${Number(item.userRating).toFixed(1)} 分` : hasNote ? item.note : '点击添加记录'}</span>
-            </button>
-            <button type="button" onClick={() => onEdit(false)} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-foreground hover:bg-muted hover:text-accent" aria-label={`${watched ? '评价' : '备注'}《${title}》`} title={watched ? '评价' : '备注'}>
-              <Edit3 aria-hidden className="size-4" />
-            </button>
-            <button type="button" onClick={onRemove} className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-red-600 hover:bg-red-500/10 dark:text-red-400" aria-label={`移除《${title}》`} title="移除">
-              <Trash2 aria-hidden className="size-4" />
-            </button>
-          </section>
-        )}
       </div>
-    </article>
+    </MediaHorizontalCard>
   );
 }
 

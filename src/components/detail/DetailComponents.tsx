@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, CirclePlay, Clapperboard, Clock3, Copy, ExternalLink, Inbox, Magnet, Star } from 'lucide-react';
+import { ChevronDown, ChevronRight, CirclePlay, Clapperboard, Clock3, Copy, ExternalLink, Inbox, Magnet } from 'lucide-react';
 import LazyImage from '@/components/ui/lazy-image';
 import { getPlaybackSourceMode } from '@/lib/playbackSource';
+import { RatingSummary } from '@/components/ContentShared';
 
 /**
  * 详情页通用组件库
@@ -97,29 +98,16 @@ interface RatingBadgesProps {
 
 export function RatingBadges({ douban, doubanCount, imdb, imdbCount, rt, rtCriticCount, rtAudienceCount }: RatingBadgesProps) {
   const hasCount = (value?: number | null) => value != null && value > 0;
-  const badges: { label: string; value: string; className: string; detail?: string }[] = [
-    douban != null || hasCount(doubanCount) ? { label: '豆瓣', value: douban != null ? douban.toFixed(1) : '暂无', detail: hasCount(doubanCount) ? `${doubanCount!.toLocaleString('zh-CN')}人评分` : undefined, className: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' } : null,
-    imdb != null || hasCount(imdbCount) ? { label: 'IMDb', value: imdb != null ? imdb.toFixed(1) : '暂无', detail: hasCount(imdbCount) ? `${imdbCount!.toLocaleString('zh-CN')}人评分` : undefined, className: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300' } : null,
-    rt != null || hasCount(rtCriticCount) || hasCount(rtAudienceCount) ? { label: '烂番茄', value: rt != null ? `${rt}%` : '暂无', detail: [hasCount(rtCriticCount) ? `影评人 ${rtCriticCount!.toLocaleString('zh-CN')}` : '', hasCount(rtAudienceCount) ? `观众 ${rtAudienceCount!.toLocaleString('zh-CN')}` : ''].filter(Boolean).join(' / ') || undefined, className: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300' } : null,
-  ].filter((b): b is NonNullable<typeof b> => b !== null);
-
-  if (badges.length === 0) return null;
-
-  return (
-    <div className="grid grid-flow-col auto-cols-fr items-stretch gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
-      {badges.map((b, i) => (
-        <span
-          key={i}
-          className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border px-1.5 py-1.5 text-xs sm:gap-2 sm:rounded-xl sm:px-3 sm:py-2 sm:text-sm ${b.className}`}
-        >
-          <Star aria-hidden className="hidden size-3.5 fill-current sm:block" />
-          <span className="truncate text-[10px] font-medium opacity-80 sm:text-xs">{b.label}</span>
-          <strong className="tabular-nums">{b.value}</strong>
-          {b.detail && <span className="hidden text-[11px] opacity-70 xl:inline">{b.detail}</span>}
-        </span>
-      ))}
-    </div>
-  );
+  return <RatingSummary
+    douban={douban}
+    doubanDetail={hasCount(doubanCount) ? `${doubanCount!.toLocaleString('zh-CN')}人评分` : undefined}
+    imdb={imdb}
+    imdbDetail={hasCount(imdbCount) ? `${imdbCount!.toLocaleString('zh-CN')}人评分` : undefined}
+    rt={rt}
+    rtDetail={[hasCount(rtCriticCount) ? `影评人 ${rtCriticCount!.toLocaleString('zh-CN')}` : '', hasCount(rtAudienceCount) ? `观众 ${rtAudienceCount!.toLocaleString('zh-CN')}` : ''].filter(Boolean).join(' / ') || undefined}
+    includeEmpty
+    variant="detail"
+  />;
 }
 
 /* ============================================================

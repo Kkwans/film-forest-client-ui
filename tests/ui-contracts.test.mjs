@@ -251,3 +251,18 @@ test('search adapter normalizes wire aliases and truthful nullable scores', () =
   assert.equal(normalizeSearchRecord({ id: 1, type: 'unknown', title: '坏数据' }), null);
   assert.equal(normalizeSearchRecord({ id: 2, type: 'movie', title: '缺失评分', scoreDouban: null }).rating, null);
 });
+
+test('search and collection use the shared horizontal media shell', () => {
+  const searchSource = readFileSync(new URL('../src/app/search/page.tsx', import.meta.url), 'utf8');
+  const sharedSource = readFileSync(new URL('../src/components/ContentShared.tsx', import.meta.url), 'utf8');
+  const collectionSource = readFileSync(new URL('../src/components/CollectionWorkspace.tsx', import.meta.url), 'utf8');
+  assert.match(sharedSource, /export function MediaHorizontalCard/);
+  assert.match(sharedSource, /export function RatingSummary/);
+  assert.match(searchSource, /MediaHorizontalCard/);
+  assert.match(searchSource, /RatingSummary/);
+  assert.equal(searchSource.includes('SearchRatingSummary'), false);
+  assert.equal(searchSource.includes('pr-28'), false);
+  assert.equal(searchSource.includes('pr-36'), false);
+  assert.equal(searchSource.includes('absolute right-3 top-3'), false);
+  assert.match(collectionSource, /MediaHorizontalCard/);
+});
