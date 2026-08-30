@@ -168,6 +168,18 @@ test('legacy profile tabs map to the archive-style routes', () => {
   assert.equal(profileRouteFromLegacyTab('unknown'), null);
 });
 
+test('collection workspace owns the canonical list route and responsive grid', () => {
+  const workspaceSource = readFileSync(new URL('../src/components/CollectionWorkspace.tsx', import.meta.url), 'utf8');
+  const legacySource = readFileSync(new URL('../src/app/user/lists/[id]/page.tsx', import.meta.url), 'utf8');
+  assert.match(workspaceSource, /CollectionItemCard/);
+  assert.match(workspaceSource, /md:grid-cols-2 xl:grid-cols-3/);
+  assert.match(workspaceSource, /role="tablist"/);
+  assert.match(workspaceSource, /listApi\.getItems/);
+  assert.match(workspaceSource, /listApi\.batchRemoveItems/);
+  assert.match(legacySource, /redirect\(`\/profile\/lists\?/);
+  assert.equal(legacySource.includes('ListItemCard'), false);
+});
+
 test('profile archive query parser applies safe defaults', () => {
   assert.deepEqual(parseProfileArchiveQuery({ status: 'watching', type: 'drama', page: '3', sort: 'year' }), {
     status: 'watching', type: 'drama', page: 3, sort: 'year',

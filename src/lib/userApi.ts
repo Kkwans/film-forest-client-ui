@@ -117,6 +117,14 @@ export interface UserListItem {
   totalEpisode?: number;
 }
 
+export interface UserListPage {
+  records: UserListItem[];
+  total: number;
+  size: number;
+  current: number;
+  pages: number;
+}
+
 /**
  * Server-authoritative playback history projection.
  *
@@ -265,7 +273,7 @@ export const listApi = {
   update: (id: number, data: { name?: string; description?: string }) => authClient.put<Result<unknown>>(`/api/user/lists/${id}`, data),
   remove: (id: number) => authClient.delete<Result<unknown>>(`/api/user/lists/${id}`),
   getItems: (id: number, params?: { page?: number; size?: number; sort?: string; sortDir?: string; contentType?: string }, config?: AxiosRequestConfig) =>
-    authClient.get<Result<unknown>>(`/api/user/lists/${id}/items`, { ...config, params }),
+    authClient.get<Result<UserListPage>>(`/api/user/lists/${id}/items`, { ...config, params }),
   addItem: (id: number, data: { movieId: number; contentType: string; rating?: number; note?: string }) =>
     authClient.post<Result<unknown>>(`/api/user/lists/${id}/items`, data),
   removeItem: (id: number, data: { movieId: number; contentType: string }) =>
