@@ -125,6 +125,47 @@ export interface UserListPage {
   pages: number;
 }
 
+export interface ProfileOverviewItem {
+  id: number;
+  listId: number;
+  listName?: string;
+  listType?: string;
+  movieId: number;
+  contentType: string;
+  addedAt?: string;
+  watchedAt?: string;
+  title: string;
+  cover?: string;
+  year?: number;
+  rating?: number;
+  userRating?: number;
+  note?: string;
+  region?: string;
+  genre?: string;
+  duration?: number;
+  totalEpisode?: number;
+}
+
+export interface ProfileFacet {
+  value: string;
+  count: number;
+}
+
+export interface ProfileOverview {
+  stats: {
+    listCount: number;
+    wantCount: number;
+    watchedCount: number;
+    customCount: number;
+  };
+  recentWatched: ProfileOverviewItem[];
+  recentRatings: ProfileOverviewItem[];
+  wantPreview: ProfileOverviewItem[];
+  customListPreview: ProfileOverviewItem[];
+  topGenres: ProfileFacet[];
+  topRegions: ProfileFacet[];
+}
+
 /**
  * Server-authoritative playback history projection.
  *
@@ -282,6 +323,11 @@ export const listApi = {
     authClient.delete(`/api/user/lists/${id}/items/batch`, { data: { items } } as object),
   updateItem: (id: number, data: { movieId: number; contentType: string; rating?: number; note?: string }) =>
     authClient.put<Result<unknown>>(`/api/user/lists/${id}/items`, data),
+};
+
+export const profileApi = {
+  getOverview: (config?: AxiosRequestConfig) =>
+    authClient.get<Result<ProfileOverview>>('/api/user/profile/overview', config),
 };
 
 export interface ContentStatusQuery {

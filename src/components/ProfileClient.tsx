@@ -18,11 +18,11 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useUserStore, hasStoredToken } from '@/stores/userStore';
-import { listApi } from '@/lib/userApi';
 import { useToast } from '@/components/Toast';
 import PosterSettingsCard from '@/components/PosterSettingsCard';
 import UserAvatar from '@/components/ui/UserAvatar';
 import CollectionWorkspace from '@/components/CollectionWorkspace';
+import ProfileDashboard from '@/components/ProfileDashboard';
 
 interface TabDefinition {
   key: ProfileView;
@@ -39,13 +39,6 @@ const PROFILE_NAV: TabDefinition[] = [
   { key: 'lists', label: '我的收藏', description: '观看状态、评分与自定义片单', href: '/profile/lists', Icon: FolderHeart },
   { key: 'settings', label: '设置', description: '外观、账户与数据源', href: '/profile/settings', Icon: Settings },
 ];
-
-interface ProfileStats {
-  listCount: number;
-  wantCount: number;
-  watchedCount: number;
-  customCount: number;
-}
 
 function SettingsTab() {
   const { user, logout } = useUserStore();
@@ -116,50 +109,17 @@ function SettingsTab() {
   );
 }
 
-function ProfileOverview({ stats }: { stats: ProfileStats | null }) {
-  const entries = PROFILE_NAV.filter((item) => item.key !== 'home');
-
-  return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(20rem,.75fr)]">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-        {entries.map((entry) => <Link key={entry.key} href={entry.href} className="group flex min-h-20 items-center gap-3 rounded-2xl border border-border bg-card p-4 no-underline transition-[border-color,box-shadow] hover:border-accent/35 hover:shadow-sm"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent"><entry.Icon aria-hidden className="size-5" /></span><span className="flex min-w-0 flex-1 items-center justify-between gap-3"><span className="min-w-0"><span className="block text-base font-semibold text-foreground">{entry.label}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{entry.description}</span></span><ChevronRight aria-hidden className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent" /></span></Link>)}
-      </div>
-      <section className="rounded-2xl border border-border bg-card p-4" aria-labelledby="profile-summary-title">
-        <h2 id="profile-summary-title" className="text-sm font-semibold text-foreground">收藏概览</h2>
-        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
-          {[['全部片单', stats?.listCount], ['想看', stats?.wantCount], ['看过', stats?.watchedCount], ['自定义片单', stats?.customCount]].map(([label, value]) => <div key={label as string} className="border-t border-border pt-2"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 text-xl font-bold tabular-nums text-foreground">{value ?? '—'}</dd></div>)}
-        </dl>
-      </section>
-    </div>
-  );
-}
-
 export default function ProfileClient({ view = 'home' }: { view?: ProfileView }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useUserStore();
-  const [stats, setStats] = useState<ProfileStats | null>(null);
 
   useEffect(() => {
     if (!hasStoredToken()) {
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
       return;
     }
-    if (view !== 'home') return;
-    const controller = new AbortController();
-    void listApi.getAll({ signal: controller.signal }).then((response) => {
-      if (controller.signal.aborted) return;
-      const lists = Array.isArray(response.data.data) ? response.data.data : [];
-      const defaults = lists.filter((list) => list.isDefault === 1);
-      setStats({
-        listCount: lists.length,
-        wantCount: defaults.find((list) => list.type === 'want_to_watch')?.itemCount || 0,
-        watchedCount: defaults.find((list) => list.type === 'watched')?.itemCount || 0,
-        customCount: lists.filter((list) => list.isDefault !== 1).length,
-      });
-    }).catch(() => undefined);
-    return () => controller.abort();
-  }, [pathname, router, view]);
+  }, [pathname, router]);
 
   if (!hasStoredToken()) return null;
 
@@ -167,7 +127,7 @@ export default function ProfileClient({ view = 'home' }: { view?: ProfileView })
   const collectionView = view === 'lists' || view === 'archive';
 
   return (
-    <div className="w-full space-y-5">
+    <div className={`mx-auto w-full ${collectionView ? 'max-w-[100rem]' : 'max-w-[92rem]'} space-y-5`}>
       <header className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between" aria-label="个人信息与页面导航">
         <div className="flex min-w-0 items-center gap-3"><UserAvatar name={user?.nickname || user?.username} src={user?.avatar || user?.avatarUrl} size="lg" className="shadow-sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-foreground">{user?.nickname || user?.username || '影视森林用户'}</p><div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground"><span className="truncate">{user?.username ? `@${user.username}` : '个人收藏'}</span><span aria-hidden>·</span><span>{current.label}</span></div></div></div>
         <nav className="filter-scroll-row rounded-xl bg-card p-1" aria-label="个人中心">{PROFILE_NAV.map((item) => <Link key={item.key} href={item.href} aria-current={view === item.key ? 'page' : undefined} className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium no-underline transition-colors ${view === item.key ? 'bg-accent text-white shadow-sm' : 'text-secondary-foreground hover:bg-muted'}`}><item.Icon aria-hidden className="h-4 w-4" />{item.label}</Link>)}</nav>
@@ -175,8 +135,8 @@ export default function ProfileClient({ view = 'home' }: { view?: ProfileView })
 
       <div><h1 className="text-2xl font-bold tracking-tight text-foreground">{current.label}</h1><p className="mt-1 text-sm text-muted-foreground">{current.description}</p></div>
 
-      {view === 'home' && <ProfileOverview stats={stats} />}
-      {collectionView && <CollectionWorkspace onStatsChange={setStats} />}
+      {view === 'home' && <ProfileDashboard />}
+      {collectionView && <CollectionWorkspace />}
       {view === 'settings' && <SettingsTab />}
     </div>
   );

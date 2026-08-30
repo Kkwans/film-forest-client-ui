@@ -180,6 +180,16 @@ test('collection workspace owns the canonical list route and responsive grid', (
   assert.equal(legacySource.includes('ListItemCard'), false);
 });
 
+test('profile dashboard consumes bounded overview projections and keeps empty states honest', () => {
+  const dashboardSource = readFileSync(new URL('../src/components/ProfileDashboard.tsx', import.meta.url), 'utf8');
+  const apiSource = readFileSync(new URL('../src/lib/userApi.ts', import.meta.url), 'utf8');
+  assert.match(dashboardSource, /profileApi\.getOverview/);
+  assert.match(dashboardSource, /ContinueWatching/);
+  assert.match(dashboardSource, /items\.length === 0/);
+  assert.match(apiSource, /\/api\/user\/profile\/overview/);
+  assert.match(apiSource, /customListPreview/);
+});
+
 test('profile archive query parser applies safe defaults', () => {
   assert.deepEqual(parseProfileArchiveQuery({ status: 'watching', type: 'drama', page: '3', sort: 'year' }), {
     status: 'watching', type: 'drama', page: 3, sort: 'year',
