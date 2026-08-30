@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { Clapperboard, RefreshCw } from 'lucide-react';
 import { relatedApi, type RelatedItem } from '@/lib/api';
-import LazyImage from '@/components/ui/lazy-image';
-import { usePosterUrl } from '@/hooks/usePosterUrl';
+import MovieCard from '@/components/MovieCard';
+import { contentStatusKey, useContentStatuses } from '@/hooks/useMovieStatuses';
 
 /** 获取内容类型对应的路由路径 */
 function getTypePath(type: string): string {
@@ -17,48 +16,6 @@ function getTypePath(type: string): string {
     short_drama: '/short',
   };
   return map[type] || `/${type}`;
-}
-
-function RelatedCard({ item }: { item: RelatedItem }) {
-  const posterUrl = usePosterUrl(item.type, item.id, item.posterUrl);
-
-  return (
-    <Link
-      href={`${getTypePath(item.type)}/${item.id}`}
-      aria-label={`查看《${item.title}》详情`}
-      className="group block no-underline"
-      prefetch={false}
-    >
-      <article className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-lg">
-        <div className="relative aspect-[2/3] overflow-hidden">
-          <LazyImage
-            src={posterUrl}
-            alt={item.title}
-            className="rounded-none"
-            imgClassName="img-zoom"
-            placeholder="blur"
-            aspectRatio={null}
-            fallbackSrc="/poster-placeholder.svg"
-            rootMargin="300px"
-          />
-          {item.scoreDouban != null && item.scoreDouban > 0 && (
-            <span className="absolute right-2 top-2 rounded bg-black/75 px-1.5 py-0.5 text-xs font-bold text-white backdrop-blur-sm">
-              {item.scoreDouban.toFixed(1)}
-            </span>
-          )}
-        </div>
-
-        <div className="flex min-h-20 flex-col gap-1 p-2.5">
-          <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground transition-colors group-hover:text-accent">
-            {item.title}
-          </p>
-          {item.year ? (
-            <span className="text-xs text-muted-foreground">{item.year}</span>
-          ) : null}
-        </div>
-      </article>
-    </Link>
-  );
 }
 
 /** 相关推荐区域 */
@@ -75,6 +32,11 @@ export default function RelatedSection({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const statusQueries = useMemo(
+    () => items.map((item) => ({ contentType: item.type, contentId: item.id })),
+    [items],
+  );
+  const statusMap = useContentStatuses(statusQueries);
 
   useEffect(() => {
     if (!contentId || !contentType) return;
@@ -137,7 +99,21 @@ export default function RelatedSection({
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
           {items.map((item) => (
-            <RelatedCard key={`${item.type}-${item.id}`} item={item} />
+            <MovieCard
+              key={`${item.type}-${item.id}`}
+              id={item.id}
+              title={item.title}
+              cover={item.posterUrl}
+              year={item.year}
+              region={item.region}
+              rating={item.scoreDouban}
+              type={item.type}
+              genre={item.genre}
+              duration={item.duration}
+              episodes={item.totalEpisode}
+              href={`${getTypePath(item.type)}/${item.id}`}
+              movieStatus={statusMap[contentStatusKey(item.type, item.id)] || null}
+            />
           ))}
         </div>
       )}

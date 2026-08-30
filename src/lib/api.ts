@@ -293,6 +293,10 @@ export interface RelatedItem {
   posterUrl?: string;
   year?: number;
   scoreDouban?: number;
+  region?: string[];
+  genre?: string[];
+  duration?: number;
+  totalEpisode?: number;
 }
 
 export const relatedApi = {

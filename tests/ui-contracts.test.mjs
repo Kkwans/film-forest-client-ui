@@ -141,6 +141,14 @@ test('header, profile and mobile navigation share one avatar owner', () => {
   assert.match(avatarSource, /rounded-full/);
 });
 
+test('related content reuses the canonical movie card', () => {
+  const source = readFileSync(new URL('../src/components/RelatedSection.tsx', import.meta.url), 'utf8');
+  assert.match(source, /import MovieCard/);
+  assert.equal(source.includes('function RelatedCard'), false);
+  assert.match(source, /region=\{item\.region\}/);
+  assert.match(source, /genre=\{item\.genre\}/);
+});
+
 test('legacy profile tabs map to the archive-style routes', () => {
   assert.equal(profileRouteFromLegacyTab('lists'), '/profile/lists');
   assert.equal(profileRouteFromLegacyTab('history'), '/profile/lists?status=watched');
