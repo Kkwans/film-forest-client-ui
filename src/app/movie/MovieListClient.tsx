@@ -74,10 +74,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
   return (
     <div className="flex flex-col gap-6" aria-busy={isPending}>
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{config.label}</h1>
-          <p className="mt-1 text-xs text-muted-foreground">筛选条件已同步到地址栏，可复制、刷新或前进后退</p>
-        </div>
+        <h1 className="sr-only">{config.label}</h1>
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
@@ -103,9 +100,7 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
           <TagFilter
             contentType={contentType}
             selectedTagId={query.tag || null}
-            selectedLegacyGenre={query.genre || null}
             onSelect={(tag) => updateUrl({ tag, genre: null })}
-            onSelectLegacyGenre={(genre) => updateUrl({ genre, tag: null })}
           />
         </div>
 
@@ -169,15 +164,23 @@ export default function MovieListClient({ initialItems, initialTotal, initialErr
           </div>
         </div>
 
-        <div className="grid gap-2">
-          <span className="text-xs font-semibold text-muted-foreground">资源状态</span>
-          <div className="filter-scroll-row">
-            <FilterChip label="全部内容" active={query.hasResource === undefined} onClick={() => updateUrl({ hasResource: null })} />
-            <FilterChip label="有可用资源" active={query.hasResource === true} onClick={() => updateUrl({ hasResource: true })} />
-            <FilterChip label="暂无可用资源" active={query.hasResource === false} onClick={() => updateUrl({ hasResource: false })} />
-          </div>
-        </div>
       </section>
+
+      {(query.genre || query.hasResource !== undefined) && (
+        <div className="flex flex-wrap items-center gap-2" aria-label="兼容筛选条件">
+          <span className="text-xs text-muted-foreground">当前仍应用旧链接中的筛选：</span>
+          {query.genre && (
+            <button type="button" onClick={() => updateUrl({ genre: null })} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border bg-card px-3 text-xs font-medium text-secondary-foreground">
+              题材 · {query.genre}<X className="size-3.5" aria-hidden />
+            </button>
+          )}
+          {query.hasResource !== undefined && (
+            <button type="button" onClick={() => updateUrl({ hasResource: null })} className="inline-flex min-h-9 items-center gap-1 rounded-full border border-border bg-card px-3 text-xs font-medium text-secondary-foreground">
+              {query.hasResource ? '有可用资源' : '暂无可用资源'}<X className="size-3.5" aria-hidden />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm text-muted-foreground">

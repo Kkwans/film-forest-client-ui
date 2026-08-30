@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { mapDetailData } from '../src/lib/detailMapping.ts';
@@ -116,6 +117,15 @@ test('poster status slot only toggles the want-to-watch state', () => {
   assert.equal(getPosterStatusMode('watching'), 'readonly');
   assert.equal(getPosterStatusMode('watched'), 'readonly');
   assert.equal(getPosterStatusMode('custom'), 'readonly');
+});
+
+test('content list uses the server taxonomy and keeps legacy filters out of the primary panel', () => {
+  const tagFilterSource = readFileSync(new URL('../src/components/TagFilter.tsx', import.meta.url), 'utf8');
+  const listSource = readFileSync(new URL('../src/app/movie/MovieListClient.tsx', import.meta.url), 'utf8');
+  assert.equal(tagFilterSource.includes('MOVIE_SUPPLEMENTAL_GENRES'), false);
+  assert.equal(listSource.includes('筛选条件已同步到地址栏'), false);
+  assert.equal(listSource.includes('>资源状态<'), false);
+  assert.match(listSource, /兼容筛选条件/);
 });
 
 test('legacy profile tabs map to the archive-style routes', () => {
