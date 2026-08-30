@@ -132,7 +132,7 @@ export function InfoRow({ label, children, accent }: {
   accent?: boolean;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 py-2.5 text-sm leading-6 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-x-3.5">
+    <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] items-start gap-x-2.5 gap-y-1 py-2.5 text-sm leading-6">
       <span className="pt-px font-medium text-muted-foreground">
         {label}
       </span>
@@ -235,7 +235,7 @@ export function EpisodeGrid({ total, selected, onSelect, label = '集', gridCols
 
   return (
     <section className="rounded-3xl border border-border bg-card p-4 sm:p-6">
-      <h3 className="mb-4 text-lg font-black tracking-tight text-foreground">全部{label} <span className="ml-1 text-sm font-medium text-muted-foreground">{total}{label}</span></h3>
+      <h3 className="mb-4 text-lg font-black tracking-tight text-foreground">选{label} <span className="ml-1 text-sm font-medium text-muted-foreground">· 共 {total}{label}</span></h3>
       <div className={`grid ${gridCols} gap-2`}>
         {episodes.map(ep => (
           <button
@@ -536,7 +536,6 @@ export interface MagnetResourceListItem {
   title?: string;
   url?: string;
   sizeLabel?: string;
-  timeLabel?: string;
 }
 
 /** 磁力资源使用表格化桌面布局和信息优先的移动布局，避免下载名与元信息互相挤压。 */
@@ -557,27 +556,24 @@ export function MagnetResourceList({ resources, copiedId, onCopy, emptyText }: {
 
   return (
     <div className="overflow-hidden" role="table" aria-label="磁力资源列表">
-      <div className="hidden border-b border-border bg-muted/55 px-4 py-2.5 text-xs font-semibold text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_auto_7rem_9rem] md:items-center md:gap-4" role="row">
+      <div className="hidden border-b border-border bg-muted/55 px-4 py-2.5 text-xs font-semibold text-muted-foreground md:grid md:grid-cols-[minmax(0,1fr)_7rem_9rem] md:items-center md:gap-4" role="row">
         <span role="columnheader">名称</span>
-        <span role="columnheader">下载</span>
         <span role="columnheader" className="text-center">大小</span>
-        <span role="columnheader" className="text-right">入库时间</span>
+        <span role="columnheader" className="text-center">操作</span>
       </div>
       <div>
         {resources.map((resource) => {
           const value = resource.url || '';
           return (
-            <div key={resource.id} className="grid grid-cols-1 gap-x-4 gap-y-2 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1fr)_auto_7rem_9rem] md:items-center md:py-3" role="row">
+            <div key={resource.id} className="grid grid-cols-1 gap-x-4 gap-y-2 border-b border-border px-4 py-4 last:border-b-0 md:grid-cols-[minmax(0,1fr)_7rem_9rem] md:items-center md:py-3" role="row">
               <div className="flex min-w-0 items-start gap-2.5 md:items-center">
                 <Magnet aria-hidden className="mt-0.5 size-4 shrink-0 text-accent md:mt-0" />
                 <p className="min-w-0 break-all text-sm font-medium leading-5 text-accent md:truncate" title={resource.title || '资源链接'} role="cell">
                   {resource.title || '资源链接'}
                 </p>
               </div>
-              <div className="col-span-1 grid grid-cols-2 gap-2 text-xs text-secondary-foreground md:hidden">
-                <span className="min-w-0 truncate">{resource.timeLabel || '--'}</span>
-                <span className="min-w-0 truncate">大小：{resource.sizeLabel || '未知'}</span>
-              </div>
+              <span className="text-xs text-secondary-foreground md:hidden" role="cell">大小：{resource.sizeLabel || '未知'}</span>
+              <span className="hidden text-center text-sm text-secondary-foreground md:block" role="cell">{resource.sizeLabel || '未知'}</span>
               <div className="flex items-center justify-center md:h-full md:self-stretch" role="cell">
                 <button
                   type="button"
@@ -589,8 +585,6 @@ export function MagnetResourceList({ resources, copiedId, onCopy, emptyText }: {
                   {copiedId === resource.id ? '已复制' : '复制磁力'}
                 </button>
               </div>
-              <span className="hidden text-center text-sm text-secondary-foreground md:block" role="cell">{resource.sizeLabel || '未知'}</span>
-              <span className="hidden text-right text-sm text-secondary-foreground md:block" role="cell">{resource.timeLabel || '--'}</span>
             </div>
           );
         })}

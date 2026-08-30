@@ -152,16 +152,7 @@ function LinkedValues({ values, href }: { values: string[]; href: (value: string
 }
 
 function GenreLinkedValues({ values, href }: { values: string[]; href: (value: string) => string }) {
-  if (values.length === 0) return <span className="text-muted-foreground">--</span>;
-  return (
-    <span className="flex flex-wrap gap-x-3 gap-y-1.5">
-      {values.map((value) => (
-        <Link key={value} href={href(value)} className="group inline-flex min-h-8 items-center gap-1 border-b border-accent/30 text-xs font-semibold text-accent no-underline transition-[border-color,color] hover:border-accent hover:text-accent-hover">
-          {value}<span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
-        </Link>
-      ))}
-    </span>
-  );
+  return <LinkedValues values={values} href={href} />;
 }
 
 function ExpandableLinkedValues({
@@ -200,7 +191,7 @@ function ExpandableLinkedValues({
   if (values.length === 0) return <span className="text-muted-foreground">--</span>;
 
   return (
-    <div className="relative min-w-0">
+    <div className="min-w-0">
       <span
         ref={measurementRef}
         aria-hidden="true"
@@ -222,9 +213,7 @@ function ExpandableLinkedValues({
         <button
           type="button"
           onClick={() => setExpanded((value) => !value)}
-          className={expanded
-            ? 'mt-1 inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:min-h-7'
-            : 'absolute bottom-0 right-0 inline-flex min-h-11 items-center gap-1 rounded-md bg-card px-1 pl-2 text-xs font-semibold text-muted-foreground shadow-[-0.75rem_0_0.75rem_var(--bg-card)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:min-h-7'}
+          className="mt-1 inline-flex min-h-11 items-center gap-1 rounded-md px-1 text-xs font-semibold text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-card sm:min-h-7"
           aria-expanded={expanded}
           aria-label={`${expanded ? '收起' : '展开'}${label}`}
         >
@@ -418,13 +407,6 @@ export default function DetailPageLayout({
   const ds = useDetailStatus(item.id, contentType);
   const posterResolution = usePosterResolution(contentType, item.id, item.cover, { enrich: true });
   const resolvedCover = posterResolution.url;
-  const posterStatusLabel = posterResolution.status === 'tmdb'
-    ? '已匹配外部海报'
-    : posterResolution.status === 'fallback'
-      ? '保留来源海报'
-      : posterResolution.status === 'unavailable'
-        ? '外部海报暂不可用，保留来源海报'
-        : '';
   const { showToast } = useToast();
   const magnetCategories = useMemo(() => Array.from(new Set(
     magnetResources.map((resource) => resource.qualityCategory || '未知'),
@@ -608,7 +590,7 @@ export default function DetailPageLayout({
             <DetailCover src={resolvedCover} alt={item.title} />
           </aside>
           <div className="flex min-w-0 flex-col gap-4 py-1">
-            <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-6">
               <div className="min-w-0 flex-1">
                 <DetailTitle title={item.title} year={item.year} />
               </div>
@@ -685,33 +667,8 @@ export default function DetailPageLayout({
         onToggle={() => setSynopsisExpanded(!synopsisExpanded)}
       />
 
-      <section className="rounded-2xl border border-border bg-card/70 px-4 py-3 sm:px-5" aria-labelledby="detail-maintenance-title">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <h2 id="detail-maintenance-title" className="text-xs font-semibold text-muted-foreground">维护信息</h2>
-          <p className="text-xs text-muted-foreground">
-            <span className="mr-2">数据更新</span>
-            <span className="text-secondary-foreground">{item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('zh-CN') : '--'}</span>
-          </p>
-          {posterStatusLabel && (
-            <p className="text-xs text-muted-foreground">
-              <span className="mr-2">海报来源</span>
-              <span className="text-secondary-foreground">{posterStatusLabel}</span>
-            </p>
-          )}
-        </div>
-      </section>
-
       {(
         <>
-          {hasEpisodes && item.totalEpisode && item.totalEpisode > 0 && (
-            <EpisodeGrid
-              total={item.totalEpisode}
-              selected={selectedEpisode}
-              onSelect={setSelectedEpisode}
-              label={episodeLabel}
-            />
-          )}
-
           <ResourceTabs
             tabs={[
               { key: 'magnet', label: '磁力链接', count: magnetResources.length },
@@ -723,6 +680,14 @@ export default function DetailPageLayout({
           >
             {downloadTab === 'online' ? (
               <div className="space-y-4">
+                {hasEpisodes && item.totalEpisode && item.totalEpisode > 0 && (
+                  <EpisodeGrid
+                    total={item.totalEpisode}
+                    selected={selectedEpisode}
+                    onSelect={setSelectedEpisode}
+                    label={episodeLabel}
+                  />
+                )}
                 {resourceErrors.includes('online') && !loadingResources && (
                   <ResourceErrorNotice
                     kind="online"
@@ -805,11 +770,11 @@ export default function DetailPageLayout({
                           aria-pressed={active}
                           className={`min-h-11 shrink-0 rounded-full border px-3 text-xs font-semibold transition-[color,background-color,border-color] sm:min-h-9 ${
                             active
-                              ? 'border-accent bg-accent text-white'
+                              ? 'border-accent/45 bg-accent/10 text-accent'
                               : 'border-border bg-background text-secondary-foreground hover:border-accent/45'
                           }`}
                         >
-                          {category} <span className={active ? 'text-white' : 'text-muted-foreground'}>{count}</span>
+                          {category} <span className="text-muted-foreground">{count}</span>
                         </button>
                       );
                     })}
@@ -823,7 +788,6 @@ export default function DetailPageLayout({
                       title: presentation.title,
                       url: resource.magnetUrl,
                       sizeLabel: formatResourceSize(resource.sizeBytes),
-                      timeLabel: presentation.timeLabel,
                     };
                   })}
                   copiedId={copiedId}

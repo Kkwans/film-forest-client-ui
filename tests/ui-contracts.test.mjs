@@ -149,6 +149,18 @@ test('related content reuses the canonical movie card', () => {
   assert.match(source, /genre=\{item\.genre\}/);
 });
 
+test('detail metadata and resources follow the shared layout contracts', () => {
+  const detailSource = readFileSync(new URL('../src/components/DetailPageLayout.tsx', import.meta.url), 'utf8');
+  const componentSource = readFileSync(new URL('../src/components/detail/DetailComponents.tsx', import.meta.url), 'utf8');
+  assert.equal(detailSource.includes('detail-maintenance-title'), false);
+  assert.equal(detailSource.includes('group-hover:translate-x-0.5'), false);
+  assert.equal(detailSource.includes('absolute bottom-0 right-0'), false);
+  assert.match(detailSource, /downloadTab === 'online'[\s\S]*<EpisodeGrid/);
+  assert.match(componentSource, /grid-cols-\[3\.5rem_minmax\(0,1fr\)\]/);
+  assert.match(componentSource, /grid-cols-\[minmax\(0,1fr\)_7rem_9rem\]/);
+  assert.equal(componentSource.includes('columnheader" className="text-right">入库时间'), false);
+});
+
 test('legacy profile tabs map to the archive-style routes', () => {
   assert.equal(profileRouteFromLegacyTab('lists'), '/profile/lists');
   assert.equal(profileRouteFromLegacyTab('history'), '/profile/lists?status=watched');
